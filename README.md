@@ -21,7 +21,13 @@ Download the latest installer from the [Releases](https://github.com/yash-1o1/wi
 - **MSI installer** — standard Windows install/uninstall
 - **NSIS setup** — portable installer
 
-Requires Windows 10/11.
+### Requirements
+
+- Windows 10/11
+- [RomM](https://github.com/rommapp/romm) **v4.x** (tested on v4.6.1) — for library sync features
+- Emulators installed for your desired platforms
+
+> **RomM Compatibility:** Wingosy uses RomM's OAuth2 API with scoped tokens. RomM v3.x and earlier are not supported due to API differences. Your RomM user account needs admin or editor role for full sync access.
 
 ## Quick Start
 
