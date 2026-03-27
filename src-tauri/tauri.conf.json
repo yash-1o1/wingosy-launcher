@@ -54,6 +54,7 @@
     "windows": [
       {
         "fullscreen": false,
+        "maximized": true,
         "resizable": true,
         "title": "Wingosy Launcher",
         "width": 1280,

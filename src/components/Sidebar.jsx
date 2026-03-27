@@ -1,15 +1,12 @@
 import Box from "@mui/material/Box";
-import Drawer from "@mui/material/Drawer";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
-import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import SettingsIcon from "@mui/icons-material/Settings";
-import VideogameAssetIcon from "@mui/icons-material/VideogameAsset";
 import HomeIcon from "@mui/icons-material/Home";
 
 const PLATFORM_ICONS = {
@@ -29,16 +26,16 @@ export default function Sidebar({
   drawerWidth,
 }) {
   return (
-    <Drawer
-      variant="permanent"
+    <Box
       sx={{
         width: drawerWidth,
-        flexShrink: 0,
-        "& .MuiDrawer-paper": {
-          width: drawerWidth,
-          boxSizing: "border-box",
-          borderRight: "1px solid rgba(255,255,255,0.06)",
-        },
+        minWidth: drawerWidth,
+        height: "100vh",
+        bgcolor: "#1a1a22",
+        borderRight: "1px solid rgba(255,255,255,0.06)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
       <Box sx={{ p: 2.5, pb: 1 }}>
@@ -145,6 +142,6 @@ export default function Sidebar({
           <ListItemText primary="Settings" />
         </ListItemButton>
       </List>
-    </Drawer>
+    </Box>
   );
 }

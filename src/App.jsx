@@ -176,8 +176,7 @@ function App() {
       <Box
         component="main"
         sx={{
-          width: `calc(100vw - ${DRAWER_WIDTH}px)`,
-          ml: `${DRAWER_WIDTH}px`,
+          flex: 1,
           height: "100vh",
           overflow: "auto",
           bgcolor: "background.default",
