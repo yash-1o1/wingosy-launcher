@@ -1,6 +1,6 @@
 # Wingosy Launcher
 
-A Windows-native game launcher with RomM integration for managing and launching emulated games. Inspired by [Argosy Launcher](https://github.com/rommapp/argosy-launcher) for Android.
+A Windows-native game launcher with RomM integration for managing and launching emulated games. Built with Tauri (Rust backend) and React + MUI (frontend). Inspired by [Argosy Launcher](https://github.com/rommapp/argosy-launcher) for Android.
 
 ## Features
 
@@ -17,36 +17,29 @@ A Windows-native game launcher with RomM integration for managing and launching 
 - **Metadata**: View game information, cover art, and play statistics
 
 ### Emulator Support
-- **Auto-Detection**: Automatically detects installed emulators
+- **Auto-Detection**: Automatically detects installed emulators on Windows
 - **Per-Game Overrides**: Set specific emulators for individual games
 - **RetroArch Integration**: Full RetroArch core support with automatic core selection
 - **Standalone Emulators**: Dolphin, PCSX2, RPCS3, PPSSPP, DuckStation, Cemu, Ryujinx, and more
 
 ## Installation
 
-### Prerequisites
+Download the latest installer from the [Releases](https://github.com/yash-1o1/wingosy-launcher/releases) page:
+
+- **MSI installer** — standard Windows install/uninstall
+- **NSIS setup** — portable installer
+
+### Requirements
 - Windows 10/11
-- [Rust](https://rustup.rs/) (for building from source)
-- Visual Studio Build Tools with C++ workload
+- Emulators installed for your desired platforms
+- A [RomM](https://github.com/rommapp/romm) server (optional, for sync features)
 
-### Building from Source
+## Quick Start
 
-```bash
-# Clone the repository
-git clone https://github.com/your-username/wingosy-launcher.git
-cd wingosy-launcher
-
-# Build release version
-cargo build --release
-
-# Run
-cargo run --release
-```
-
-The release executable will be located at:
-```
-target/release/wingosy-launcher.exe
-```
+1. Install and launch Wingosy
+2. Open **Settings** and scan your ROM directory
+3. (Optional) Connect to your RomM server for cloud sync
+4. Browse your library and start playing
 
 ## Configuration
 
@@ -54,21 +47,6 @@ Configuration is stored in:
 - **Config**: `%APPDATA%/wingosy/launcher/config.toml`
 - **Database**: `%APPDATA%/wingosy/launcher/wingosy.db`
 - **Cache**: `%LOCALAPPDATA%/wingosy/launcher/cache/`
-
-### RomM Server Setup
-
-1. Open Settings in Wingosy
-2. Enter your RomM server URL (e.g., `https://romm.example.com`)
-3. Enter your credentials
-4. Click "Connect"
-
-### Adding Emulators
-
-Wingosy will attempt to auto-detect installed emulators. To manually configure:
-
-1. Open Settings > Emulators
-2. Browse to your emulator executable
-3. Select the platforms it should handle
 
 ## Supported Platforms
 
@@ -80,12 +58,12 @@ Wingosy will attempt to auto-detect installed emulators. To manually configure:
 | GameCube | `.iso`, `.gcm`, `.rvz` | Dolphin |
 | Wii | `.iso`, `.wbfs`, `.rvz` | Dolphin |
 | Wii U | `.wud`, `.wux`, `.rpx` | Cemu |
-| Switch | `.nsp`, `.xci` | Ryujinx / Yuzu |
+| Switch | `.nsp`, `.xci` | Ryujinx |
 | Game Boy | `.gb` | RetroArch (Gambatte) |
 | Game Boy Color | `.gbc` | RetroArch (Gambatte) |
 | Game Boy Advance | `.gba` | mGBA / RetroArch |
 | Nintendo DS | `.nds` | melonDS |
-| Nintendo 3DS | `.3ds`, `.cia` | Lime3DS / Citra |
+| Nintendo 3DS | `.3ds`, `.cia` | Lime3DS |
 | PlayStation | `.bin`, `.cue`, `.chd` | DuckStation |
 | PlayStation 2 | `.iso`, `.chd` | PCSX2 |
 | PlayStation 3 | `.iso`, `.pkg` | RPCS3 |
@@ -96,89 +74,68 @@ Wingosy will attempt to auto-detect installed emulators. To manually configure:
 | Xbox 360 | `.iso`, `.xex` | Xenia Canary |
 | Arcade | `.zip` | MAME |
 
-## Project Structure
-
-```
-wingosy-launcher/
-├── Cargo.toml              # Rust dependencies
-├── src/
-│   ├── main.rs             # Entry point
-│   ├── api/                # RomM API client
-│   │   ├── mod.rs
-│   │   ├── romm.rs         # RomM API implementation
-│   │   └── download.rs     # Download manager
-│   ├── config/             # Configuration management
-│   │   └── mod.rs
-│   ├── database/           # SQLite database layer
-│   │   ├── mod.rs
-│   │   ├── connection.rs
-│   │   ├── games.rs
-│   │   ├── platforms.rs
-│   │   ├── collections.rs
-│   │   └── emulators.rs
-│   ├── emulators/          # Emulator launching
-│   │   ├── mod.rs
-│   │   ├── launcher.rs
-│   │   └── detection.rs
-│   ├── models/             # Data models
-│   │   ├── mod.rs
-│   │   ├── game.rs
-│   │   ├── platform.rs
-│   │   ├── collection.rs
-│   │   ├── emulator.rs
-│   │   └── sync.rs
-│   ├── scanner/            # ROM scanning
-│   │   └── mod.rs
-│   └── ui/                 # Iced GUI
-│       ├── mod.rs
-│       ├── app.rs
-│       ├── theme.rs
-│       ├── views/
-│       └── components/
-```
-
 ## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| Language | Rust |
-| GUI | Iced |
+| Backend | Rust |
+| Frontend | React 18 |
+| UI Library | Material UI (MUI) 6 |
+| Desktop Framework | Tauri 1 |
+| Build Tool | Vite |
 | Database | SQLite (rusqlite) |
-| HTTP | reqwest |
-| Async | Tokio |
-| Serialization | Serde |
+| HTTP Client | reqwest |
+| Async Runtime | Tokio |
+
+## Building from Source
+
+```bash
+# Prerequisites: Rust, Node.js 18+, Visual Studio Build Tools (C++)
+
+git clone https://github.com/yash-1o1/wingosy-launcher.git
+cd wingosy-launcher
+npm install
+npm run tauri build
+```
+
+Outputs:
+- `src-tauri/target/release/bundle/msi/` — MSI installer
+- `src-tauri/target/release/bundle/nsis/` — NSIS setup executable
+- `src-tauri/target/release/wingosy-launcher.exe` — standalone binary
+
+For development with hot-reload:
+
+```bash
+npm run tauri dev
+```
 
 ## Roadmap
 
 ### Current (v0.1.0)
-- [x] Project structure and architecture
-- [x] Local database with SQLite
+- [x] Tauri + React + MUI project architecture
+- [x] Local SQLite database with full schema
 - [x] ROM scanning with platform detection
-- [x] Basic GUI with game library
-- [x] Emulator launching
-- [x] RomM API client
+- [x] Game library UI with search and filtering
+- [x] Emulator launching with play session tracking
+- [x] RomM API client with authentication
+- [x] Settings UI (RomM, library scanning, emulator detection)
+- [x] Windows emulator auto-detection
+- [x] MSI and NSIS installers
 
 ### Planned
-- [ ] Full RomM sync implementation
+- [ ] Full RomM library sync
 - [ ] Save file synchronization
 - [ ] Cover art downloading and caching
 - [ ] Download queue with progress tracking
 - [ ] Archive extraction (.zip, .7z)
-- [ ] Settings UI
 - [ ] First-run setup wizard
 - [ ] Gamepad navigation support
-- [ ] Custom themes
+- [ ] Custom themes (light/dark/custom)
 - [ ] RetroAchievements display
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Make your changes
-4. Run `cargo fmt` and `cargo clippy`
-5. Submit a pull request
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, architecture overview, and development workflow.
 
 ## License
 
@@ -187,4 +144,4 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ## Credits
 
 - Inspired by [Argosy Launcher](https://github.com/rommapp/argosy-launcher) for Android
-- Built to complement [RomM](https://github.com/rommapp/romm) - the self-hosted ROM manager
+- Built to complement [RomM](https://github.com/rommapp/romm) — the self-hosted ROM manager
