@@ -236,7 +236,7 @@ pub async fn sync_romm_library(server_url: String, _token: String) -> CommandRes
                 .map_err(CommandError::from)?;
 
             for rom in &roms.items {
-                let release_year = rom.first_release_date.and_then(|ts| {
+                let release_year = rom.first_release_date().and_then(|ts| {
                     chrono::DateTime::from_timestamp(ts, 0)
                         .map(|dt| {
                             use chrono::Datelike;
@@ -248,20 +248,20 @@ pub async fn sync_romm_library(server_url: String, _token: String) -> CommandRes
                     id: 0,
                     platform_id: mapped_platform.clone(),
                     name: rom.name.clone(),
-                    file_path: rom.file_name.clone(),
+                    file_path: rom.fs_name.clone(),
                     source: GameSource::RomM,
                     romm_id: Some(rom.id),
                     summary: rom.summary.clone(),
                     developer: None,
                     publisher: None,
                     release_year,
-                    genres: rom.genres.clone().unwrap_or_default(),
+                    genres: rom.genres(),
                     player_count: None,
                     cover_path: None,
                     screenshot_paths: Vec::new(),
                     is_favorite: false,
                     is_hidden: false,
-                    user_rating: rom.aggregated_rating,
+                    user_rating: rom.aggregated_rating(),
                     last_played_at: None,
                     play_count: 0,
                     play_time_minutes: 0,
@@ -269,15 +269,16 @@ pub async fn sync_romm_library(server_url: String, _token: String) -> CommandRes
                     local_file_path: None,
                 };
 
-                if rom.has_cover {
+                if let Some(ref cover_url) = rom.url_cover {
                     let covers_dir = AppConfig::covers_dir().unwrap_or_default();
                     std::fs::create_dir_all(&covers_dir).ok();
                     let cover_path = covers_dir.join(format!("{}.jpg", rom.id));
                     if !cover_path.exists() {
-                        let cover_url = client.cover_url(rom.id);
                         let dl = crate::api::download::DownloadManager::new();
-                        if let Ok(bytes) = dl.download_bytes(&cover_url, client.token()).await {
-                            std::fs::write(&cover_path, &bytes).ok();
+                        if let Ok(bytes) = dl.download_bytes(cover_url, None).await {
+                            if bytes.len() > 100 {
+                                std::fs::write(&cover_path, &bytes).ok();
+                            }
                         }
                     }
                     game.cover_path = Some(cover_path.to_string_lossy().to_string());
@@ -320,12 +321,12 @@ pub async fn download_rom(game_id: i64, server_url: String, _token: String) -> C
     ).await.map_err(CommandError::from)?;
     let rom = client.get_rom(romm_id).await.map_err(CommandError::from)?;
 
-    let download_url = client.rom_download_url(romm_id, &rom.file_name);
+    let download_url = client.rom_download_url(romm_id, &rom.fs_name);
 
     let config = AppConfig::load().unwrap_or_default();
     let dest_dir = config.roms_dir().join(&game.platform_id);
     std::fs::create_dir_all(&dest_dir).ok();
-    let dest_path = dest_dir.join(&rom.file_name);
+    let dest_path = dest_dir.join(&rom.fs_name);
 
     let dl = crate::api::download::DownloadManager::new();
     dl.download_file(&download_url, &dest_path, client.token(), |_progress| {})

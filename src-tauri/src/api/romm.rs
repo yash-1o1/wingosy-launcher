@@ -31,7 +31,12 @@ impl RomMClient {
         let response = self
             .client
             .post(format!("{}/api/token", self.base_url))
-            .form(&[("username", username), ("password", password)])
+            .form(&[
+                ("username", username),
+                ("password", password),
+                ("grant_type", "password"),
+                ("scope", "me.read me.write roms.read platforms.read roms.user.read roms.user.write"),
+            ])
             .send()
             .await
             .context("Failed to connect to RomM server")?;
@@ -193,8 +198,10 @@ pub struct TokenResponse {
 pub struct PaginatedResponse<T> {
     pub items: Vec<T>,
     pub total: i32,
-    pub page: i32,
-    pub size: i32,
+    #[serde(default)]
+    pub page: Option<i32>,
+    #[serde(default)]
+    pub size: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -203,7 +210,24 @@ pub struct RomMPlatform {
     pub slug: String,
     pub name: String,
     pub rom_count: i32,
+    #[serde(default)]
     pub igdb_id: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IgdbMetadata {
+    #[serde(default)]
+    pub genres: Option<Vec<String>>,
+    #[serde(default)]
+    pub first_release_date: Option<i64>,
+    #[serde(default)]
+    pub aggregated_rating: Option<f64>,
+    #[serde(default)]
+    pub total_rating: Option<f64>,
+    #[serde(default)]
+    pub franchises: Option<Vec<String>>,
+    #[serde(default)]
+    pub companies: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -212,17 +236,42 @@ pub struct RomMRom {
     pub platform_id: i32,
     pub platform_slug: String,
     pub name: String,
-    pub file_name: String,
-    pub file_size_bytes: i64,
+    #[serde(alias = "file_name")]
+    pub fs_name: String,
+    #[serde(alias = "file_size_bytes")]
+    pub fs_size_bytes: i64,
 
+    #[serde(default)]
     pub igdb_id: Option<i32>,
+    #[serde(default)]
     pub summary: Option<String>,
-    pub genres: Option<Vec<String>>,
-    pub first_release_date: Option<i64>,
-    pub aggregated_rating: Option<f32>,
-
-    pub has_cover: bool,
+    #[serde(default)]
     pub url_cover: Option<String>,
+    #[serde(default)]
+    pub igdb_metadata: Option<IgdbMetadata>,
+}
+
+impl RomMRom {
+    pub fn has_cover(&self) -> bool {
+        self.url_cover.is_some()
+    }
+
+    pub fn genres(&self) -> Vec<String> {
+        self.igdb_metadata.as_ref()
+            .and_then(|m| m.genres.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn first_release_date(&self) -> Option<i64> {
+        self.igdb_metadata.as_ref()
+            .and_then(|m| m.first_release_date)
+    }
+
+    pub fn aggregated_rating(&self) -> Option<f32> {
+        self.igdb_metadata.as_ref()
+            .and_then(|m| m.aggregated_rating.or(m.total_rating))
+            .map(|r| r as f32)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
