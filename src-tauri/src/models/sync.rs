@@ -12,6 +12,28 @@ pub enum SyncState {
 }
 
 impl SyncState {
+    pub fn to_db_str(&self) -> &'static str {
+        match self {
+            SyncState::LocalOnly => "local_only",
+            SyncState::Synced => "synced",
+            SyncState::PendingUpload => "pending_upload",
+            SyncState::PendingDownload => "pending_download",
+            SyncState::Conflict => "conflict",
+            SyncState::RemoteOnly => "remote_only",
+        }
+    }
+
+    pub fn from_db_str(s: &str) -> Self {
+        match s {
+            "synced" => SyncState::Synced,
+            "pending_upload" => SyncState::PendingUpload,
+            "pending_download" => SyncState::PendingDownload,
+            "conflict" => SyncState::Conflict,
+            "remote_only" => SyncState::RemoteOnly,
+            _ => SyncState::LocalOnly,
+        }
+    }
+
     pub fn icon(&self) -> &'static str {
         match self {
             SyncState::LocalOnly => "💾",

@@ -12,6 +12,7 @@ import LinearProgress from "@mui/material/LinearProgress";
 import Fade from "@mui/material/Fade";
 import Chip from "@mui/material/Chip";
 import CloudIcon from "@mui/icons-material/Cloud";
+import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import FolderIcon from "@mui/icons-material/Folder";
 import SearchIcon from "@mui/icons-material/Search";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -25,16 +26,19 @@ import normalizeUrl from "../utils/normalizeUrl";
 
 const STEPS = ["RomM Server", "ROM Folder", "Scan Games"];
 
-export default function SetupWizard({ onComplete }) {
-  const [activeStep, setActiveStep] = useState(-1); // -1 = welcome screen
+export default function SetupWizard({ onComplete, onRommConnect }) {
+  const [activeStep, setActiveStep] = useState(-1);
   const [rommUrl, setRommUrl] = useState("");
   const [rommUsername, setRommUsername] = useState("");
   const [rommPassword, setRommPassword] = useState("");
   const [rommStatus, setRommStatus] = useState(null);
   const [rommConnected, setRommConnected] = useState(false);
+  const [rommToken, setRommToken] = useState(null);
   const [romsDir, setRomsDir] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [syncResult, setSyncResult] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
 
   async function handleConnectRomM() {
@@ -43,18 +47,41 @@ export default function SetupWizard({ onComplete }) {
       setError(null);
       const normalizedUrl = normalizeUrl(rommUrl);
       setRommUrl(normalizedUrl);
-      await invoke("connect_romm", {
+      const token = await invoke("connect_romm", {
         serverUrl: normalizedUrl,
         username: rommUsername,
         password: rommPassword,
       });
       setRommConnected(true);
+      setRommToken(token);
+      if (onRommConnect) {
+        onRommConnect(normalizedUrl, token);
+      }
       setRommStatus({ type: "success", message: "Connected successfully!" });
     } catch (err) {
       setRommStatus({
         type: "error",
         message: err.message || String(err),
       });
+    }
+  }
+
+  async function handleSyncRomM() {
+    if (!rommToken || !rommUrl) return;
+    try {
+      setSyncing(true);
+      setSyncResult(null);
+      setError(null);
+      const normalizedUrl = normalizeUrl(rommUrl);
+      const games = await invoke("sync_romm_library", {
+        serverUrl: normalizedUrl,
+        token: rommToken,
+      });
+      setSyncResult({ total: games.length });
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -117,7 +144,6 @@ export default function SetupWizard({ onComplete }) {
     setError(null);
   }
 
-  // Welcome screen
   if (activeStep === -1) {
     return (
       <WizardContainer>
@@ -299,18 +325,34 @@ export default function SetupWizard({ onComplete }) {
               subtitle={
                 romsDir
                   ? `Ready to scan ${romsDir} for game files.`
+                  : rommConnected
+                  ? "Sync your RomM library to get started."
                   : "No ROM folder selected. You can scan later from Settings."
               }
             >
+              {/* Local Scan Button */}
               {!scanResult && !scanning && romsDir && (
                 <Button
                   variant="contained"
                   size="large"
                   startIcon={<SearchIcon />}
                   onClick={handleScan}
-                  sx={{ mb: 3 }}
+                  sx={{ mb: 2 }}
                 >
-                  Scan Now
+                  Scan Local ROMs
+                </Button>
+              )}
+
+              {/* RomM Sync Button */}
+              {rommConnected && !syncResult && !syncing && (
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<CloudSyncIcon />}
+                  onClick={handleSyncRomM}
+                  sx={{ mb: 2, ml: romsDir && !scanResult && !scanning ? 2 : 0 }}
+                >
+                  Sync RomM Library
                 </Button>
               )}
 
@@ -323,6 +365,15 @@ export default function SetupWizard({ onComplete }) {
                 </Box>
               )}
 
+              {syncing && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Syncing RomM library...
+                  </Typography>
+                  <LinearProgress sx={{ borderRadius: 2 }} />
+                </Box>
+              )}
+
               {scanResult && (
                 <Box sx={{ mb: 3 }}>
                   <Alert
@@ -330,7 +381,7 @@ export default function SetupWizard({ onComplete }) {
                     icon={<CheckCircleIcon />}
                     sx={{ mb: 2 }}
                   >
-                    Found {scanResult.total} games!
+                    Found {scanResult.total} games from local scan!
                   </Alert>
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                     {Object.entries(scanResult.platforms).map(
@@ -347,12 +398,24 @@ export default function SetupWizard({ onComplete }) {
                 </Box>
               )}
 
+              {syncResult && (
+                <Box sx={{ mb: 3 }}>
+                  <Alert
+                    severity="success"
+                    icon={<CheckCircleIcon />}
+                    sx={{ mb: 2 }}
+                  >
+                    Synced {syncResult.total} games from RomM!
+                  </Alert>
+                </Box>
+              )}
+
               <StepNav
                 onBack={handleBack}
                 onNext={handleFinish}
-                showSkip={!scanResult && !romsDir}
+                showSkip={!scanResult && !syncResult && !romsDir && !rommConnected}
                 onSkip={handleFinish}
-                nextLabel={scanResult || !romsDir ? "Finish" : "Skip"}
+                nextLabel={scanResult || syncResult || !romsDir ? "Finish" : "Skip"}
               />
             </StepPanel>
           )}

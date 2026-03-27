@@ -61,3 +61,33 @@ pub fn detect_platform_by_extension(ext: &str) -> Option<String> {
     }
     None
 }
+
+pub fn map_romm_slug(slug: &str) -> String {
+    match slug {
+        "snes" | "super-nintendo" | "super-nintendo-entertainment-system" => "snes".into(),
+        "nes" | "nintendo-entertainment-system" => "nes".into(),
+        "n64" | "nintendo-64" => "n64".into(),
+        "gc" | "gamecube" | "nintendo-gamecube" => "gc".into(),
+        "wii" | "nintendo-wii" => "wii".into(),
+        "wiiu" | "wii-u" | "nintendo-wii-u" => "wiiu".into(),
+        "switch" | "nintendo-switch" => "switch".into(),
+        "gb" | "game-boy" | "nintendo-game-boy" => "gb".into(),
+        "gbc" | "game-boy-color" | "nintendo-game-boy-color" => "gbc".into(),
+        "gba" | "game-boy-advance" | "nintendo-game-boy-advance" => "gba".into(),
+        "nds" | "nintendo-ds" => "nds".into(),
+        "3ds" | "nintendo-3ds" => "3ds".into(),
+        "psx" | "ps1" | "playstation" | "sony-playstation" => "psx".into(),
+        "ps2" | "playstation-2" | "sony-playstation-2" => "ps2".into(),
+        "ps3" | "playstation-3" | "sony-playstation-3" => "ps3".into(),
+        "psp" | "playstation-portable" | "sony-psp" => "psp".into(),
+        "psvita" | "playstation-vita" | "ps-vita" => "psvita".into(),
+        "genesis" | "sega-genesis" | "mega-drive" | "sega-mega-drive" | "megadrive" | "sega-mega-drive-genesis" => "genesis".into(),
+        "saturn" | "sega-saturn" => "saturn".into(),
+        "dreamcast" | "sega-dreamcast" => "dreamcast".into(),
+        "xbox" | "microsoft-xbox" => "xbox".into(),
+        "xbox360" | "xbox-360" | "microsoft-xbox-360" => "xbox360".into(),
+        "arcade" | "mame" => "arcade".into(),
+        "pc" | "dos" | "windows" => "pc".into(),
+        other => other.to_string(),
+    }
+}

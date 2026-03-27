@@ -19,6 +19,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [rommToken, setRommToken] = useState(null);
+  const [rommUrl, setRommUrl] = useState("");
 
   useEffect(() => {
     checkFirstRun();
@@ -57,6 +59,18 @@ function App() {
       ]);
       setGames(gamesData);
       setPlatforms(platformsData);
+
+      try {
+        const cfg = await invoke("get_config");
+        if (cfg.romm?.server_url) {
+          setRommUrl(cfg.romm.server_url);
+        }
+        if (cfg.romm?.auth_token) {
+          setRommToken(cfg.romm.auth_token);
+        }
+      } catch {
+        // config may not exist yet
+      }
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -76,6 +90,11 @@ function App() {
     } catch (err) {
       console.error("Failed to refresh games:", err);
     }
+  }
+
+  function handleRommConnect(url, token) {
+    setRommUrl(url);
+    setRommToken(token);
   }
 
   async function handleToggleFavorite(gameId) {
@@ -136,7 +155,12 @@ function App() {
   }
 
   if (showSetup) {
-    return <SetupWizard onComplete={handleSetupComplete} />;
+    return (
+      <SetupWizard
+        onComplete={handleSetupComplete}
+        onRommConnect={handleRommConnect}
+      />
+    );
   }
 
   return (
@@ -177,9 +201,14 @@ function App() {
           <GameDetails
             game={selectedGame}
             platforms={platforms}
-            onBack={() => handleNavigate("library")}
+            onBack={() => {
+              handleNavigate("library");
+              loadData();
+            }}
             onLaunch={handleLaunchGame}
             onToggleFavorite={handleToggleFavorite}
+            rommToken={rommToken}
+            rommUrl={rommUrl}
           />
         )}
         {view === "settings" && (
@@ -188,6 +217,9 @@ function App() {
               handleNavigate("library");
               loadData();
             }}
+            rommToken={rommToken}
+            rommUrl={rommUrl}
+            onRommConnect={handleRommConnect}
           />
         )}
       </Box>

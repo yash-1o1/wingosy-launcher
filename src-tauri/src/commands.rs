@@ -193,64 +193,210 @@ pub fn save_config(config: AppConfig) -> CommandResult<()> {
 }
 
 #[tauri::command]
-pub async fn connect_romm(server_url: String, username: String, password: String) -> CommandResult<bool> {
+pub async fn connect_romm(server_url: String, username: String, password: String) -> CommandResult<String> {
     let mut client = crate::api::RomMClient::new(&server_url);
-    client
+    let token_response = client
         .authenticate(&username, &password)
         .await
         .map_err(CommandError::from)?;
-    Ok(true)
+
+    let mut config = AppConfig::load().unwrap_or_default();
+    config.romm.server_url = Some(server_url);
+    config.romm.username = Some(username);
+    config.romm.password = Some(password);
+    config.romm.auth_token = Some(token_response.access_token.clone());
+    config.save().map_err(CommandError::from)?;
+
+    Ok(token_response.access_token)
 }
 
 #[tauri::command]
-pub async fn sync_romm_library(server_url: String, token: String) -> CommandResult<Vec<Game>> {
-    let client = crate::api::RomMClient::new(&server_url).with_token(token);
+pub async fn sync_romm_library(server_url: String, _token: String) -> CommandResult<Vec<Game>> {
+    let config = AppConfig::load().unwrap_or_default();
+    let username = config.romm.username.unwrap_or_default();
+    let password = config.romm.password.unwrap_or_default();
+
+    let mut client = crate::api::RomMClient::new(&server_url);
+    client.authenticate(&username, &password).await.map_err(CommandError::from)?;
+
     let db = get_db()?;
 
     let romm_platforms = client.get_platforms().await.map_err(CommandError::from)?;
     let mut all_games = Vec::new();
 
     for platform in romm_platforms {
-        let roms = client
-            .get_roms(Some(platform.id), 1000, 0)
-            .await
-            .map_err(CommandError::from)?;
+        let mapped_platform = map_romm_slug(&platform.slug);
+        let page_size = 1000;
+        let mut offset = 0;
 
-        for rom in roms.items {
-            let game = Game {
-                id: 0,
-                platform_id: platform.slug.clone(),
-                name: rom.name.clone(),
-                file_path: rom.file_name.clone(),
-                source: GameSource::RomM,
-                romm_id: Some(rom.id),
-                summary: rom.summary,
-                developer: None,
-                publisher: None,
-                release_year: None,
-                genres: rom.genres.unwrap_or_default(),
-                player_count: None,
-                cover_path: rom.url_cover,
-                screenshot_paths: Vec::new(),
-                is_favorite: false,
-                is_hidden: false,
-                user_rating: rom.aggregated_rating,
-                last_played_at: None,
-                play_count: 0,
-                play_time_minutes: 0,
-                sync_state: SyncState::RemoteOnly,
-                local_file_path: None,
-            };
+        loop {
+            let roms = client
+                .get_roms(Some(platform.id), page_size, offset)
+                .await
+                .map_err(CommandError::from)?;
 
-            if db.get_game_by_romm_id(rom.id).map_err(CommandError::from)?.is_none() {
-                let _ = db.insert_game(&game);
+            for rom in &roms.items {
+                let release_year = rom.first_release_date.and_then(|ts| {
+                    chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|dt| {
+                            use chrono::Datelike;
+                            dt.year() as i32
+                        })
+                }).filter(|&y| y > 0);
+
+                let mut game = Game {
+                    id: 0,
+                    platform_id: mapped_platform.clone(),
+                    name: rom.name.clone(),
+                    file_path: rom.file_name.clone(),
+                    source: GameSource::RomM,
+                    romm_id: Some(rom.id),
+                    summary: rom.summary.clone(),
+                    developer: None,
+                    publisher: None,
+                    release_year,
+                    genres: rom.genres.clone().unwrap_or_default(),
+                    player_count: None,
+                    cover_path: None,
+                    screenshot_paths: Vec::new(),
+                    is_favorite: false,
+                    is_hidden: false,
+                    user_rating: rom.aggregated_rating,
+                    last_played_at: None,
+                    play_count: 0,
+                    play_time_minutes: 0,
+                    sync_state: SyncState::RemoteOnly,
+                    local_file_path: None,
+                };
+
+                if rom.has_cover {
+                    let covers_dir = AppConfig::covers_dir().unwrap_or_default();
+                    std::fs::create_dir_all(&covers_dir).ok();
+                    let cover_path = covers_dir.join(format!("{}.jpg", rom.id));
+                    if !cover_path.exists() {
+                        let cover_url = client.cover_url(rom.id);
+                        let dl = crate::api::download::DownloadManager::new();
+                        if let Ok(bytes) = dl.download_bytes(&cover_url, client.token()).await {
+                            std::fs::write(&cover_path, &bytes).ok();
+                        }
+                    }
+                    game.cover_path = Some(cover_path.to_string_lossy().to_string());
+                }
+
+                let _ = db.upsert_game(&game);
+                all_games.push(game);
             }
 
-            all_games.push(game);
+            let fetched = offset + roms.items.len() as i32;
+            if fetched >= roms.total {
+                break;
+            }
+            offset = fetched;
         }
     }
 
     Ok(all_games)
+}
+
+#[tauri::command]
+pub async fn download_rom(game_id: i64, server_url: String, _token: String) -> CommandResult<String> {
+    let db = get_db()?;
+    let config = AppConfig::load().unwrap_or_default();
+    let game = db
+        .get_game(game_id)
+        .map_err(CommandError::from)?
+        .ok_or_else(|| CommandError {
+            message: "Game not found".into(),
+        })?;
+
+    let romm_id = game.romm_id.ok_or_else(|| CommandError {
+        message: "Game has no RomM ID".into(),
+    })?;
+
+    let mut client = crate::api::RomMClient::new(&server_url);
+    client.authenticate(
+        &config.romm.username.unwrap_or_default(),
+        &config.romm.password.unwrap_or_default(),
+    ).await.map_err(CommandError::from)?;
+    let rom = client.get_rom(romm_id).await.map_err(CommandError::from)?;
+
+    let download_url = client.rom_download_url(romm_id, &rom.file_name);
+
+    let config = AppConfig::load().unwrap_or_default();
+    let dest_dir = config.roms_dir().join(&game.platform_id);
+    std::fs::create_dir_all(&dest_dir).ok();
+    let dest_path = dest_dir.join(&rom.file_name);
+
+    let dl = crate::api::download::DownloadManager::new();
+    dl.download_file(&download_url, &dest_path, client.token(), |_progress| {})
+        .await
+        .map_err(CommandError::from)?;
+
+    let mut updated = game.clone();
+    updated.local_file_path = Some(dest_path.to_string_lossy().to_string());
+    updated.file_path = dest_path.to_string_lossy().to_string();
+    updated.sync_state = SyncState::Synced;
+    db.update_game(&updated).map_err(CommandError::from)?;
+
+    Ok(dest_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn get_game_saves(romm_id: i32, server_url: String, _token: String) -> CommandResult<Vec<crate::api::RomMSave>> {
+    let config = AppConfig::load().unwrap_or_default();
+    let mut client = crate::api::RomMClient::new(&server_url);
+    client.authenticate(&config.romm.username.unwrap_or_default(), &config.romm.password.unwrap_or_default()).await.map_err(CommandError::from)?;
+    client.get_saves(romm_id).await.map_err(|e| e.into())
+}
+
+#[tauri::command]
+pub async fn download_game_save(romm_id: i32, save_id: i32, server_url: String, _token: String) -> CommandResult<String> {
+    let config = AppConfig::load().unwrap_or_default();
+    let mut client = crate::api::RomMClient::new(&server_url);
+    client.authenticate(&config.romm.username.unwrap_or_default(), &config.romm.password.unwrap_or_default()).await.map_err(CommandError::from)?;
+
+    let saves = client.get_saves(romm_id).await.map_err(CommandError::from)?;
+    let save = saves
+        .iter()
+        .find(|s| s.id == save_id)
+        .ok_or_else(|| CommandError {
+            message: "Save not found".into(),
+        })?;
+
+    let bytes = client.download_save(romm_id, save_id).await.map_err(CommandError::from)?;
+
+    let saves_dir = AppConfig::saves_dir().map_err(CommandError::from)?;
+    std::fs::create_dir_all(&saves_dir).ok();
+    let save_path = saves_dir.join(&save.file_name);
+
+    std::fs::write(&save_path, &bytes).map_err(|e| CommandError {
+        message: format!("Failed to write save file: {}", e),
+    })?;
+
+    Ok(save_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn upload_game_save(romm_id: i32, file_path: String, server_url: String, _token: String) -> CommandResult<()> {
+    let config = AppConfig::load().unwrap_or_default();
+    let mut client = crate::api::RomMClient::new(&server_url);
+    client.authenticate(&config.romm.username.unwrap_or_default(), &config.romm.password.unwrap_or_default()).await.map_err(CommandError::from)?;
+
+    let path = std::path::Path::new(&file_path);
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("save.dat")
+        .to_string();
+
+    let data = std::fs::read(path).map_err(|e| CommandError {
+        message: format!("Failed to read save file: {}", e),
+    })?;
+
+    client
+        .upload_save(romm_id, data, &filename)
+        .await
+        .map_err(|e| e.into())
 }
 
 #[tauri::command]

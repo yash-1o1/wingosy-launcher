@@ -30,6 +30,10 @@
       "fs": {
         "all": true,
         "scope": ["**"]
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": ["**"]
       }
     },
     "bundle": {

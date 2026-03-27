@@ -31,7 +31,7 @@ impl Database {
                 game.platform_id,
                 game.name,
                 game.file_path,
-                format!("{:?}", game.source).to_lowercase(),
+                game.source.to_db_str(),
                 game.romm_id,
                 game.summary,
                 game.developer,
@@ -47,7 +47,7 @@ impl Database {
                 game.last_played_at.map(|d| d.to_rfc3339()),
                 game.play_count,
                 game.play_time_minutes,
-                format!("{:?}", game.sync_state).to_lowercase(),
+                game.sync_state.to_db_str(),
                 game.local_file_path,
             ],
         )
@@ -91,7 +91,7 @@ impl Database {
                 game.platform_id,
                 game.name,
                 game.file_path,
-                format!("{:?}", game.source).to_lowercase(),
+                game.source.to_db_str(),
                 game.romm_id,
                 game.summary,
                 game.developer,
@@ -107,7 +107,7 @@ impl Database {
                 game.last_played_at.map(|d| d.to_rfc3339()),
                 game.play_count,
                 game.play_time_minutes,
-                format!("{:?}", game.sync_state).to_lowercase(),
+                game.sync_state.to_db_str(),
                 game.local_file_path,
             ],
         )
@@ -286,6 +286,22 @@ impl Database {
         Ok(())
     }
 
+    pub fn upsert_game(&self, game: &Game) -> Result<i64> {
+        if let Some(romm_id) = game.romm_id {
+            if let Some(existing) = self.get_game_by_romm_id(romm_id)? {
+                let mut updated = game.clone();
+                updated.id = existing.id;
+                updated.is_favorite = existing.is_favorite;
+                updated.play_count = existing.play_count;
+                updated.play_time_minutes = existing.play_time_minutes;
+                updated.last_played_at = existing.last_played_at;
+                self.update_game(&updated)?;
+                return Ok(existing.id);
+            }
+        }
+        self.insert_game(game)
+    }
+
     pub fn delete_game(&self, game_id: i64) -> Result<()> {
         let conn = self.conn.lock().unwrap();
 
@@ -297,20 +313,10 @@ impl Database {
 
     fn row_to_game(row: &Row) -> Result<Game> {
         let source_str: String = row.get("source")?;
-        let source = match source_str.as_str() {
-            "romm" => GameSource::RomM,
-            _ => GameSource::Local,
-        };
+        let source = GameSource::from_db_str(&source_str);
 
         let sync_state_str: String = row.get("sync_state")?;
-        let sync_state = match sync_state_str.as_str() {
-            "synced" => SyncState::Synced,
-            "pending_upload" => SyncState::PendingUpload,
-            "pending_download" => SyncState::PendingDownload,
-            "conflict" => SyncState::Conflict,
-            "remote_only" => SyncState::RemoteOnly,
-            _ => SyncState::LocalOnly,
-        };
+        let sync_state = SyncState::from_db_str(&sync_state_str);
 
         let genres_json: Option<String> = row.get("genres")?;
         let genres: Vec<String> = genres_json

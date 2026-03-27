@@ -73,6 +73,10 @@ impl AppConfig {
         Ok(Self::cache_dir()?.join("covers"))
     }
 
+    pub fn saves_dir() -> Result<PathBuf> {
+        Ok(Self::data_dir()?.join("saves"))
+    }
+
     pub fn downloads_dir() -> Result<PathBuf> {
         Ok(Self::data_dir()?.join("downloads"))
     }
@@ -90,6 +94,8 @@ impl AppConfig {
 pub struct RomMConfig {
     pub server_url: Option<String>,
     pub username: Option<String>,
+    pub password: Option<String>,
+    pub auth_token: Option<String>,
     pub auto_sync: bool,
     pub sync_saves: bool,
 }

@@ -82,6 +82,22 @@ pub enum GameSource {
     RomM,
 }
 
+impl GameSource {
+    pub fn to_db_str(&self) -> &'static str {
+        match self {
+            GameSource::Local => "local",
+            GameSource::RomM => "romm",
+        }
+    }
+
+    pub fn from_db_str(s: &str) -> Self {
+        match s {
+            "romm" => GameSource::RomM,
+            _ => GameSource::Local,
+        }
+    }
+}
+
 impl std::fmt::Display for GameSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

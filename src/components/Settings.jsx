@@ -4,9 +4,6 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Paper from "@mui/material/Paper";
-import Divider from "@mui/material/Divider";
-import Switch from "@mui/material/Switch";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import Alert from "@mui/material/Alert";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -21,9 +18,9 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 import normalizeUrl from "../utils/normalizeUrl";
 
-export default function Settings({ onBack }) {
+export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRommConnect }) {
   const [config, setConfig] = useState(null);
-  const [rommUrl, setRommUrl] = useState("");
+  const [rommUrl, setRommUrl] = useState(rommUrlProp || "");
   const [rommUsername, setRommUsername] = useState("");
   const [rommPassword, setRommPassword] = useState("");
   const [rommStatus, setRommStatus] = useState(null);
@@ -39,7 +36,9 @@ export default function Settings({ onBack }) {
     try {
       const cfg = await invoke("get_config");
       setConfig(cfg);
-      setRommUrl(cfg.romm?.server_url || "");
+      if (!rommUrlProp) {
+        setRommUrl(cfg.romm?.server_url || "");
+      }
       setRommUsername(cfg.romm?.username || "");
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -60,11 +59,12 @@ export default function Settings({ onBack }) {
       setRommStatus(null);
       const normalizedUrl = normalizeUrl(rommUrl);
       setRommUrl(normalizedUrl);
-      await invoke("connect_romm", {
+      const token = await invoke("connect_romm", {
         serverUrl: normalizedUrl,
         username: rommUsername,
         password: rommPassword,
       });
+      onRommConnect(normalizedUrl, token);
       setRommStatus({ type: "success", message: "Connected! Click 'Sync Library' to pull your games." });
     } catch (err) {
       setRommStatus({
@@ -75,18 +75,13 @@ export default function Settings({ onBack }) {
   }
 
   async function handleSyncRomM() {
-    if (!rommUrl) return;
+    if (!rommUrl || !rommToken) return;
     try {
       setRommStatus({ type: "info", message: "Syncing library..." });
       const normalizedUrl = normalizeUrl(rommUrl);
-      const tokenResult = await invoke("connect_romm", {
-        serverUrl: normalizedUrl,
-        username: rommUsername,
-        password: rommPassword,
-      });
       const games = await invoke("sync_romm_library", {
         serverUrl: normalizedUrl,
-        token: "authenticated",
+        token: rommToken,
       });
       setRommStatus({
         type: "success",
@@ -142,6 +137,9 @@ export default function Settings({ onBack }) {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
           <CloudIcon color="primary" />
           <Typography variant="h6">RomM Server</Typography>
+          {rommToken && (
+            <CheckCircleIcon color="success" fontSize="small" sx={{ ml: 1 }} />
+          )}
         </Box>
 
         <TextField
@@ -174,7 +172,11 @@ export default function Settings({ onBack }) {
           <Button variant="contained" onClick={handleConnectRomM}>
             Connect
           </Button>
-          <Button variant="outlined" onClick={handleSyncRomM} disabled={!rommUrl}>
+          <Button
+            variant="outlined"
+            onClick={handleSyncRomM}
+            disabled={!rommUrl || !rommToken}
+          >
             Sync Library
           </Button>
         </Box>

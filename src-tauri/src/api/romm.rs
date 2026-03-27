@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-
 #[derive(Debug, Clone)]
 pub struct RomMClient {
     client: Client,
@@ -11,8 +10,13 @@ pub struct RomMClient {
 
 impl RomMClient {
     pub fn new(base_url: impl Into<String>) -> Self {
+        let client = Client::builder()
+            .cookie_store(true)
+            .build()
+            .unwrap_or_else(|_| Client::new());
+
         Self {
-            client: Client::new(),
+            client,
             base_url: base_url.into().trim_end_matches('/').to_string(),
             token: None,
         }
@@ -168,6 +172,10 @@ impl RomMClient {
             .await
             .map(|b| b.to_vec())
             .context("Failed to read save data")
+    }
+
+    pub fn token(&self) -> Option<&str> {
+        self.token.as_deref()
     }
 
     pub fn is_authenticated(&self) -> bool {

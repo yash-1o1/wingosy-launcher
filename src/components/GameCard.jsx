@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardActionArea from "@mui/material/CardActionArea";
@@ -9,6 +10,9 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
+import CloudIcon from "@mui/icons-material/Cloud";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { convertFileSrc } from "@tauri-apps/api/tauri";
 
 const PLATFORM_COLORS = {
   nes: "#e60012", snes: "#e60012", n64: "#e60012", gc: "#e60012",
@@ -21,8 +25,70 @@ const PLATFORM_COLORS = {
   arcade: "#ffcc00", pc: "#4a90e2",
 };
 
+function isLocalPath(path) {
+  if (!path) return false;
+  return /^[a-zA-Z]:/.test(path) || path.startsWith("\\") || path.startsWith("/");
+}
+
+function getCoverSrc(coverPath) {
+  if (!coverPath) return null;
+  if (isLocalPath(coverPath)) {
+    return convertFileSrc(coverPath);
+  }
+  return coverPath;
+}
+
 export default function GameCard({ game, onClick, onToggleFavorite, onLaunch }) {
+  const [imgError, setImgError] = useState(false);
   const platformColor = PLATFORM_COLORS[game.platform_id] || "#4a90e2";
+  const coverSrc = getCoverSrc(game.cover_path);
+  const showCover = coverSrc && !imgError;
+
+  const syncBadge = (() => {
+    if (game.sync_state === "remote_only") {
+      return (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 6,
+            left: 6,
+            bgcolor: "rgba(0,0,0,0.7)",
+            borderRadius: "50%",
+            width: 26,
+            height: 26,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <CloudIcon sx={{ fontSize: 16, color: "#64b5f6" }} />
+        </Box>
+      );
+    }
+    if (game.sync_state === "synced") {
+      return (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 6,
+            left: 6,
+            bgcolor: "rgba(0,0,0,0.7)",
+            borderRadius: "50%",
+            width: 26,
+            height: 26,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <CheckCircleIcon sx={{ fontSize: 16, color: "#66bb6a" }} />
+        </Box>
+      );
+    }
+    return null;
+  })();
 
   return (
     <Card
@@ -52,11 +118,12 @@ export default function GameCard({ game, onClick, onToggleFavorite, onLaunch }) 
             position: "relative",
           }}
         >
-          {game.cover_path ? (
+          {showCover ? (
             <Box
               component="img"
-              src={game.cover_path}
+              src={coverSrc}
               alt={game.name}
+              onError={() => setImgError(true)}
               sx={{
                 width: "100%",
                 height: "100%",
@@ -68,6 +135,7 @@ export default function GameCard({ game, onClick, onToggleFavorite, onLaunch }) 
               sx={{ fontSize: 64, color: `${platformColor}66` }}
             />
           )}
+          {syncBadge}
         </Box>
 
         <CardContent sx={{ py: 1.5, px: 1.5, "&:last-child": { pb: 1.5 } }}>
