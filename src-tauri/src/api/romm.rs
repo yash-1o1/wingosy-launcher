@@ -104,10 +104,40 @@ impl RomMClient {
             anyhow::bail!("ROMs API returned {}: {}", status, &text[..text.len().min(200)]);
         }
 
-        serde_json::from_str(&text).context(format!(
-            "Failed to parse ROMs JSON (first 300 chars): {}",
-            &text[..text.len().min(300)]
-        ))
+        let raw: serde_json::Value = serde_json::from_str(&text)
+            .context("ROMs response is not valid JSON")?;
+
+        let total = raw["total"].as_i64().unwrap_or(0) as i32;
+        let items_raw = raw["items"].as_array()
+            .context("ROMs response missing 'items' array")?;
+
+        let items: Vec<RomMRom> = items_raw.iter().filter_map(|v| {
+            Some(RomMRom {
+                id: v["id"].as_i64()? as i32,
+                platform_id: v["platform_id"].as_i64().unwrap_or(0) as i32,
+                platform_slug: v["platform_slug"].as_str().unwrap_or("").to_string(),
+                name: v["name"].as_str().unwrap_or("").to_string(),
+                fs_name: v["fs_name"].as_str()
+                    .or_else(|| v["file_name"].as_str())
+                    .unwrap_or("").to_string(),
+                fs_size_bytes: v["fs_size_bytes"].as_i64()
+                    .or_else(|| v["file_size_bytes"].as_i64())
+                    .unwrap_or(0),
+                igdb_id: v["igdb_id"].as_i64().map(|x| x as i32),
+                summary: v["summary"].as_str().map(|s| s.to_string()),
+                url_cover: v["url_cover"].as_str().map(|s| s.to_string()),
+                igdb_metadata: v.get("igdb_metadata")
+                    .filter(|m| m.is_object() && !m.as_object().unwrap().is_empty())
+                    .and_then(|m| serde_json::from_value(m.clone()).ok()),
+            })
+        }).collect();
+
+        Ok(PaginatedResponse {
+            items,
+            total,
+            page: raw["page"].as_i64().map(|x| x as i32),
+            size: raw["size"].as_i64().map(|x| x as i32),
+        })
     }
 
     pub async fn get_rom(&self, rom_id: i32) -> Result<RomMRom> {
