@@ -41,8 +41,13 @@ function App() {
 
   function handleSetupComplete() {
     setShowSetup(false);
-    loadData();
   }
+
+  useEffect(() => {
+    if (showSetup === false) {
+      loadData();
+    }
+  }, [showSetup]);
 
   useEffect(() => {
     if (showSetup === false && !loading) {
