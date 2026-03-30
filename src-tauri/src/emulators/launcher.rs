@@ -1,4 +1,8 @@
 use anyhow::{Context, Result, bail};
+use chrono::Local;
+use serde::{Deserialize, Serialize};
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
@@ -6,6 +10,16 @@ use std::time::Instant;
 use crate::config::AppConfig;
 use crate::database::Database;
 use crate::models::{Emulator, Game, retroarch_cores};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LaunchCommand {
+    pub executable: String,
+    pub args: Vec<String>,
+    pub full_command: String,
+    pub emulator_name: String,
+    pub game_name: String,
+    pub rom_path: String,
+}
 
 pub struct EmulatorLauncher {
     config: AppConfig,
@@ -15,6 +29,39 @@ pub struct EmulatorLauncher {
 impl EmulatorLauncher {
     pub fn new(config: AppConfig, db: Database) -> Self {
         Self { config, db }
+    }
+
+    pub fn build_command(&self, game: &Game) -> Result<LaunchCommand> {
+        let emulator = self.resolve_emulator(game)?;
+
+        let rom_path = game
+            .local_file_path
+            .as_ref()
+            .or(Some(&game.file_path))
+            .context("No ROM path available")?;
+
+        let (exe_path, args) = emulator
+            .build_launch_command(rom_path)
+            .context("Failed to build launch command")?;
+
+        let exe_str = exe_path.to_string_lossy().to_string();
+        let full_command = format!(
+            "\"{}\" {}",
+            exe_str,
+            args.iter()
+                .map(|a| if a.contains(' ') { format!("\"{}\"", a) } else { a.clone() })
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+
+        Ok(LaunchCommand {
+            executable: exe_str,
+            args: args.clone(),
+            full_command,
+            emulator_name: emulator.name.clone(),
+            game_name: game.name.clone(),
+            rom_path: rom_path.clone(),
+        })
     }
 
     pub async fn launch(&self, game: &Game) -> Result<LaunchResult> {
@@ -41,13 +88,24 @@ impl EmulatorLauncher {
             });
         }
 
+        let command = self.build_command(game)?;
+
         tracing::info!(
-            "Launching {} with {}: {:?} {:?}",
+            "[Launch] {} via {} | platform={} | rom={}",
             game.name,
             emulator.name,
-            exe_path,
-            args
+            game.platform_id,
+            rom_path
         );
+
+        self.log_launch_to_file(&command);
+
+        // In debug builds, show command without launching (like Argosy)
+        if cfg!(debug_assertions) {
+            tracing::warn!("[DEBUG BUILD] Dry run - game not launched");
+            tracing::info!("[DEBUG BUILD] Command: {}", command.full_command);
+            return Ok(LaunchResult::DryRun { command });
+        }
 
         let start_time = Instant::now();
 
@@ -65,10 +123,54 @@ impl EmulatorLauncher {
             self.db.record_play_session(game.id, duration_minutes)?;
         }
 
+        tracing::info!(
+            "[Launch Complete] {} | duration={}m | exit_code={:?}",
+            game.name,
+            duration_minutes,
+            status.code()
+        );
+
         Ok(LaunchResult::Success {
             duration_minutes,
             exit_code: status.code(),
+            command: Some(command),
         })
+    }
+
+    fn log_launch_to_file(&self, command: &LaunchCommand) {
+        if let Ok(logs_dir) = AppConfig::logs_dir() {
+            if let Err(e) = fs::create_dir_all(&logs_dir) {
+                tracing::warn!("Failed to create logs directory: {}", e);
+                return;
+            }
+
+            let log_file = logs_dir.join("launches.log");
+            let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
+
+            let log_entry = format!(
+                "[{}] {} via {}\n  ROM: {}\n  Command: {}\n\n",
+                timestamp,
+                command.game_name,
+                command.emulator_name,
+                command.rom_path,
+                command.full_command
+            );
+
+            match OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_file)
+            {
+                Ok(mut file) => {
+                    if let Err(e) = file.write_all(log_entry.as_bytes()) {
+                        tracing::warn!("Failed to write to launch log: {}", e);
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to open launch log file: {}", e);
+                }
+            }
+        }
     }
 
     fn resolve_emulator(&self, game: &Game) -> Result<Emulator> {
@@ -158,11 +260,15 @@ impl EmulatorLauncher {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LaunchResult {
     Success {
         duration_minutes: i32,
         exit_code: Option<i32>,
+        command: Option<LaunchCommand>,
+    },
+    DryRun {
+        command: LaunchCommand,
     },
     FileNotFound(String),
     EmulatorNotInstalled {
@@ -176,12 +282,21 @@ pub enum LaunchResult {
 
 impl LaunchResult {
     pub fn is_success(&self) -> bool {
-        matches!(self, LaunchResult::Success { .. })
+        matches!(self, LaunchResult::Success { .. } | LaunchResult::DryRun { .. })
+    }
+
+    pub fn command(&self) -> Option<&LaunchCommand> {
+        match self {
+            LaunchResult::Success { command, .. } => command.as_ref(),
+            LaunchResult::DryRun { command } => Some(command),
+            _ => None,
+        }
     }
 
     pub fn error_message(&self) -> Option<String> {
         match self {
             LaunchResult::Success { .. } => None,
+            LaunchResult::DryRun { .. } => None,
             LaunchResult::FileNotFound(path) => Some(format!("ROM file not found: {}", path)),
             LaunchResult::EmulatorNotInstalled { name, .. } => {
                 Some(format!("{} is not installed", name))

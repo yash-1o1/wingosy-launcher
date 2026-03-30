@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use chrono::Datelike;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone)]
@@ -28,6 +29,8 @@ impl RomMClient {
     }
 
     pub async fn authenticate(&mut self, username: &str, password: &str) -> Result<TokenResponse> {
+        tracing::info!("[RomM] Authenticating user '{}' at {}", username, self.base_url);
+        
         let response = self
             .client
             .post(format!("{}/api/token", self.base_url))
@@ -41,12 +44,19 @@ impl RomMClient {
             .await
             .context("Failed to connect to RomM server")?;
 
+        let status = response.status();
+        if !status.is_success() {
+            tracing::error!("[RomM] Authentication failed: HTTP {}", status);
+            anyhow::bail!("Authentication failed: HTTP {}", status);
+        }
+
         let token: TokenResponse = response
             .json()
             .await
             .context("Failed to parse authentication response")?;
 
         self.token = Some(token.access_token.clone());
+        tracing::info!("[RomM] Authentication successful for '{}'", username);
         Ok(token)
     }
 
@@ -55,6 +65,8 @@ impl RomMClient {
     }
 
     pub async fn get_platforms(&self) -> Result<Vec<RomMPlatform>> {
+        tracing::debug!("[RomM] Fetching platforms from {}", self.base_url);
+        
         let mut request = self.client.get(format!("{}/api/platforms", self.base_url));
 
         if let Some(auth) = self.auth_header() {
@@ -67,13 +79,17 @@ impl RomMClient {
         let text = response.text().await.context("Failed to read platforms response body")?;
 
         if !status.is_success() {
+            tracing::error!("[RomM] Platforms API returned {}", status);
             anyhow::bail!("Platforms API returned {}: {}", status, &text[..text.len().min(200)]);
         }
 
-        serde_json::from_str(&text).context(format!(
+        let platforms: Vec<RomMPlatform> = serde_json::from_str(&text).context(format!(
             "Failed to parse platforms JSON (first 300 chars): {}",
             &text[..text.len().min(300)]
-        ))
+        ))?;
+        
+        tracing::info!("[RomM] Found {} platforms", platforms.len());
+        Ok(platforms)
     }
 
     pub async fn get_roms(
@@ -82,6 +98,8 @@ impl RomMClient {
         limit: i32,
         offset: i32,
     ) -> Result<PaginatedResponse<RomMRom>> {
+        tracing::debug!("[RomM] Fetching ROMs (platform_id={:?}, limit={}, offset={})", platform_id, limit, offset);
+        
         let mut request = self
             .client
             .get(format!("{}/api/roms", self.base_url))
@@ -101,6 +119,7 @@ impl RomMClient {
         let text = response.text().await.context("Failed to read ROMs response body")?;
 
         if !status.is_success() {
+            tracing::error!("[RomM] ROMs API returned {}", status);
             anyhow::bail!("ROMs API returned {}: {}", status, &text[..text.len().min(200)]);
         }
 
@@ -132,6 +151,8 @@ impl RomMClient {
             })
         }).collect();
 
+        tracing::info!("[RomM] Fetched {} ROMs (total: {})", items.len(), total);
+        
         Ok(PaginatedResponse {
             items,
             total,
@@ -141,6 +162,8 @@ impl RomMClient {
     }
 
     pub async fn get_rom(&self, rom_id: i32) -> Result<RomMRom> {
+        tracing::debug!("[RomM] Fetching ROM id={}", rom_id);
+        
         let mut request = self
             .client
             .get(format!("{}/api/roms/{}", self.base_url, rom_id));
@@ -151,10 +174,13 @@ impl RomMClient {
 
         let response = request.send().await.context("Failed to fetch ROM")?;
 
-        response
+        let rom: RomMRom = response
             .json()
             .await
-            .context("Failed to parse ROM response")
+            .context("Failed to parse ROM response")?;
+        
+        tracing::debug!("[RomM] Fetched ROM: {}", rom.name);
+        Ok(rom)
     }
 
     pub fn rom_download_url(&self, rom_id: i32, filename: &str) -> String {
@@ -259,6 +285,10 @@ pub struct RomMPlatform {
     pub rom_count: i32,
     #[serde(default)]
     pub igdb_id: Option<i32>,
+    #[serde(default)]
+    pub url_logo: Option<String>,
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -321,6 +351,62 @@ impl RomMRom {
         self.igdb_metadata.as_ref()
             .and_then(|m| m.aggregated_rating.or(m.total_rating))
             .map(|r| r as f32)
+    }
+
+    pub fn into_game(self, server_url: &str) -> crate::models::Game {
+        let platform_id = crate::models::map_romm_slug(&self.platform_slug);
+        
+        let release_year = self.first_release_date()
+            .and_then(|ts| {
+                chrono::DateTime::from_timestamp(ts, 0)
+                    .map(|dt| dt.year())
+            });
+
+        let cover_path = self.url_cover.clone().map(|url| {
+            if url.starts_with("http") {
+                url
+            } else {
+                format!("{}{}", server_url.trim_end_matches('/'), url)
+            }
+        });
+
+        let file_name = if self.fs_name.is_empty() { 
+            self.name.clone() 
+        } else { 
+            self.fs_name.clone() 
+        };
+
+        let genres = self.genres();
+        let rating = self.aggregated_rating();
+        let developer = self.igdb_metadata.as_ref()
+            .and_then(|m| m.companies.as_ref())
+            .and_then(|c| c.first())
+            .cloned();
+
+        crate::models::Game {
+            id: 0,
+            platform_id,
+            name: self.name,
+            file_path: file_name,
+            source: crate::models::GameSource::RomM,
+            romm_id: Some(self.id),
+            summary: self.summary,
+            developer,
+            publisher: None,
+            release_year,
+            genres,
+            player_count: None,
+            cover_path,
+            screenshot_paths: Vec::new(),
+            is_favorite: false,
+            is_hidden: false,
+            user_rating: rating,
+            last_played_at: None,
+            play_count: 0,
+            play_time_minutes: 0,
+            sync_state: crate::models::SyncState::RemoteOnly,
+            local_file_path: None,
+        }
     }
 }
 

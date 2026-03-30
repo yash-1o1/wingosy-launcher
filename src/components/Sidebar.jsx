@@ -5,17 +5,82 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
+import Avatar from "@mui/material/Avatar";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import SettingsIcon from "@mui/icons-material/Settings";
 import HomeIcon from "@mui/icons-material/Home";
+import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 
-const PLATFORM_ICONS = {
-  nes: "🎮", snes: "🎮", n64: "🎮", gc: "🎮", wii: "🎮",
-  wiiu: "🎮", switch: "🎮", gb: "🕹️", gbc: "🕹️", gba: "🕹️",
-  nds: "🕹️", "3ds": "🕹️", psx: "🎮", ps2: "🎮", ps3: "🎮",
-  psp: "🕹️", genesis: "🎮", dreamcast: "🎮", xbox: "🎮",
-  xbox360: "🎮", arcade: "🕹️", pc: "🖥️",
+const PLATFORM_COLORS = {
+  nes: "#e60012",
+  snes: "#7b5aa6", 
+  n64: "#00a651",
+  gc: "#6a5acd",
+  wii: "#00a4e4",
+  wiiu: "#009ac7",
+  switch: "#e60012",
+  gb: "#8b956d",
+  gbc: "#8b008b",
+  gba: "#6b5a9e",
+  nds: "#b8b8b8",
+  "3ds": "#d12228",
+  psx: "#003087",
+  ps2: "#003087",
+  ps3: "#003087",
+  ps4: "#003087",
+  ps5: "#003087",
+  psp: "#003087",
+  psvita: "#003087",
+  genesis: "#1a5c9b",
+  saturn: "#0072c6",
+  dreamcast: "#f47920",
+  xbox: "#107c10",
+  xbox360: "#107c10",
+  arcade: "#ff6b00",
+  pc: "#00bcf2",
+  default: "#6366f1",
 };
+
+function PlatformIcon({ platform, size = 24 }) {
+  const logoPath = platform.logo_path;
+  const color = PLATFORM_COLORS[platform.id] || PLATFORM_COLORS.default;
+  
+  if (logoPath) {
+    return (
+      <Avatar
+        src={logoPath}
+        alt={platform.name}
+        variant="rounded"
+        sx={{
+          width: size,
+          height: size,
+          bgcolor: "transparent",
+          "& img": {
+            objectFit: "contain",
+          },
+        }}
+      >
+        <SportsEsportsIcon sx={{ fontSize: size * 0.7, color }} />
+      </Avatar>
+    );
+  }
+  
+  return (
+    <Avatar
+      variant="rounded"
+      sx={{
+        width: size,
+        height: size,
+        bgcolor: `${color}22`,
+        color: color,
+        fontSize: size * 0.5,
+        fontWeight: 700,
+      }}
+    >
+      {(platform.short_name || platform.name || platform.id).substring(0, 2).toUpperCase()}
+    </Avatar>
+  );
+}
 
 export default function Sidebar({
   platforms,
@@ -114,8 +179,8 @@ export default function Sidebar({
             onClick={() => onSelectPlatform(platform.id)}
             sx={{ borderRadius: 2, mb: 0.25, py: 0.75 }}
           >
-            <ListItemIcon sx={{ minWidth: 36, fontSize: "1.1rem" }}>
-              {PLATFORM_ICONS[platform.id] || "🎮"}
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              <PlatformIcon platform={platform} size={22} />
             </ListItemIcon>
             <ListItemText
               primary={platform.short_name || platform.name}

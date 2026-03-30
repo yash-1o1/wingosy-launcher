@@ -9,11 +9,11 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import LinearProgress from "@mui/material/LinearProgress";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import Collapse from "@mui/material/Collapse";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloudIcon from "@mui/icons-material/Cloud";
 import FolderIcon from "@mui/icons-material/Folder";
@@ -24,6 +24,14 @@ import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import MemoryIcon from "@mui/icons-material/Memory";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 import normalizeUrl from "../utils/normalizeUrl";
@@ -40,6 +48,9 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   const [missingCores, setMissingCores] = useState([]);
   const [downloadingCore, setDownloadingCore] = useState(null);
   const [emuMessage, setEmuMessage] = useState(null);
+  const [emuMenuAnchor, setEmuMenuAnchor] = useState(null);
+  const [selectedEmu, setSelectedEmu] = useState(null);
+  const [expandedEmu, setExpandedEmu] = useState(null);
 
   useEffect(() => {
     loadConfig();
@@ -158,6 +169,48 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
     }
   }
 
+  function handleEmuMenuOpen(event, emu) {
+    setEmuMenuAnchor(event.currentTarget);
+    setSelectedEmu(emu);
+  }
+
+  function handleEmuMenuClose() {
+    setEmuMenuAnchor(null);
+    setSelectedEmu(null);
+  }
+
+  async function handleLaunchEmulator() {
+    if (!selectedEmu?.installed_path) return;
+    try {
+      await invoke("launch_emulator", { emulatorPath: selectedEmu.installed_path });
+      setEmuMessage({ type: "success", message: `Launched ${selectedEmu.name}` });
+    } catch (err) {
+      setEmuMessage({ type: "error", message: `Failed to launch: ${err}` });
+    }
+    handleEmuMenuClose();
+  }
+
+  async function handleOpenLocation() {
+    if (!selectedEmu?.installed_path) return;
+    try {
+      await invoke("open_emulator_location", { emulatorPath: selectedEmu.installed_path });
+    } catch (err) {
+      setEmuMessage({ type: "error", message: `Failed to open location: ${err}` });
+    }
+    handleEmuMenuClose();
+  }
+
+  function getInstallTypeLabel(installType) {
+    switch (installType) {
+      case "steam": return "Steam";
+      case "system": return "System";
+      case "portable": return "Portable";
+      case "managed": return "Wingosy";
+      case "custom": return "Custom";
+      default: return "Installed";
+    }
+  }
+
   async function handleApplyPaths() {
     try {
       const count = await invoke("apply_detected_paths");
@@ -213,13 +266,22 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
         {scanMessage && <Alert severity={scanMessage.type} sx={{ mt: 2 }}>{scanMessage.message}</Alert>}
       </Paper>
 
-      {/* Emulators */}
+      {/* Emulators & Cores - Unified Section */}
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <SportsEsportsIcon color="primary" />
             <Typography variant="h6">Emulators</Typography>
             <Chip label={`${installedEmus.length} installed`} size="small" color="success" variant="outlined" />
+            {missingCores.length > 0 && (
+              <Chip 
+                label={`${missingCores.length} cores needed`} 
+                size="small" 
+                color="warning" 
+                variant="outlined"
+                icon={<MemoryIcon sx={{ fontSize: 14 }} />}
+              />
+            )}
           </Box>
           <Box sx={{ display: "flex", gap: 1 }}>
             <Tooltip title="Auto-apply detected paths to config">
@@ -228,33 +290,202 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
               </Button>
             </Tooltip>
             <Tooltip title="Re-scan for emulators">
-              <IconButton size="small" onClick={loadEmulators}><RefreshIcon /></IconButton>
+              <IconButton size="small" onClick={() => { loadEmulators(); loadMissingCores(); }}><RefreshIcon /></IconButton>
             </Tooltip>
           </Box>
         </Box>
 
         {emuMessage && <Alert severity={emuMessage.type} onClose={() => setEmuMessage(null)} sx={{ mb: 2 }}>{emuMessage.message}</Alert>}
-        {downloadingEmu && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
+        {(downloadingEmu || downloadingCore) && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 
         {installedEmus.length > 0 && (
           <>
             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Installed</Typography>
             <List dense>
-              {installedEmus.map((emu) => (
-                <ListItem key={emu.id} sx={{ borderRadius: 2, mb: 0.5 }}>
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    <CheckCircleIcon color="success" fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={emu.name}
-                    secondary={emu.installed_path}
-                    secondaryTypographyProps={{ fontSize: "0.7rem", noWrap: true }}
-                  />
-                  <Chip label={emu.supported_platforms.join(", ").toUpperCase()} size="small" variant="outlined"
-                    sx={{ fontSize: "0.6rem", maxWidth: 200 }} />
-                </ListItem>
-              ))}
+              {installedEmus.map((emu) => {
+                const isRetroArch = emu.id === "retroarch";
+                const emuCores = isRetroArch ? missingCores : [];
+                const isExpanded = expandedEmu === emu.id;
+                
+                return (
+                  <Box key={emu.id}>
+                    <ListItem 
+                      sx={{ 
+                        borderRadius: isExpanded ? "8px 8px 0 0" : 2, 
+                        mb: isExpanded ? 0 : 0.5,
+                        bgcolor: "rgba(76, 175, 80, 0.08)",
+                        "&:hover": { bgcolor: "rgba(76, 175, 80, 0.12)" },
+                        cursor: isRetroArch && emuCores.length > 0 ? "pointer" : "default"
+                      }}
+                      onClick={() => isRetroArch && emuCores.length > 0 && setExpandedEmu(isExpanded ? null : emu.id)}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <CheckCircleIcon color="success" fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            {emu.name}
+                            {emu.version && (
+                              <Typography variant="caption" color="text.secondary">
+                                v{emu.version}
+                              </Typography>
+                            )}
+                            <Chip 
+                              label={getInstallTypeLabel(emu.install_type)} 
+                              size="small" 
+                              color={emu.install_type === "steam" ? "primary" : "default"}
+                              variant="outlined"
+                              sx={{ fontSize: "0.6rem", height: 18 }}
+                            />
+                            {isRetroArch && emuCores.length > 0 && (
+                              <Chip 
+                                label={`${emuCores.length} cores needed`}
+                                size="small" 
+                                color="warning"
+                                variant="filled"
+                                sx={{ fontSize: "0.6rem", height: 18 }}
+                              />
+                            )}
+                          </Box>
+                        }
+                        secondary={emu.installed_path}
+                        secondaryTypographyProps={{ fontSize: "0.7rem", noWrap: true, sx: { maxWidth: 300 } }}
+                      />
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Chip 
+                          label={emu.supported_platforms.slice(0, 3).join(", ").toUpperCase() + (emu.supported_platforms.length > 3 ? "..." : "")} 
+                          size="small" 
+                          variant="outlined"
+                          sx={{ fontSize: "0.6rem", maxWidth: 120 }} 
+                        />
+                        <Tooltip title="Launch">
+                          <IconButton 
+                            size="small" 
+                            color="primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              invoke("launch_emulator", { emulatorPath: emu.installed_path })
+                                .then(() => setEmuMessage({ type: "success", message: `Launched ${emu.name}` }))
+                                .catch(err => setEmuMessage({ type: "error", message: `Failed: ${err}` }));
+                            }}
+                          >
+                            <PlayArrowIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Open folder">
+                          <IconButton 
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              invoke("open_emulator_location", { emulatorPath: emu.installed_path })
+                                .catch(err => setEmuMessage({ type: "error", message: `Failed: ${err}` }));
+                            }}
+                          >
+                            <FolderOpenIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleEmuMenuOpen(e, emu); }}>
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                        {isRetroArch && emuCores.length > 0 && (
+                          <IconButton size="small" onClick={(e) => { e.stopPropagation(); setExpandedEmu(isExpanded ? null : emu.id); }}>
+                            {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                          </IconButton>
+                        )}
+                      </Box>
+                    </ListItem>
+                    
+                    {/* Cores section for RetroArch */}
+                    {isRetroArch && (
+                      <Collapse in={isExpanded}>
+                        <Box sx={{ 
+                          bgcolor: "rgba(255, 152, 0, 0.05)", 
+                          borderRadius: "0 0 8px 8px",
+                          border: "1px solid rgba(255, 152, 0, 0.2)",
+                          borderTop: "none",
+                          mb: 0.5,
+                          p: 2
+                        }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                            Missing cores for your game library:
+                          </Typography>
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                            {emuCores.map((core) => (
+                              <Chip
+                                key={core.core_filename}
+                                icon={downloadingCore === core.core_filename ? null : <MemoryIcon sx={{ fontSize: 14 }} />}
+                                label={
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                    <span>{core.core_filename.replace("_libretro.dll", "")}</span>
+                                    <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                                      ({core.platform_name})
+                                    </Typography>
+                                  </Box>
+                                }
+                                onClick={() => handleDownloadCore(core.core_filename)}
+                                onDelete={() => handleDownloadCore(core.core_filename)}
+                                deleteIcon={
+                                  downloadingCore === core.core_filename 
+                                    ? <Box sx={{ width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                        <Box sx={{ width: 14, height: 14, border: "2px solid", borderColor: "warning.main", borderRadius: "50%", borderRightColor: "transparent", animation: "spin 1s linear infinite", "@keyframes spin": { "0%": { transform: "rotate(0deg)" }, "100%": { transform: "rotate(360deg)" } } }} />
+                                      </Box>
+                                    : <DownloadIcon sx={{ fontSize: 16 }} />
+                                }
+                                disabled={downloadingCore !== null}
+                                sx={{ 
+                                  bgcolor: "rgba(255, 152, 0, 0.1)",
+                                  "&:hover": { bgcolor: "rgba(255, 152, 0, 0.2)" },
+                                  "& .MuiChip-deleteIcon": { color: "warning.main" }
+                                }}
+                                size="small"
+                              />
+                            ))}
+                          </Box>
+                          {emuCores.length > 1 && (
+                            <Button 
+                              size="small" 
+                              variant="outlined" 
+                              color="warning"
+                              startIcon={<DownloadIcon />}
+                              onClick={async () => {
+                                for (const core of emuCores) {
+                                  await handleDownloadCore(core.core_filename);
+                                }
+                              }}
+                              disabled={downloadingCore !== null}
+                              sx={{ mt: 1.5 }}
+                            >
+                              Download All Cores
+                            </Button>
+                          )}
+                        </Box>
+                      </Collapse>
+                    )}
+                  </Box>
+                );
+              })}
             </List>
+            <Menu
+              anchorEl={emuMenuAnchor}
+              open={Boolean(emuMenuAnchor)}
+              onClose={handleEmuMenuClose}
+            >
+              <MenuItem onClick={handleLaunchEmulator}>
+                <PlayArrowIcon fontSize="small" sx={{ mr: 1 }} />
+                Launch Emulator
+              </MenuItem>
+              <MenuItem onClick={handleOpenLocation}>
+                <FolderOpenIcon fontSize="small" sx={{ mr: 1 }} />
+                Open Install Location
+              </MenuItem>
+              {selectedEmu?.install_type === "managed" && (
+                <MenuItem disabled sx={{ color: "error.main" }}>
+                  <DownloadIcon fontSize="small" sx={{ mr: 1, transform: "rotate(180deg)" }} />
+                  Uninstall (Coming Soon)
+                </MenuItem>
+              )}
+            </Menu>
           </>
         )}
 
@@ -307,45 +538,19 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
             </List>
           </>
         )}
+        
+        {/* Show missing cores alert if RetroArch is NOT installed but cores are needed */}
+        {missingCores.length > 0 && !installedEmus.some(e => e.id === "retroarch") && (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            <Typography variant="body2" fontWeight={500}>
+              {missingCores.length} cores needed for your games
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Install RetroArch to use these cores: {missingCores.map(c => c.platform_name).join(", ")}
+            </Typography>
+          </Alert>
+        )}
       </Paper>
-
-      {/* RetroArch Cores */}
-      {missingCores.length > 0 && (
-        <Paper sx={{ p: 3, borderRadius: 3 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <MemoryIcon color="primary" />
-            <Typography variant="h6">RetroArch Cores</Typography>
-            <Chip label={`${missingCores.length} missing`} size="small" color="warning" variant="outlined" />
-          </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            These cores are needed for your game library but aren't installed yet.
-          </Typography>
-          {downloadingCore && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
-          <List dense>
-            {missingCores.map((core) => (
-              <ListItem key={core.core_filename} sx={{ borderRadius: 2, mb: 0.5 }}>
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  <MemoryIcon color="warning" fontSize="small" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={core.core_filename.replace("_libretro.dll", "")}
-                  secondary={core.platform_name}
-                  secondaryTypographyProps={{ fontSize: "0.7rem" }}
-                />
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<DownloadIcon />}
-                  onClick={() => handleDownloadCore(core.core_filename)}
-                  disabled={downloadingCore !== null}
-                >
-                  {downloadingCore === core.core_filename ? "Installing..." : "Download"}
-                </Button>
-              </ListItem>
-            ))}
-          </List>
-        </Paper>
-      )}
     </Box>
   );
 }

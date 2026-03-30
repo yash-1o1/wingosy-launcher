@@ -29,14 +29,19 @@ impl RomScanner {
         recursive: bool,
         tx: mpsc::Sender<ScanEvent>,
     ) -> Result<Vec<Game>> {
+        tracing::info!("[Scanner] Starting scan of {:?} (recursive={})", directory, recursive);
+        
         let files = self.collect_files(directory, recursive)?;
         let total_files = files.len();
+        
+        tracing::info!("[Scanner] Found {} ROM files to process", total_files);
 
         tx.send(ScanEvent::Started { total_files })
             .await
             .ok();
 
         let mut games = Vec::new();
+        let mut errors = 0;
 
         for (index, file_path) in files.iter().enumerate() {
             tx.send(ScanEvent::Progress {
@@ -48,6 +53,7 @@ impl RomScanner {
 
             match self.process_file(file_path) {
                 Ok(Some(game)) => {
+                    tracing::debug!("[Scanner] Found game: {} ({})", game.name, game.platform_id);
                     tx.send(ScanEvent::GameFound { game: game.clone() })
                         .await
                         .ok();
@@ -55,6 +61,8 @@ impl RomScanner {
                 }
                 Ok(None) => {}
                 Err(e) => {
+                    errors += 1;
+                    tracing::warn!("[Scanner] Error processing {:?}: {}", file_path, e);
                     tx.send(ScanEvent::Error {
                         path: file_path.clone(),
                         error: e.to_string(),
@@ -65,6 +73,8 @@ impl RomScanner {
             }
         }
 
+        tracing::info!("[Scanner] Scan complete: {} games found, {} errors", games.len(), errors);
+        
         tx.send(ScanEvent::Completed {
             games_found: games.len(),
         })

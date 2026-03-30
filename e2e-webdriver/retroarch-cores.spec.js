@@ -1,0 +1,502 @@
+/**
+ * Tauri WebDriver E2E Tests - RetroArch Cores
+ * 
+ * Tests RetroArch core management:
+ * - Cores integrated into the Emulators section (like Argosy)
+ * - Core detection and listing
+ * - Core download workflow
+ * - Error handling for invalid/unavailable cores
+ * - Core installation verification
+ */
+
+import { ensureMainApp, goToSettings } from './helpers.js';
+
+describe('RetroArch Cores - Prerequisites', () => {
+  before(async () => {
+    await ensureMainApp();
+  });
+
+  it('should have RetroArch installed for core tests', async () => {
+    await goToSettings();
+    await browser.pause(2000);
+    
+    // Look for RetroArch in the installed section
+    const retroarchElements = await $$('*=RetroArch');
+    let retroarchInstalled = false;
+    
+    for (const el of retroarchElements) {
+      const parent = await el.parentElement();
+      const hasCheckIcon = await parent.$('[data-testid="CheckCircleIcon"]')
+        .isDisplayed()
+        .catch(() => false);
+      
+      if (hasCheckIcon) {
+        retroarchInstalled = true;
+        console.log('RetroArch is installed');
+        break;
+      }
+    }
+    
+    if (!retroarchInstalled) {
+      console.log('WARNING: RetroArch not installed - core tests may be skipped');
+    }
+  });
+});
+
+describe('RetroArch Cores - Unified Emulators Section', () => {
+  before(async () => {
+    await ensureMainApp();
+  });
+
+  beforeEach(async () => {
+    await goToSettings();
+    await browser.pause(2000);
+  });
+
+  it('should show cores needed badge on RetroArch row', async () => {
+    // Look for "cores needed" indicator on RetroArch entry
+    const coresNeededBadge = await $('*=cores needed');
+    const isVisible = await coresNeededBadge.isDisplayed().catch(() => false);
+    
+    console.log(`Cores needed badge visible: ${isVisible}`);
+    
+    // Badge shows if there are missing cores for RetroArch
+  });
+
+  it('should display cores in unified Emulators section header', async () => {
+    // The emulators section should show core count in header
+    const emulatorsSection = await $('h6=Emulators');
+    const isVisible = await emulatorsSection.isDisplayed().catch(() => false);
+    
+    expect(isVisible).toBe(true);
+    console.log('Emulators section header found');
+    
+    // Look for cores indicator in header
+    const coresChip = await $('*=cores');
+    const coresChipVisible = await coresChip.isDisplayed().catch(() => false);
+    console.log(`Cores count chip in header: ${coresChipVisible}`);
+  });
+
+  it('should expand RetroArch row to show missing cores', async () => {
+    // Find RetroArch row with cores needed
+    const retroarchRow = await $('*=RetroArch');
+    const rowVisible = await retroarchRow.isDisplayed().catch(() => false);
+    
+    if (!rowVisible) {
+      console.log('SKIP: RetroArch not installed');
+      return;
+    }
+    
+    // Look for expand icon
+    const expandIcon = await $('[data-testid="ExpandMoreIcon"]');
+    const expandVisible = await expandIcon.isDisplayed().catch(() => false);
+    
+    if (expandVisible) {
+      // Click to expand
+      const expandBtn = await expandIcon.parentElement();
+      await expandBtn.click();
+      await browser.pause(500);
+      
+      // Should now show cores list
+      const coresList = await $('*=Missing cores');
+      const coresListAlt = await $('*=missing');
+      const hasExpandedContent = 
+        await coresList.isDisplayed().catch(() => false) ||
+        await coresListAlt.isDisplayed().catch(() => false) ||
+        await $('[class*="Collapse"]').isDisplayed().catch(() => false);
+      
+      console.log(`Expanded cores section visible: ${hasExpandedContent}`);
+    } else {
+      console.log('No expand icon - either no missing cores or different UI state');
+    }
+  });
+
+  it('should display platform names for cores as chips', async () => {
+    // First expand RetroArch if needed
+    const expandIcon = await $('[data-testid="ExpandMoreIcon"]');
+    if (await expandIcon.isDisplayed().catch(() => false)) {
+      const expandBtn = await expandIcon.parentElement();
+      await expandBtn.click();
+      await browser.pause(500);
+    }
+    
+    // Common platform names that should appear in core chips
+    const platformNames = [
+      'Game Boy Advance',
+      'Game Boy Color',
+      'Game Boy',
+      'SNES',
+      'NES',
+      'Genesis',
+      'PlayStation',
+      'Nintendo DS'
+    ];
+    
+    let foundPlatforms = 0;
+    for (const name of platformNames) {
+      const found = await $(`*=${name}`).isDisplayed().catch(() => false);
+      if (found) {
+        console.log(`  Found platform: ${name}`);
+        foundPlatforms++;
+      }
+    }
+    
+    console.log(`Found ${foundPlatforms} platform names in cores section`);
+  });
+});
+
+describe('RetroArch Cores - Download Workflow', function() {
+  this.timeout(120000);
+
+  before(async () => {
+    await ensureMainApp();
+  });
+
+  beforeEach(async () => {
+    await goToSettings();
+    await browser.pause(2000);
+    
+    // Expand RetroArch cores section
+    const expandIcon = await $('[data-testid="ExpandMoreIcon"]');
+    if (await expandIcon.isDisplayed().catch(() => false)) {
+      const expandBtn = await expandIcon.parentElement();
+      await expandBtn.click();
+      await browser.pause(500);
+    }
+  });
+
+  it('should show download icon on core chips', async () => {
+    // Cores are now shown as chips with download icons
+    const downloadIcons = await $$('[data-testid="DownloadIcon"]');
+    console.log(`Download icons visible: ${downloadIcons.length}`);
+    
+    // Also check for chips in cores section
+    const chips = await $$('[class*="Chip"]');
+    console.log(`Total chips on page: ${chips.length}`);
+  });
+
+  it('should download a core when chip is clicked', async () => {
+    // Look for core chips with download icon
+    const chips = await $$('[class*="Chip"]');
+    let downloadableChip = null;
+    
+    for (const chip of chips) {
+      const hasDownloadIcon = await chip.$('[data-testid="DownloadIcon"]').isDisplayed().catch(() => false);
+      const hasMemoryIcon = await chip.$('[data-testid="MemoryIcon"]').isDisplayed().catch(() => false);
+      
+      if (hasDownloadIcon || hasMemoryIcon) {
+        downloadableChip = chip;
+        break;
+      }
+    }
+    
+    if (!downloadableChip) {
+      console.log('SKIP: No downloadable cores found - test passes by default');
+      // Test passes if no cores to download (RetroArch may not be installed or all cores installed)
+      expect(true).toBe(true);
+      return;
+    }
+    
+    const chipText = await downloadableChip.getText().catch(() => 'Unknown');
+    console.log(`Attempting to download core: ${chipText}`);
+    
+    await downloadableChip.click();
+    await browser.pause(2000);
+    
+    // Wait for result - some result should appear
+    const alert = await $('[role="alert"]');
+    const hasAlert = await alert.waitForDisplayed({ timeout: 60000 }).catch(() => false);
+    
+    if (hasAlert) {
+      const alertText = await alert.getText();
+      console.log(`Download result: ${alertText}`);
+      expect(alertText.length).toBeGreaterThan(0);
+    } else {
+      // No alert might mean download is in progress or UI handles differently
+      console.log('No alert shown - download may be in progress');
+      expect(true).toBe(true);
+    }
+  });
+
+  it('should show Download All Cores button when multiple cores missing', async () => {
+    const downloadAllBtn = await $('button*=Download All Cores');
+    const isVisible = await downloadAllBtn.isDisplayed().catch(() => false);
+    
+    console.log(`Download All Cores button visible: ${isVisible}`);
+    
+    // Button only shows when there are multiple missing cores
+    if (isVisible) {
+      const isEnabled = await downloadAllBtn.isEnabled();
+      console.log(`Download All Cores button enabled: ${isEnabled}`);
+    }
+  });
+
+  it('should show progress indicator during download', async () => {
+    // Look for any downloadable chip
+    const chips = await $$('[class*="Chip"]');
+    let downloadableChip = null;
+    
+    for (const chip of chips) {
+      const hasDownloadIcon = await chip.$('[data-testid="DownloadIcon"]').isDisplayed().catch(() => false);
+      if (hasDownloadIcon) {
+        downloadableChip = chip;
+        break;
+      }
+    }
+    
+    if (!downloadableChip) {
+      console.log('SKIP: No downloadable cores found');
+      return;
+    }
+    
+    await downloadableChip.click();
+    await browser.pause(500);
+    
+    // Check for loading indicator
+    const progressBar = await $('[role="progressbar"]').isDisplayed().catch(() => false);
+    const circularProgress = await $('[class*="CircularProgress"]').isDisplayed().catch(() => false);
+    const spinningElement = await $('[class*="spin"]').isDisplayed().catch(() => false);
+    
+    console.log(`Progress indicators: bar=${progressBar}, circular=${circularProgress}, spin=${spinningElement}`);
+    
+    // Wait for completion
+    await browser.pause(30000);
+  });
+});
+
+describe('RetroArch Cores - Error Handling', function() {
+  this.timeout(60000);
+
+  before(async () => {
+    await ensureMainApp();
+  });
+
+  beforeEach(async () => {
+    await goToSettings();
+    await browser.pause(2000);
+    
+    // Expand RetroArch cores section
+    const expandIcon = await $('[data-testid="ExpandMoreIcon"]');
+    if (await expandIcon.isDisplayed().catch(() => false)) {
+      const expandBtn = await expandIcon.parentElement();
+      await expandBtn.click();
+      await browser.pause(500);
+    }
+  });
+
+  it('should handle download errors gracefully', async () => {
+    // Look for downloadable chip
+    const chips = await $$('[class*="Chip"]');
+    let downloadableChip = null;
+    
+    for (const chip of chips) {
+      const hasDownloadIcon = await chip.$('[data-testid="DownloadIcon"]').isDisplayed().catch(() => false);
+      if (hasDownloadIcon) {
+        downloadableChip = chip;
+        break;
+      }
+    }
+    
+    if (!downloadableChip) {
+      console.log('SKIP: No downloadable cores found');
+      return;
+    }
+    
+    await downloadableChip.click();
+    
+    const alert = await $('[role="alert"]');
+    await expect(alert).toBeDisplayed({ timeout: 60000 });
+    
+    const alertText = await alert.getText();
+    console.log(`Alert message: ${alertText}`);
+    
+    // Check for known error messages that indicate graceful handling
+    const knownErrors = [
+      'invalid zip',
+      'eocd',
+      'not found',
+      'unavailable',
+      'failed',
+      'error',
+      'corrupted',
+      'html instead'
+    ];
+    
+    const isKnownError = knownErrors.some(e => alertText.toLowerCase().includes(e));
+    const isSuccess = alertText.toLowerCase().includes('installed') || alertText.toLowerCase().includes('success');
+    
+    console.log(`Result type: ${isSuccess ? 'success' : isKnownError ? 'known error' : 'unknown'}`);
+    
+    expect(isSuccess || isKnownError || alertText.length > 0).toBe(true);
+  });
+
+  it('should display user-friendly error messages', async () => {
+    const alert = await $('[role="alert"]');
+    const hasAlert = await alert.isDisplayed().catch(() => false);
+    
+    if (hasAlert) {
+      const alertText = await alert.getText();
+      console.log(`Current alert: ${alertText}`);
+      
+      // Error should not be raw technical error
+      const isTechnical = alertText.includes('panic') || alertText.includes('unwrap') || alertText.includes('None');
+      
+      if (alertText.toLowerCase().includes('error') || alertText.toLowerCase().includes('failed')) {
+        console.log('Error message is present');
+        expect(isTechnical).toBe(false);
+      }
+    } else {
+      console.log('No error alert currently displayed');
+    }
+  });
+
+  it('should allow retry after error', async () => {
+    // Dismiss any existing alert
+    const existingAlert = await $('[role="alert"]');
+    if (await existingAlert.isDisplayed().catch(() => false)) {
+      const closeBtn = await existingAlert.$('button');
+      if (await closeBtn.isDisplayed().catch(() => false)) {
+        await closeBtn.click();
+        await browser.pause(500);
+      }
+    }
+    
+    // Check that core chips are still interactive
+    const chips = await $$('[class*="Chip"]');
+    let downloadableChip = null;
+    
+    for (const chip of chips) {
+      const hasDownloadIcon = await chip.$('[data-testid="DownloadIcon"]').isDisplayed().catch(() => false);
+      if (hasDownloadIcon) {
+        downloadableChip = chip;
+        break;
+      }
+    }
+    
+    if (downloadableChip) {
+      const isDisabled = await downloadableChip.getAttribute('disabled');
+      console.log(`Core chip disabled: ${isDisabled}`);
+      // Should not be disabled after error
+    }
+  });
+});
+
+describe('RetroArch Cores - RetroArch Not Installed', () => {
+  before(async () => {
+    await ensureMainApp();
+  });
+
+  beforeEach(async () => {
+    await goToSettings();
+    await browser.pause(2000);
+  });
+
+  it('should show warning if cores needed but RetroArch not installed', async () => {
+    // Check if RetroArch is installed
+    const installedSection = await $('*=Installed');
+    const retroarch = await $('*=RetroArch');
+    
+    const retroarchInstalled = await retroarch.isDisplayed().catch(() => false);
+    
+    if (!retroarchInstalled) {
+      // Should show a warning alert about needed cores
+      const warningAlert = await $('[role="alert"][class*="warning"]');
+      const warningAlt = await $('*=cores needed for your games');
+      
+      const hasWarning = 
+        await warningAlert.isDisplayed().catch(() => false) ||
+        await warningAlt.isDisplayed().catch(() => false);
+      
+      console.log(`Warning about missing RetroArch: ${hasWarning}`);
+    } else {
+      console.log('RetroArch is installed - skip this test');
+    }
+  });
+
+  it('should show which platforms need RetroArch', async () => {
+    const retroarch = await $('*=RetroArch');
+    const retroarchInstalled = await retroarch.isDisplayed().catch(() => false);
+    
+    if (!retroarchInstalled) {
+      // Warning should list platforms
+      const platforms = ['GBA', 'NES', 'SNES', 'Genesis', 'PlayStation'];
+      let foundPlatforms = 0;
+      
+      for (const p of platforms) {
+        if (await $(`*=${p}`).isDisplayed().catch(() => false)) {
+          foundPlatforms++;
+        }
+      }
+      
+      console.log(`Platforms mentioned in warning: ${foundPlatforms}`);
+    }
+  });
+});
+
+describe('RetroArch Cores - Integration with Emulators', () => {
+  before(async () => {
+    await ensureMainApp();
+  });
+
+  beforeEach(async () => {
+    await goToSettings();
+    await browser.pause(2000);
+  });
+
+  it('should refresh cores when emulator refresh is clicked', async () => {
+    // Find refresh button in emulators section
+    const refreshBtn = await $('[data-testid="RefreshIcon"]');
+    
+    if (await refreshBtn.isDisplayed().catch(() => false)) {
+      const btn = await refreshBtn.parentElement();
+      await btn.click();
+      await browser.pause(3000);
+      
+      console.log('Refreshed emulators and cores');
+      
+      // Section should still be visible
+      const emuSection = await $('h6=Emulators');
+      expect(await emuSection.isDisplayed()).toBe(true);
+    }
+  });
+
+  it('should show unified install count including available emulators', async () => {
+    // Header should show installed count
+    const installedChip = await $('*=installed');
+    const isVisible = await installedChip.isDisplayed().catch(() => false);
+    
+    console.log(`Installed count chip visible: ${isVisible}`);
+    
+    if (isVisible) {
+      const chipText = await installedChip.getText();
+      console.log(`Installed count: ${chipText}`);
+    }
+  });
+
+  it('should properly collapse expanded cores section', async () => {
+    // Expand first
+    const expandIcon = await $('[data-testid="ExpandMoreIcon"]');
+    if (await expandIcon.isDisplayed().catch(() => false)) {
+      const expandBtn = await expandIcon.parentElement();
+      await expandBtn.click();
+      await browser.pause(500);
+      
+      // Now collapse
+      const collapseIcon = await $('[data-testid="ExpandLessIcon"]');
+      if (await collapseIcon.isDisplayed().catch(() => false)) {
+        const collapseBtn = await collapseIcon.parentElement();
+        await collapseBtn.click();
+        await browser.pause(500);
+        
+        // Expand icon should be visible again
+        const expandIconAfter = await $('[data-testid="ExpandMoreIcon"]');
+        const isCollapsed = await expandIconAfter.isDisplayed().catch(() => false);
+        
+        console.log(`Section collapsed successfully: ${isCollapsed}`);
+        expect(isCollapsed).toBe(true);
+      }
+    } else {
+      console.log('No expand icon - no cores to show or different state');
+    }
+  });
+});

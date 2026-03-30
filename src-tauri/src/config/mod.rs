@@ -25,18 +25,25 @@ impl Default for AppConfig {
 impl AppConfig {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path()?;
+        tracing::debug!("[Config] Loading config from {:?}", config_path);
 
         if config_path.exists() {
             let contents = std::fs::read_to_string(&config_path)
                 .context("Failed to read config file")?;
-            toml::from_str(&contents).context("Failed to parse config file")
+            let config: Self = toml::from_str(&contents).context("Failed to parse config file")?;
+            tracing::info!("[Config] Loaded configuration successfully");
+            tracing::debug!("[Config] RomM server: {:?}", config.romm.server_url);
+            tracing::debug!("[Config] ROMs directory: {:?}", config.library.roms_directory);
+            Ok(config)
         } else {
+            tracing::info!("[Config] No config file found, using defaults");
             Ok(Self::default())
         }
     }
 
     pub fn save(&self) -> Result<()> {
         let config_path = Self::config_path()?;
+        tracing::debug!("[Config] Saving config to {:?}", config_path);
 
         if let Some(parent) = config_path.parent() {
             std::fs::create_dir_all(parent).context("Failed to create config directory")?;
@@ -44,7 +51,8 @@ impl AppConfig {
 
         let contents = toml::to_string_pretty(self).context("Failed to serialize config")?;
         std::fs::write(&config_path, contents).context("Failed to write config file")?;
-
+        
+        tracing::info!("[Config] Configuration saved successfully");
         Ok(())
     }
 
@@ -83,6 +91,10 @@ impl AppConfig {
 
     pub fn emulators_dir() -> Result<PathBuf> {
         Ok(Self::data_dir()?.join("emulators"))
+    }
+
+    pub fn logs_dir() -> Result<PathBuf> {
+        Ok(Self::data_dir()?.join("logs"))
     }
 
     pub fn roms_dir(&self) -> PathBuf {

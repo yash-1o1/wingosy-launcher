@@ -120,8 +120,15 @@ function App() {
 
   async function handleLaunchGame(gameId) {
     try {
-      await invoke("launch_game", { gameId });
-      await refreshGames();
+      const result = await invoke("launch_game", { gameId });
+      
+      if (!result.success && result.error) {
+        setError(result.error);
+      }
+      
+      if (!result.dry_run) {
+        await refreshGames();
+      }
     } catch (err) {
       setError(err.message || String(err));
     }

@@ -192,25 +192,93 @@ sync_romm_library(url, token)
 
 ### Test Structure
 
-Tests follow Rust convention:
+Wingosy uses a three-layer testing strategy:
 
-- **Unit tests**: inline `#[cfg(test)]` modules inside source files (compiled away in release)
-- **Integration tests**: in `src-tauri/tests/` (test public API against external services)
+| Layer | Location | What it Tests | AI/CI Friendly |
+|-------|----------|---------------|----------------|
+| Unit Tests | Inline `#[cfg(test)]` modules | Logic, parsing, data transforms | ✅ Yes |
+| Backend Integration | `src-tauri/tests/` | Real downloads, API calls | ✅ Yes |
+| E2E (WebDriver) | `e2e-webdriver/` | Full app with Rust backend | ✅ Yes |
 
 ### Running Tests
 
 ```bash
+# === Backend Tests (Rust) ===
 cd src-tauri
 
-# Run all unit tests (15 tests across 4 modules)
+# Unit tests (fast, no network)
 cargo test --bin wingosy-launcher
 
-# Run integration tests against live RomM server (requires .env)
+# RomM integration tests (requires .env with server credentials)
 cargo test --test romm_integration -- --ignored
 
-# Run everything
-cargo test --bin wingosy-launcher && cargo test --test romm_integration -- --ignored
+# Emulator download tests (no credentials, tests real downloads)
+cargo test --test emulator_integration -- --ignored --nocapture
+
+# === E2E Tests (WebDriver - full Tauri app) ===
+cd ..  # back to project root
+
+# Run all E2E tests
+npm run test:e2e
+
+# Run specific test files
+npm run test:e2e:app       # Basic app tests
+npm run test:e2e:download  # Emulator download tests
+
+# === Run Everything ===
+cd src-tauri && cargo test --bin wingosy-launcher && cargo test --test emulator_integration -- --ignored && cd .. && npm run test:e2e
 ```
+
+### E2E Tests (WebDriver)
+
+Located in `e2e-webdriver/`. These test the **complete Tauri app** including the Rust backend, using the official Tauri WebDriver approach.
+
+| Test File | What it Tests |
+|-----------|---------------|
+| `app.spec.js` | App launch, navigation, emulator list with real backend data |
+| `emulator-download.spec.js` | Full download workflow: UI → Rust → Download → Extract → UI update |
+
+#### Prerequisites
+
+1. **Install tauri-driver** (one-time):
+   ```bash
+   cargo install tauri-driver
+   ```
+
+2. **Download Microsoft Edge WebDriver**:
+   - Check your Edge version: `edge://version` or `Settings > About`
+   - Download matching driver from: https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
+   - Place `msedgedriver.exe` in `e2e-webdriver/` folder or add to PATH
+
+3. **Build the app**:
+   ```bash
+   npm run tauri build
+   ```
+
+#### Running E2E Tests
+
+```bash
+# Run all E2E tests
+npm run test:e2e
+
+# Run specific tests
+npm run test:e2e:app
+npm run test:e2e:download
+
+# Run with wdio directly
+npx wdio run wdio.conf.js --spec e2e-webdriver/app.spec.js
+```
+
+| Test File | What it Tests |
+|-----------|---------------|
+| `app.spec.js` | App launch, navigation, emulator list with real backend data |
+| `emulator-download.spec.js` | Full download workflow: UI → Rust → Download → Extract → UI update |
+
+**Why use WebDriver tests?**
+- Tests the **real app** with Rust backend
+- Verifies `invoke()` calls actually work
+- Tests real emulator downloads end-to-end
+- Official Tauri-recommended approach for desktop E2E testing
 
 ### Unit Test Locations
 
@@ -223,7 +291,11 @@ cargo test --bin wingosy-launcher && cargo test --test romm_integration -- --ign
 
 ### Integration Tests
 
-Located in `src-tauri/tests/romm_integration.rs`. These hit a live RomM server and require credentials in `.env`:
+Integration tests are in `src-tauri/tests/` and test against real external services. They're marked `#[ignore]` so `cargo test` skips them by default.
+
+#### RomM Integration Tests (`romm_integration.rs`)
+
+Require credentials in `.env`:
 
 ```
 ROMM_SERVER_URL=https://romm.example.com
@@ -231,14 +303,36 @@ ROMM_USERNAME=your_username
 ROMM_PASSWORD=your_password
 ```
 
-Tests are marked `#[ignore]` so `cargo test` skips them by default. Run explicitly with `--ignored`.
-
 | Test | What it verifies |
 |------|-----------------|
 | `authenticate_with_romm_server` | Token is returned and non-empty |
 | `heartbeat_is_accessible` | Server is reachable, returns RomM version |
 | `cookie_based_auth_flow` | CSRF cookie + JWT token flow works |
 | `fetch_platforms_with_auth` | Platforms endpoint (gracefully skips on 403) |
+
+#### Emulator Download Tests (`emulator_integration.rs`)
+
+No credentials required - these test actual downloads from GitHub and libretro buildbot.
+
+```bash
+# Run all emulator tests
+cargo test --test emulator_integration -- --ignored --nocapture
+
+# Run specific tests
+cargo test --test emulator_integration test_retroarch_direct_download -- --ignored --nocapture
+cargo test --test emulator_integration test_github_release_download -- --ignored --nocapture
+cargo test --test emulator_integration test_retroarch_core_download -- --ignored --nocapture
+cargo test --test emulator_integration test_all_emulator_sources_accessible -- --ignored --nocapture
+```
+
+| Test | What it verifies | Duration |
+|------|------------------|----------|
+| `test_all_emulator_sources_accessible` | All emulator download URLs/GitHub releases are reachable | ~3s |
+| `test_retroarch_core_download` | Download and extract a RetroArch core (snes9x) | ~2s |
+| `test_github_release_download` | Full workflow: fetch mGBA release → download → extract → find exe | ~60s |
+| `test_retroarch_direct_download` | Full workflow: download RetroArch 7z → extract → find exe | ~120s |
+
+These tests are **AI/CI-friendly** - they can be run headless without any UI interaction.
 
 ### Environment Setup for Tests
 
@@ -261,6 +355,50 @@ npm run tauri dev
 This starts:
 1. **Vite dev server** on `http://localhost:5173` with hot-reload for React
 2. **Rust backend** compiled in debug mode, auto-rebuilds on `.rs` file changes
+
+### Debug vs Release Builds
+
+Wingosy uses compile-time debug mode (like Argosy Launcher):
+
+| | Debug Build (`npm run tauri dev`) | Release Build (`npm run tauri build`) |
+|---|---|---|
+| **Console window** | Visible (shows logs) | Hidden |
+| **Game launching** | **Dry run** — commands logged, games NOT launched | Normal — games launch |
+| **Tracing level** | `debug` and above | `info` and above |
+| **Performance** | Slower (no optimizations) | Optimized |
+
+**In debug builds**, clicking "Play" will:
+1. Log the full emulator command to the console
+2. Write the command to `%APPDATA%/wingosy/launcher/data/logs/launches.log`
+3. **NOT actually launch the game** (dry run mode)
+
+This lets you verify launch commands without running emulators. To actually play games during development, build a release binary:
+
+```bash
+npm run tauri build
+# Then run: src-tauri/target/release/wingosy-launcher.exe
+```
+
+### Launch Logs
+
+All game launches (debug and release) are logged to:
+
+```
+%APPDATA%/wingosy/launcher/data/logs/launches.log
+```
+
+Each entry includes:
+- Timestamp
+- Game name and emulator
+- ROM path
+- Full command line
+
+Example log entry:
+```
+[2026-03-29 14:32:15] Super Mario World via RetroArch
+  ROM: C:\Games\SNES\Super Mario World.sfc
+  Command: "C:\RetroArch\retroarch.exe" -L "cores\snes9x_libretro.dll" "C:\Games\SNES\Super Mario World.sfc"
+```
 
 ### Frontend Only
 
@@ -407,6 +545,80 @@ grid_columns = 5
 | Cover art cache | `%LOCALAPPDATA%/wingosy/launcher/cache/covers/` |
 | Downloaded saves | `%APPDATA%/wingosy/launcher/data/saves/` |
 | Downloaded ROMs | Configured `roms_directory` or `%APPDATA%/wingosy/launcher/data/roms/` |
+| Launch logs | `%APPDATA%/wingosy/launcher/data/logs/launches.log` |
+
+## Logging
+
+Wingosy uses the `tracing` crate for comprehensive logging. Logs are output to the console window in debug builds.
+
+### Log Categories
+
+All log messages are prefixed with a category tag for easy filtering:
+
+| Tag | Description |
+|-----|-------------|
+| `[App]` | Application startup and lifecycle |
+| `[Config]` | Configuration loading/saving |
+| `[Library]` | Game database queries |
+| `[Launch]` | Game launching and dry runs |
+| `[Scanner]` | ROM directory scanning |
+| `[Emulators]` | Emulator detection and installation |
+| `[RetroArch]` | RetroArch cores management |
+| `[RomM]` | RomM server authentication and sync |
+| `[Download]` | ROM and asset downloads |
+| `[Setup]` | Initial setup wizard |
+| `[Scan]` | Directory scanning progress |
+
+### Log Levels
+
+| Level | When to use |
+|-------|-------------|
+| `tracing::error!` | Operation failed, user needs to know |
+| `tracing::warn!` | Something unexpected but recoverable |
+| `tracing::info!` | Key operations (login, sync complete, game launched) |
+| `tracing::debug!` | Detailed progress for debugging |
+
+### Example Log Output
+
+```
+INFO [App] Starting Wingosy Launcher v0.1.0
+INFO [Config] Loaded configuration successfully
+DEBUG [Config] RomM server: Some("https://romm.example.com")
+INFO [RomM] Authenticating user 'admin' at https://romm.example.com
+INFO [RomM] Authentication successful for 'admin'
+INFO [Emulators] Starting emulator detection scan...
+DEBUG [Emulators] Found RetroArch at "C:\\RetroArch\\retroarch.exe"
+INFO [Emulators] Detected 3 emulator(s):
+INFO [Emulators]   - RetroArch at "C:\\RetroArch\\retroarch.exe"
+INFO [Emulators]   - PCSX2 at "C:\\PCSX2\\pcsx2.exe"
+INFO [Emulators]   - Dolphin at "C:\\Dolphin\\Dolphin.exe"
+INFO [Library] Loaded 156 games from database
+INFO [Launch] Launching game id=42
+INFO [Launch] Game: Super Mario World (snes)
+WARN [DEBUG BUILD] Dry run - game not launched
+INFO [DEBUG BUILD] Command: "C:\\RetroArch\\retroarch.exe" -L "cores\\snes9x_libretro.dll" "C:\\Games\\SNES\\Super Mario World.sfc"
+```
+
+### Reading Logs
+
+In **debug builds** (`npm run tauri dev`), logs appear in the console window that opens alongside the app.
+
+For persistent logging, check the launch log file:
+```
+%APPDATA%/wingosy/launcher/data/logs/launches.log
+```
+
+### Filtering Logs
+
+You can filter console output by piping through a search tool:
+
+```bash
+# PowerShell - filter for RomM-related logs
+npm run tauri dev 2>&1 | Select-String "\[RomM\]"
+
+# Or filter for errors/warnings only
+npm run tauri dev 2>&1 | Select-String "(ERROR|WARN)"
+```
 
 ## Troubleshooting
 
@@ -427,3 +639,9 @@ The user account needs API read permissions on the RomM server. Check the user r
 
 ### Cover art not showing
 Verify `protocol-asset` is in the Tauri features (`Cargo.toml`) and `asset: true` is in `tauri.conf.json`. Cover images must be local files — the sync downloads them to the cache directory.
+
+### Games not launching in dev mode
+This is expected behavior. Debug builds use **dry run mode** — games are not launched, only the command is logged. Check the console output or `%APPDATA%/wingosy/launcher/data/logs/launches.log` to see what command would have been executed. To test actual launching, use a release build.
+
+### Checking what command would be executed
+Look at the launch log at `%APPDATA%/wingosy/launcher/data/logs/launches.log`. This file is written in both debug and release builds and contains the full command line for each launch attempt.

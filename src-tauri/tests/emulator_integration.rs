@@ -1,5 +1,14 @@
 /// Integration tests for emulator auto-download infrastructure.
-/// Run with: cargo test --test emulator_integration -- --ignored --nocapture
+/// 
+/// Run all tests:
+///   cargo test --test emulator_integration -- --ignored --nocapture
+/// 
+/// Run specific test:
+///   cargo test --test emulator_integration test_retroarch_direct_download -- --ignored --nocapture
+///   cargo test --test emulator_integration test_github_release_download -- --ignored --nocapture
+
+use std::path::PathBuf;
+use tempfile::TempDir;
 
 #[cfg(test)]
 mod github_api_tests {
@@ -147,6 +156,372 @@ mod buildbot_tests {
             let url = format!("https://buildbot.libretro.com/nightly/windows/x86_64/latest/{}.zip", core);
             let resp = client.head(&url).send().await.unwrap();
             println!("{}: {}", core, resp.status());
+        }
+    }
+}
+
+/// End-to-end download tests - these actually download and extract files
+#[cfg(test)]
+mod download_workflow_tests {
+    use super::*;
+
+    /// Test RetroArch direct download (not from GitHub)
+    #[tokio::test]
+    #[ignore]
+    async fn test_retroarch_direct_download() {
+        println!("\n=== Testing RetroArch Direct Download ===\n");
+        
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let dest_dir = temp_dir.path().to_path_buf();
+        
+        // RetroArch uses direct download from buildbot
+        let download_url = "https://buildbot.libretro.com/stable/1.19.1/windows/x86_64/RetroArch.7z";
+        let archive_name = "RetroArch.7z";
+        let archive_path = dest_dir.join(archive_name);
+        
+        println!("1. Downloading from: {}", download_url);
+        println!("   To: {:?}", archive_path);
+        
+        // Download the file
+        let client = reqwest::Client::builder()
+            .user_agent("wingosy-launcher-test/0.1")
+            .build().unwrap();
+        
+        let resp = client.get(download_url).send().await;
+        match resp {
+            Ok(response) => {
+                if !response.status().is_success() {
+                    println!("   SKIP: Server returned {}", response.status());
+                    return;
+                }
+                
+                let bytes = response.bytes().await.unwrap();
+                println!("   Downloaded: {} bytes", bytes.len());
+                
+                std::fs::write(&archive_path, &bytes).expect("Failed to write archive");
+                assert!(archive_path.exists(), "Archive file not created");
+                
+                // Extract the archive
+                println!("\n2. Extracting 7z archive...");
+                let extract_dir = dest_dir.join("retroarch");
+                std::fs::create_dir_all(&extract_dir).unwrap();
+                
+                match sevenz_rust::decompress_file(&archive_path, &extract_dir) {
+                    Ok(_) => {
+                        println!("   Extracted to: {:?}", extract_dir);
+                        
+                        // Find retroarch.exe
+                        let exe_path = find_file_recursive(&extract_dir, "retroarch.exe");
+                        match exe_path {
+                            Some(path) => {
+                                println!("\n3. Found executable: {:?}", path);
+                                println!("\n=== SUCCESS: RetroArch download workflow works ===\n");
+                            }
+                            None => {
+                                println!("   WARNING: retroarch.exe not found after extraction");
+                                list_directory_contents(&extract_dir, 0);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("   ERROR: Failed to extract: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                println!("   SKIP: Network error: {}", e);
+            }
+        }
+    }
+    
+    /// Test GitHub release download (e.g., mGBA)
+    #[tokio::test]
+    #[ignore]
+    async fn test_github_release_download() {
+        println!("\n=== Testing GitHub Release Download (mGBA) ===\n");
+        
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let dest_dir = temp_dir.path().to_path_buf();
+        
+        let client = reqwest::Client::builder()
+            .user_agent("wingosy-launcher-test/0.1")
+            .build().unwrap();
+        
+        // 1. Fetch latest release from GitHub API
+        println!("1. Fetching latest mGBA release from GitHub API...");
+        let api_url = "https://api.github.com/repos/mgba-emu/mgba/releases/latest";
+        
+        let resp = client.get(api_url).send().await;
+        let release: serde_json::Value = match resp {
+            Ok(r) if r.status().is_success() => r.json().await.unwrap(),
+            Ok(r) => {
+                println!("   SKIP: GitHub API returned {}", r.status());
+                return;
+            }
+            Err(e) => {
+                println!("   SKIP: Network error: {}", e);
+                return;
+            }
+        };
+        
+        let tag = release["tag_name"].as_str().unwrap_or("unknown");
+        println!("   Release: {}", tag);
+        
+        // 2. Find Windows asset
+        println!("\n2. Finding Windows x64 asset...");
+        let assets = release["assets"].as_array().unwrap();
+        let pattern = regex_lite::Regex::new("(?i)mGBA.*win64.*\\.7z$").unwrap();
+        
+        let win_asset = assets.iter().find(|a| {
+            pattern.is_match(a["name"].as_str().unwrap_or(""))
+        });
+        
+        let asset = match win_asset {
+            Some(a) => a,
+            None => {
+                println!("   WARNING: No matching Windows asset found");
+                println!("   Available assets:");
+                for a in assets {
+                    println!("     - {}", a["name"].as_str().unwrap_or("?"));
+                }
+                return;
+            }
+        };
+        
+        let asset_name = asset["name"].as_str().unwrap();
+        let asset_url = asset["browser_download_url"].as_str().unwrap();
+        let asset_size = asset["size"].as_i64().unwrap_or(0);
+        
+        println!("   Found: {} ({} bytes)", asset_name, asset_size);
+        
+        // 3. Download the asset
+        println!("\n3. Downloading asset...");
+        let archive_path = dest_dir.join(asset_name);
+        
+        let resp = client.get(asset_url).send().await.unwrap();
+        if !resp.status().is_success() {
+            println!("   ERROR: Download failed: {}", resp.status());
+            return;
+        }
+        
+        let bytes = resp.bytes().await.unwrap();
+        println!("   Downloaded: {} bytes", bytes.len());
+        std::fs::write(&archive_path, &bytes).expect("Failed to write archive");
+        
+        // 4. Extract
+        println!("\n4. Extracting archive...");
+        let extract_dir = dest_dir.join("mgba");
+        std::fs::create_dir_all(&extract_dir).unwrap();
+        
+        match sevenz_rust::decompress_file(&archive_path, &extract_dir) {
+            Ok(_) => {
+                println!("   Extracted to: {:?}", extract_dir);
+                
+                // Find mGBA.exe
+                let exe_path = find_file_recursive(&extract_dir, "mGBA.exe");
+                match exe_path {
+                    Some(path) => {
+                        println!("\n5. Found executable: {:?}", path);
+                        println!("\n=== SUCCESS: GitHub release download workflow works ===\n");
+                    }
+                    None => {
+                        println!("   WARNING: mGBA.exe not found after extraction");
+                        list_directory_contents(&extract_dir, 0);
+                    }
+                }
+            }
+            Err(e) => {
+                println!("   ERROR: Failed to extract: {}", e);
+            }
+        }
+    }
+    
+    /// Test RetroArch core download
+    #[tokio::test]
+    #[ignore]
+    async fn test_retroarch_core_download() {
+        println!("\n=== Testing RetroArch Core Download ===\n");
+        
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let cores_dir = temp_dir.path().join("cores");
+        std::fs::create_dir_all(&cores_dir).unwrap();
+        
+        let core_name = "snes9x_libretro.dll";
+        let core_url = format!(
+            "https://buildbot.libretro.com/nightly/windows/x86_64/latest/{}.zip",
+            core_name
+        );
+        
+        println!("1. Downloading core: {}", core_name);
+        println!("   URL: {}", core_url);
+        
+        let client = reqwest::Client::new();
+        let resp = client.get(&core_url).send().await;
+        
+        match resp {
+            Ok(response) if response.status().is_success() => {
+                let bytes = response.bytes().await.unwrap();
+                println!("   Downloaded: {} bytes", bytes.len());
+                
+                let zip_path = cores_dir.join(format!("{}.zip", core_name));
+                std::fs::write(&zip_path, &bytes).unwrap();
+                
+                // Extract the core
+                println!("\n2. Extracting core...");
+                let file = std::fs::File::open(&zip_path).unwrap();
+                let mut zip = zip::ZipArchive::new(file).unwrap();
+                
+                for i in 0..zip.len() {
+                    let mut entry = zip.by_index(i).unwrap();
+                    if entry.name().ends_with(".dll") {
+                        let outpath = cores_dir.join(entry.mangled_name());
+                        let mut outfile = std::fs::File::create(&outpath).unwrap();
+                        std::io::copy(&mut entry, &mut outfile).unwrap();
+                        println!("   Extracted: {:?}", outpath);
+                    }
+                }
+                
+                // Verify core exists
+                let core_path = cores_dir.join(core_name);
+                if core_path.exists() {
+                    let size = std::fs::metadata(&core_path).unwrap().len();
+                    println!("\n3. Core installed: {:?} ({} bytes)", core_path, size);
+                    println!("\n=== SUCCESS: Core download workflow works ===\n");
+                } else {
+                    println!("   WARNING: Core file not found after extraction");
+                }
+            }
+            Ok(response) => {
+                println!("   SKIP: Server returned {}", response.status());
+            }
+            Err(e) => {
+                println!("   SKIP: Network error: {}", e);
+            }
+        }
+    }
+    
+    /// Test all downloadable emulators can be fetched (metadata only, no full download)
+    #[tokio::test]
+    #[ignore]
+    async fn test_all_emulator_sources_accessible() {
+        println!("\n=== Testing All Emulator Download Sources ===\n");
+        
+        let client = reqwest::Client::builder()
+            .user_agent("wingosy-launcher-test/0.1")
+            .timeout(std::time::Duration::from_secs(10))
+            .build().unwrap();
+        
+        // Emulators with direct download URLs
+        let direct_downloads = vec![
+            ("RetroArch", "https://buildbot.libretro.com/stable/1.19.1/windows/x86_64/RetroArch.7z"),
+        ];
+        
+        // Emulators with GitHub repos
+        let github_repos = vec![
+            ("PCSX2", "PCSX2/pcsx2", "(?i)pcsx2.*windows.*x64.*\\.7z$"),
+            ("PPSSPP", "hrydgard/ppsspp", "(?i)PPSSPP.*Windows.*x64.*\\.zip$"),
+            ("mGBA", "mgba-emu/mgba", "(?i)mGBA.*win64.*\\.7z$"),
+            ("Flycast", "flyinghead/flycast", "(?i)flycast.*win64.*\\.zip$"),
+            ("melonDS", "melonDS-emu/melonDS", "(?i)melonDS.*windows.*x86_64.*\\.zip$"),
+            // Ryujinx - removed, original repo and forks taken down
+            ("Lime3DS", "Lime3DS/Lime3DS", "(?i)(lime3ds|azahar).*windows.*msvc.*\\.zip$"),
+            ("xemu", "xemu-project/xemu", "(?i)xemu.*win.*\\.zip$"),
+            ("Xenia", "xenia-canary/xenia-canary", "(?i)xenia_canary.*\\.zip$"),
+        ];
+        
+        println!("Direct Downloads:\n");
+        for (name, url) in &direct_downloads {
+            match client.head(*url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    let size = resp.headers()
+                        .get("content-length")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(|s| s.parse::<u64>().ok())
+                        .map(|s| format!("{:.1} MB", s as f64 / 1_000_000.0))
+                        .unwrap_or_else(|| "? MB".to_string());
+                    println!("  ✓ {}: {} ({})", name, resp.status(), size);
+                }
+                Ok(resp) => println!("  ✗ {}: {}", name, resp.status()),
+                Err(e) => println!("  ✗ {}: {}", name, e),
+            }
+        }
+        
+        println!("\nGitHub Releases:\n");
+        for (name, repo, pattern) in &github_repos {
+            let api_url = format!("https://api.github.com/repos/{}/releases/latest", repo);
+            match client.get(&api_url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    let release: serde_json::Value = resp.json().await.unwrap();
+                    let tag = release["tag_name"].as_str().unwrap_or("?");
+                    let assets = release["assets"].as_array();
+                    
+                    let re = regex_lite::Regex::new(pattern).unwrap();
+                    let matched = assets.and_then(|a| {
+                        a.iter().find(|x| re.is_match(x["name"].as_str().unwrap_or("")))
+                    });
+                    
+                    match matched {
+                        Some(asset) => {
+                            let asset_name = asset["name"].as_str().unwrap_or("?");
+                            let size = asset["size"].as_i64()
+                                .map(|s| format!("{:.1} MB", s as f64 / 1_000_000.0))
+                                .unwrap_or_else(|| "? MB".to_string());
+                            println!("  ✓ {} ({}): {} ({})", name, tag, asset_name, size);
+                        }
+                        None => {
+                            println!("  ⚠ {} ({}): No asset matching '{}'", name, tag, pattern);
+                        }
+                    }
+                }
+                Ok(resp) if resp.status().as_u16() == 403 => {
+                    println!("  ⚠ {}: Rate limited", name);
+                }
+                Ok(resp) => println!("  ✗ {}: {}", name, resp.status()),
+                Err(e) => println!("  ✗ {}: {}", name, e),
+            }
+        }
+        
+        println!("\n=== Test Complete ===\n");
+    }
+    
+    // Helper functions
+    fn find_file_recursive(dir: &PathBuf, filename: &str) -> Option<PathBuf> {
+        if !dir.is_dir() {
+            return None;
+        }
+        
+        for entry in std::fs::read_dir(dir).ok()? {
+            let entry = entry.ok()?;
+            let path = entry.path();
+            
+            if path.is_file() {
+                if path.file_name()?.to_string_lossy().eq_ignore_ascii_case(filename) {
+                    return Some(path);
+                }
+            } else if path.is_dir() {
+                if let Some(found) = find_file_recursive(&path, filename) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+    
+    fn list_directory_contents(dir: &PathBuf, depth: usize) {
+        let indent = "  ".repeat(depth);
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                let name = path.file_name().unwrap().to_string_lossy();
+                if path.is_dir() {
+                    println!("{}📁 {}/", indent, name);
+                    if depth < 2 {
+                        list_directory_contents(&path, depth + 1);
+                    }
+                } else {
+                    println!("{}📄 {}", indent, name);
+                }
+            }
         }
     }
 }

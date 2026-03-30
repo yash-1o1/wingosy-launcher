@@ -5142,6 +5142,7 @@ dependencies = [
  "sevenz-rust",
  "tauri",
  "tauri-build",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
@@ -5149,6 +5150,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+ "winreg",
  "zip",
 ]
 
