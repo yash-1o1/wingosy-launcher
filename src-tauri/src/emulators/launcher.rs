@@ -167,6 +167,7 @@ impl EmulatorLauncher {
     }
 
     fn resolve_emulator(&self, game: &Game) -> Result<Emulator> {
+        // 1. Check per-game emulator config
         if let Ok(Some(config)) = self.db.get_emulator_for_game(game.id, &game.platform_id) {
             let emulators = crate::models::default_emulators();
             
@@ -177,6 +178,27 @@ impl EmulatorLauncher {
             }
         }
 
+        // 2. Check platform default emulator from config
+        if let Some(default_emu_id) = self.config.emulators.platform_defaults.get(&game.platform_id) {
+            let emulators = crate::models::default_emulators();
+            
+            if let Some(mut emu) = emulators.into_iter().find(|e| &e.id == default_emu_id) {
+                emu.executable_path = self.get_emulator_path(&emu.id);
+                
+                if emu.is_retroarch {
+                    if let Some(core) = retroarch_cores().get(&game.platform_id) {
+                        emu.core_name = Some(core.to_string());
+                    }
+                }
+                
+                if emu.executable_path.is_some() {
+                    tracing::info!("[Launch] Using platform default emulator: {} for {}", emu.name, game.platform_id);
+                    return Ok(emu);
+                }
+            }
+        }
+
+        // 3. Auto-detect: find first available emulator for this platform
         let mut emulators = crate::models::default_emulators();
         
         for emu in &mut emulators {
@@ -197,6 +219,7 @@ impl EmulatorLauncher {
             }
         }
 
+        // 4. Fallback to RetroArch if available
         if let Some(retroarch) = emulators.iter_mut().find(|e| e.id == "retroarch") {
             retroarch.executable_path = self.get_emulator_path("retroarch");
             if let Some(core) = retroarch_cores().get(&game.platform_id) {

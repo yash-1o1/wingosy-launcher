@@ -81,6 +81,7 @@ impl Database {
                 play_time_minutes INTEGER DEFAULT 0,
                 sync_state TEXT DEFAULT 'local_only',
                 local_file_path TEXT,
+                sync_dirty INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (platform_id) REFERENCES platforms(id)
@@ -133,9 +134,27 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_games_favorite ON games(is_favorite);
             CREATE INDEX IF NOT EXISTS idx_games_last_played ON games(last_played_at);
             CREATE INDEX IF NOT EXISTS idx_games_romm_id ON games(romm_id);
+            CREATE INDEX IF NOT EXISTS idx_games_sync_dirty ON games(sync_dirty);
             "#,
         )
         .context("Failed to initialize database schema")?;
+
+        Self::run_migrations(&conn)?;
+
+        Ok(())
+    }
+
+    fn run_migrations(conn: &Connection) -> Result<()> {
+        let has_sync_dirty: bool = conn
+            .prepare("SELECT COUNT(*) FROM pragma_table_info('games') WHERE name = 'sync_dirty'")?
+            .query_row([], |row| row.get::<_, i32>(0))
+            .map(|count| count > 0)
+            .unwrap_or(false);
+
+        if !has_sync_dirty {
+            conn.execute("ALTER TABLE games ADD COLUMN sync_dirty INTEGER DEFAULT 0", [])
+                .context("Failed to add sync_dirty column")?;
+        }
 
         Ok(())
     }

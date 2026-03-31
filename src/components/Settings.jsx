@@ -38,6 +38,10 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
+import Select from "@mui/material/Select";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import TuneIcon from "@mui/icons-material/Tune";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 import normalizeUrl from "../utils/normalizeUrl";
@@ -65,11 +69,17 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   
   // Library directory state
   const [romsDirectory, setRomsDirectory] = useState("");
+  
+  // Platform default emulators
+  const [platformDefaults, setPlatformDefaults] = useState({});
+  const [platforms, setPlatforms] = useState([]);
 
   useEffect(() => {
     loadConfig();
     loadEmulators();
     loadMissingCores();
+    loadPlatformDefaults();
+    loadPlatforms();
   }, []);
 
   async function loadConfig() {
@@ -96,6 +106,41 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
       const cores = await invoke("get_missing_cores");
       setMissingCores(cores);
     } catch {}
+  }
+
+  async function loadPlatformDefaults() {
+    try {
+      const defaults = await invoke("get_platform_default_emulators");
+      setPlatformDefaults(defaults || {});
+    } catch {}
+  }
+
+  async function loadPlatforms() {
+    try {
+      const plats = await invoke("get_platforms_with_games");
+      setPlatforms(plats);
+    } catch {}
+  }
+
+  async function handleSetDefaultEmulator(platformId, emulatorId) {
+    try {
+      await invoke("set_platform_default_emulator", { 
+        platformId, 
+        emulatorId: emulatorId || null 
+      });
+      setPlatformDefaults(prev => {
+        const next = { ...prev };
+        if (emulatorId) {
+          next[platformId] = emulatorId;
+        } else {
+          delete next[platformId];
+        }
+        return next;
+      });
+      setEmuMessage({ type: "success", message: `Default emulator updated for ${platformId.toUpperCase()}` });
+    } catch (err) {
+      setEmuMessage({ type: "error", message: err.message || String(err) });
+    }
   }
 
   async function handleConnectRomM() {
@@ -677,6 +722,60 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
           </Alert>
         )}
       </Paper>
+
+      {/* Platform Default Emulators */}
+      {platforms.length > 0 && installedEmus.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3, borderRadius: 3, background: "linear-gradient(135deg, #1e1e26 0%, #252530 100%)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <TuneIcon color="primary" />
+            <Typography variant="h6">Platform Defaults</Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Choose which emulator to use for each platform. "Auto" uses the first available.
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {platforms.map(([platform, gameCount]) => {
+              const compatibleEmus = installedEmus.filter(e => 
+                e.supported_platforms.includes(platform.id)
+              );
+              if (compatibleEmus.length === 0) return null;
+              
+              const currentDefault = platformDefaults[platform.id] || "";
+              
+              return (
+                <Box key={platform.id} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <Box sx={{ minWidth: 140 }}>
+                    <Typography variant="body2" fontWeight={500}>
+                      {platform.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {gameCount} game{gameCount !== 1 ? "s" : ""}
+                    </Typography>
+                  </Box>
+                  <FormControl size="small" sx={{ minWidth: 200, flex: 1 }}>
+                    <InputLabel>Emulator</InputLabel>
+                    <Select
+                      value={currentDefault}
+                      label="Emulator"
+                      onChange={(e) => handleSetDefaultEmulator(platform.id, e.target.value)}
+                    >
+                      <MenuItem value="">
+                        <em>Auto (use first available)</em>
+                      </MenuItem>
+                      {compatibleEmus.map(emu => (
+                        <MenuItem key={emu.id} value={emu.id}>
+                          {emu.name}
+                          {emu.id === "retroarch" && " (+ cores)"}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              );
+            })}
+          </Box>
+        </Paper>
+      )}
 
       {/* Hidden Games Section */}
       <Paper sx={{ p: 3, borderRadius: 3, background: "linear-gradient(135deg, #1e1e26 0%, #252530 100%)" }}>

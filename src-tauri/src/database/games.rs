@@ -394,6 +394,103 @@ impl Database {
         .context("Failed to clear local path")?;
         Ok(())
     }
+
+    /// Mark all RomM games as dirty before sync (Argosy-style sync pattern)
+    /// This allows us to detect games that no longer exist on the server
+    pub fn mark_romm_games_dirty(&self) -> Result<i32> {
+        let conn = self.conn.lock().unwrap();
+        let count = conn.execute(
+            "UPDATE games SET sync_dirty = 1 WHERE source = 'romm'",
+            [],
+        )
+        .context("Failed to mark RomM games as dirty")?;
+        Ok(count as i32)
+    }
+
+    /// Mark all RomM games for a specific platform as dirty
+    pub fn mark_platform_games_dirty(&self, platform_id: &str) -> Result<i32> {
+        let conn = self.conn.lock().unwrap();
+        let count = conn.execute(
+            "UPDATE games SET sync_dirty = 1 WHERE source = 'romm' AND platform_id = ?1",
+            params![platform_id],
+        )
+        .context("Failed to mark platform games as dirty")?;
+        Ok(count as i32)
+    }
+
+    /// Clear dirty flag for a game (called when game is seen during sync)
+    pub fn clear_sync_dirty(&self, game_id: i64) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE games SET sync_dirty = 0 WHERE id = ?1",
+            params![game_id],
+        )
+        .context("Failed to clear sync dirty flag")?;
+        Ok(())
+    }
+
+    /// Clear dirty flag by romm_id (called when game is seen during sync)
+    pub fn clear_sync_dirty_by_romm_id(&self, romm_id: i32) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE games SET sync_dirty = 0 WHERE romm_id = ?1",
+            params![romm_id],
+        )
+        .context("Failed to clear sync dirty flag")?;
+        Ok(())
+    }
+
+    /// Clear all dirty flags (called after sync completes)
+    pub fn clear_all_sync_dirty(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("UPDATE games SET sync_dirty = 0", [])
+            .context("Failed to clear all sync dirty flags")?;
+        Ok(())
+    }
+
+    /// Get all games that are still marked dirty (orphaned games)
+    pub fn get_dirty_games(&self) -> Result<Vec<Game>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT * FROM games WHERE sync_dirty = 1")
+            .context("Failed to prepare statement")?;
+
+        let games = stmt
+            .query_map([], |row: &Row| Ok(Self::row_to_game(row)))
+            .context("Failed to query dirty games")?
+            .filter_map(|r| r.ok().and_then(|g| g.ok()))
+            .collect();
+
+        Ok(games)
+    }
+
+    /// Delete all games that are still marked dirty (orphaned games from RomM)
+    /// Returns the number of games deleted
+    pub fn delete_dirty_games(&self) -> Result<i32> {
+        let conn = self.conn.lock().unwrap();
+        let count = conn.execute(
+            "DELETE FROM games WHERE sync_dirty = 1 AND source = 'romm'",
+            [],
+        )
+        .context("Failed to delete dirty games")?;
+        Ok(count as i32)
+    }
+
+    /// Get all RomM games (including hidden ones) for sync validation
+    pub fn get_all_romm_games(&self) -> Result<Vec<Game>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT * FROM games WHERE source = 'romm' ORDER BY name")
+            .context("Failed to prepare statement")?;
+
+        let games = stmt
+            .query_map([], |row: &Row| Ok(Self::row_to_game(row)))
+            .context("Failed to query RomM games")?
+            .filter_map(|r| r.ok().and_then(|g| g.ok()))
+            .collect();
+
+        Ok(games)
+    }
 }
 
 trait OptionalExt<T> {
@@ -518,5 +615,205 @@ mod tests {
     fn test_game_source_to_db_str() {
         assert_eq!(GameSource::Local.to_db_str(), "local");
         assert_eq!(GameSource::RomM.to_db_str(), "romm");
+    }
+
+    fn create_romm_game(name: &str, romm_id: i32) -> Game {
+        let mut game = create_test_game(name);
+        game.source = GameSource::RomM;
+        game.romm_id = Some(romm_id);
+        game.sync_state = SyncState::RemoteOnly;
+        game
+    }
+
+    #[test]
+    fn test_mark_romm_games_dirty() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"])).unwrap();
+        
+        // Insert some RomM games
+        let game1 = create_romm_game("RomM Game 1", 101);
+        let game2 = create_romm_game("RomM Game 2", 102);
+        let local_game = create_test_game("Local Game");
+        
+        db.insert_game(&game1).unwrap();
+        db.insert_game(&game2).unwrap();
+        db.insert_game(&local_game).unwrap();
+        
+        // Mark RomM games as dirty
+        let count = db.mark_romm_games_dirty().unwrap();
+        assert_eq!(count, 2); // Only RomM games should be marked
+        
+        // Verify dirty games
+        let dirty = db.get_dirty_games().unwrap();
+        assert_eq!(dirty.len(), 2);
+        assert!(dirty.iter().all(|g| g.source == GameSource::RomM));
+    }
+
+    #[test]
+    fn test_clear_sync_dirty() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"])).unwrap();
+        
+        let game = create_romm_game("RomM Game", 101);
+        let id = db.insert_game(&game).unwrap();
+        
+        // Mark as dirty
+        db.mark_romm_games_dirty().unwrap();
+        assert_eq!(db.get_dirty_games().unwrap().len(), 1);
+        
+        // Clear dirty flag
+        db.clear_sync_dirty(id).unwrap();
+        assert_eq!(db.get_dirty_games().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_clear_sync_dirty_by_romm_id() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"])).unwrap();
+        
+        let game = create_romm_game("RomM Game", 101);
+        db.insert_game(&game).unwrap();
+        
+        // Mark as dirty
+        db.mark_romm_games_dirty().unwrap();
+        assert_eq!(db.get_dirty_games().unwrap().len(), 1);
+        
+        // Clear dirty flag by romm_id
+        db.clear_sync_dirty_by_romm_id(101).unwrap();
+        assert_eq!(db.get_dirty_games().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_delete_dirty_games() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"])).unwrap();
+        
+        // Insert games
+        let romm_game = create_romm_game("RomM Game", 101);
+        let local_game = create_test_game("Local Game");
+        
+        db.insert_game(&romm_game).unwrap();
+        db.insert_game(&local_game).unwrap();
+        
+        // Mark RomM games as dirty
+        db.mark_romm_games_dirty().unwrap();
+        
+        // Delete dirty games
+        let deleted = db.delete_dirty_games().unwrap();
+        assert_eq!(deleted, 1); // Only the RomM game should be deleted
+        
+        // Verify only local game remains
+        let all_games = db.get_all_games().unwrap();
+        assert_eq!(all_games.len(), 1);
+        assert_eq!(all_games[0].name, "Local Game");
+    }
+
+    #[test]
+    fn test_sync_pattern_full_flow() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"])).unwrap();
+        
+        // Initial state: 3 RomM games
+        let game1 = create_romm_game("Game A", 101);
+        let game2 = create_romm_game("Game B", 102);
+        let game3 = create_romm_game("Game C", 103);
+        
+        let id1 = db.insert_game(&game1).unwrap();
+        let id2 = db.insert_game(&game2).unwrap();
+        db.insert_game(&game3).unwrap();
+        
+        // Step 1: Mark all as dirty (before sync)
+        let dirty_count = db.mark_romm_games_dirty().unwrap();
+        assert_eq!(dirty_count, 3);
+        
+        // Step 2: Simulate sync - games A and B still exist, C is gone
+        db.clear_sync_dirty(id1).unwrap(); // Game A seen
+        db.clear_sync_dirty(id2).unwrap(); // Game B seen
+        // Game C not seen (still dirty)
+        
+        // Step 3: Delete orphaned games
+        let deleted = db.delete_dirty_games().unwrap();
+        assert_eq!(deleted, 1); // Game C deleted
+        
+        // Step 4: Verify final state
+        let remaining = db.get_all_romm_games().unwrap();
+        assert_eq!(remaining.len(), 2);
+        assert!(remaining.iter().any(|g| g.name == "Game A"));
+        assert!(remaining.iter().any(|g| g.name == "Game B"));
+        assert!(!remaining.iter().any(|g| g.name == "Game C"));
+    }
+
+    #[test]
+    fn test_hidden_games_also_get_cleaned_up() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"])).unwrap();
+        
+        // Create a hidden RomM game
+        let mut hidden_game = create_romm_game("Hidden RomM Game", 101);
+        hidden_game.is_hidden = true;
+        
+        let visible_game = create_romm_game("Visible RomM Game", 102);
+        
+        db.insert_game(&hidden_game).unwrap();
+        let visible_id = db.insert_game(&visible_game).unwrap();
+        
+        // Mark all RomM games dirty
+        db.mark_romm_games_dirty().unwrap();
+        
+        // Simulate sync - only visible game seen
+        db.clear_sync_dirty(visible_id).unwrap();
+        
+        // Delete dirty games - should include the hidden game!
+        let deleted = db.delete_dirty_games().unwrap();
+        assert_eq!(deleted, 1);
+        
+        // Verify hidden game was deleted
+        let remaining = db.get_all_romm_games().unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].name, "Visible RomM Game");
+    }
+
+    #[test]
+    fn test_clear_all_sync_dirty() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"])).unwrap();
+        
+        // Insert multiple games
+        for i in 1..=5 {
+            let game = create_romm_game(&format!("Game {}", i), 100 + i);
+            db.insert_game(&game).unwrap();
+        }
+        
+        // Mark all dirty
+        db.mark_romm_games_dirty().unwrap();
+        assert_eq!(db.get_dirty_games().unwrap().len(), 5);
+        
+        // Clear all
+        db.clear_all_sync_dirty().unwrap();
+        assert_eq!(db.get_dirty_games().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_mark_platform_games_dirty() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"])).unwrap();
+        db.insert_platform(&crate::models::Platform::new("snes", "SNES", vec![".sfc"])).unwrap();
+        
+        // Insert games for different platforms
+        let gba_game = create_romm_game("GBA Game", 101);
+        let mut snes_game = create_romm_game("SNES Game", 102);
+        snes_game.platform_id = "snes".to_string();
+        
+        db.insert_game(&gba_game).unwrap();
+        db.insert_game(&snes_game).unwrap();
+        
+        // Mark only GBA games dirty
+        let count = db.mark_platform_games_dirty("gba").unwrap();
+        assert_eq!(count, 1);
+        
+        // Verify only GBA game is dirty
+        let dirty = db.get_dirty_games().unwrap();
+        assert_eq!(dirty.len(), 1);
+        assert_eq!(dirty[0].platform_id, "gba");
     }
 }

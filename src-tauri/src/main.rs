@@ -107,6 +107,9 @@ fn main() {
             commands::download_retroarch_core,
             commands::get_missing_cores,
             commands::apply_detected_paths,
+            commands::set_platform_default_emulator,
+            commands::get_platform_default_emulators,
+            commands::get_emulators_for_platform,
         ])
         .setup(|_app| {
             let db = database::Database::open()

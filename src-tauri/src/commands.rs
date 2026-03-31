@@ -385,6 +385,14 @@ pub async fn connect_romm(
     Ok(token_response.access_token)
 }
 
+#[derive(Debug, Serialize)]
+pub struct SyncResult {
+    pub games_added: i32,
+    pub games_updated: i32,
+    pub games_deleted: i32,
+    pub total_games: i32,
+}
+
 #[tauri::command]
 pub async fn sync_romm_library(
     server_url: String,
@@ -430,11 +438,19 @@ pub async fn sync_romm_library(
         }
     }
     
-    // Fetch ALL ROMs at once (no platform filter) to avoid duplicates
+    // === ARGOSY-STYLE SYNC PATTERN ===
+    // Step 1: Mark ALL RomM games as dirty before sync
+    // This allows us to detect games that no longer exist on the server
+    let dirty_count = db.mark_romm_games_dirty().map_err(|e| e.to_string())?;
+    tracing::info!("[RomM] Marked {} existing RomM games as dirty", dirty_count);
+    
+    // Step 2: Fetch ALL ROMs and upsert them (clearing dirty flag as we go)
     tracing::info!("[RomM] Fetching all ROMs...");
     let mut all_games = Vec::new();
+    let mut games_added = 0;
+    let mut games_updated = 0;
     let mut offset = 0;
-    let limit = 1000; // Fetch in large batches
+    let limit = 1000;
     
     loop {
         // Retry logic for unreliable connections
@@ -445,6 +461,8 @@ pub async fn sync_romm_library(
                 Err(e) => {
                     retries -= 1;
                     if retries == 0 {
+                        // On failure, clear dirty flags to avoid accidental deletion
+                        let _ = db.clear_all_sync_dirty();
                         tracing::error!("[RomM] Failed to fetch ROMs after retries: {}", e);
                         return Err(e.to_string());
                     }
@@ -459,9 +477,29 @@ pub async fn sync_romm_library(
             fetched_count, offset, response.total);
         
         for rom in response.items {
+            let romm_id = rom.id;
             let game = rom.into_game(&server_url);
-            db.upsert_game(&game).map_err(|e| e.to_string())?;
-            all_games.push(game);
+            
+            // Check if game exists to track added vs updated
+            let existing = db.get_game_by_romm_id(romm_id).ok().flatten();
+            let is_new = existing.is_none();
+            
+            // Upsert the game
+            let game_id = db.upsert_game(&game).map_err(|e| e.to_string())?;
+            
+            // Clear the dirty flag for this game (it exists on server)
+            db.clear_sync_dirty(game_id).map_err(|e| e.to_string())?;
+            
+            if is_new {
+                games_added += 1;
+            } else {
+                games_updated += 1;
+            }
+            
+            // Get the updated game with proper ID
+            if let Ok(Some(updated_game)) = db.get_game(game_id) {
+                all_games.push(updated_game);
+            }
         }
         
         // Check if we've fetched all ROMs
@@ -472,34 +510,35 @@ pub async fn sync_romm_library(
         offset += limit;
     }
     
-    // Remove games that no longer exist on RomM server
-    let synced_romm_ids: std::collections::HashSet<i32> = all_games
+    // Step 3: Delete games that are still marked dirty (no longer on server)
+    // These are games that existed locally but weren't seen during sync
+    let dirty_games = db.get_dirty_games().map_err(|e| e.to_string())?;
+    let games_to_delete: Vec<_> = dirty_games
         .iter()
-        .filter_map(|g| g.romm_id)
+        .filter(|g| g.romm_id.is_some()) // Only delete RomM-sourced games
         .collect();
     
-    let existing_games = db.get_all_games().map_err(|e| e.to_string())?;
-    let mut removed_count = 0;
-    
-    for game in existing_games {
-        if let Some(romm_id) = game.romm_id {
-            if !synced_romm_ids.contains(&romm_id) {
-                // Game exists locally but not on RomM server anymore
-                tracing::info!("[RomM] Removing game no longer on server: {} (romm_id={})", game.name, romm_id);
-                if let Err(e) = db.delete_game(game.id) {
-                    tracing::warn!("[RomM] Failed to delete game {}: {}", game.id, e);
-                } else {
-                    removed_count += 1;
-                }
-            }
+    let mut games_deleted = 0;
+    for game in &games_to_delete {
+        tracing::info!(
+            "[RomM] Removing orphaned game no longer on server: {} (romm_id={:?}, hidden={})", 
+            game.name, game.romm_id, game.is_hidden
+        );
+        if let Err(e) = db.delete_game(game.id) {
+            tracing::warn!("[RomM] Failed to delete orphaned game {}: {}", game.id, e);
+        } else {
+            games_deleted += 1;
         }
     }
     
-    if removed_count > 0 {
-        tracing::info!("[RomM] Removed {} games no longer on server", removed_count);
-    }
+    // Step 4: Clear any remaining dirty flags (cleanup)
+    db.clear_all_sync_dirty().map_err(|e| e.to_string())?;
     
-    tracing::info!("[RomM] Library sync complete: {} games synced", all_games.len());
+    tracing::info!(
+        "[RomM] Library sync complete: {} added, {} updated, {} deleted, {} total", 
+        games_added, games_updated, games_deleted, all_games.len()
+    );
+    
     Ok(all_games)
 }
 
@@ -1106,6 +1145,44 @@ pub async fn apply_detected_paths() -> Result<i32, String> {
     config.save().map_err(|e| e.to_string())?;
     tracing::info!("[Config] Applied {} emulator paths", count);
     Ok(count)
+}
+
+#[tauri::command]
+pub async fn set_platform_default_emulator(
+    platform_id: String,
+    emulator_id: Option<String>,
+) -> Result<(), String> {
+    tracing::info!("[Config] Setting default emulator for {}: {:?}", platform_id, emulator_id);
+    
+    let mut config = AppConfig::load().map_err(|e| e.to_string())?;
+    
+    if let Some(emu_id) = emulator_id {
+        config.emulators.platform_defaults.insert(platform_id.clone(), emu_id);
+    } else {
+        config.emulators.platform_defaults.remove(&platform_id);
+    }
+    
+    config.save().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_platform_default_emulators() -> Result<std::collections::HashMap<String, String>, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    Ok(config.emulators.platform_defaults.clone())
+}
+
+#[tauri::command]
+pub async fn get_emulators_for_platform(platform_id: String) -> Result<Vec<EmulatorInfo>, String> {
+    let all_emulators = detect_emulators().await?;
+    
+    // Filter emulators that support this platform
+    let matching: Vec<EmulatorInfo> = all_emulators
+        .into_iter()
+        .filter(|e| e.supported_platforms.contains(&platform_id))
+        .collect();
+    
+    Ok(matching)
 }
 
 #[cfg(test)]
