@@ -104,6 +104,7 @@ fn main() {
             commands::search_games,
             commands::get_all_emulators,
             commands::download_emulator,
+            commands::uninstall_emulator,
             commands::download_retroarch_core,
             commands::get_missing_cores,
             commands::apply_detected_paths,

@@ -1047,6 +1047,51 @@ pub async fn download_emulator(emulator_id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub async fn uninstall_emulator(emulator_id: String) -> Result<(), String> {
+    tracing::info!("[Emulators] Uninstalling emulator: {}", emulator_id);
+    
+    // Get emulators directory
+    let emulators_dir = AppConfig::emulators_dir().map_err(|e| e.to_string())?;
+    let emu_dir = emulators_dir.join(&emulator_id);
+    
+    // Delete the emulator folder if it exists
+    if emu_dir.exists() {
+        tracing::debug!("[Emulators] Removing directory: {:?}", emu_dir);
+        std::fs::remove_dir_all(&emu_dir).map_err(|e| {
+            tracing::error!("[Emulators] Failed to remove directory: {}", e);
+            format!("Failed to remove emulator directory: {}", e)
+        })?;
+    }
+    
+    // Clear the config path
+    let mut config = AppConfig::load().map_err(|e| e.to_string())?;
+    match emulator_id.as_str() {
+        "retroarch" => config.emulators.retroarch = None,
+        "dolphin" => config.emulators.dolphin = None,
+        "pcsx2" => config.emulators.pcsx2 = None,
+        "rpcs3" => config.emulators.rpcs3 = None,
+        "ppsspp" => config.emulators.ppsspp = None,
+        "duckstation" => config.emulators.duckstation = None,
+        "cemu" => config.emulators.cemu = None,
+        "eden" => config.emulators.eden = None,
+        "citra" => config.emulators.citra = None,
+        "melonds" => config.emulators.melonds = None,
+        "mgba" => config.emulators.mgba = None,
+        "flycast" => config.emulators.flycast = None,
+        "xemu" => config.emulators.xemu = None,
+        "xenia" => config.emulators.xenia = None,
+        "mame" => config.emulators.mame = None,
+        _ => {
+            tracing::warn!("[Emulators] Unknown emulator ID: {}", emulator_id);
+        }
+    }
+    config.save().map_err(|e| e.to_string())?;
+    
+    tracing::info!("[Emulators] Successfully uninstalled {}", emulator_id);
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn download_retroarch_core(core_name: String) -> Result<String, String> {
     tracing::info!("[RetroArch] Downloading core: {}", core_name);
     

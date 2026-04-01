@@ -34,6 +34,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import DeleteIcon from "@mui/icons-material/Delete";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -299,6 +300,31 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
       setEmuMessage({ type: "error", message: `Failed to open location: ${err}` });
     }
     handleEmuMenuClose();
+  }
+
+  async function handleUninstallEmulator() {
+    if (!selectedEmu?.id) return;
+    
+    // Only allow uninstalling managed emulators
+    if (selectedEmu.install_type !== "managed") {
+      setEmuMessage({ type: "error", message: "Can only uninstall emulators installed via Wingosy" });
+      handleEmuMenuClose();
+      return;
+    }
+    
+    try {
+      setDownloadingEmu(selectedEmu.id); // Reuse for loading state
+      setEmuMessage({ type: "info", message: `Uninstalling ${selectedEmu.name}...` });
+      await invoke("uninstall_emulator", { emulatorId: selectedEmu.id });
+      setEmuMessage({ type: "success", message: `Successfully uninstalled ${selectedEmu.name}` });
+      await loadEmulators();
+      await loadMissingCores();
+    } catch (err) {
+      setEmuMessage({ type: "error", message: `Failed to uninstall: ${err}` });
+    } finally {
+      setDownloadingEmu(null);
+      handleEmuMenuClose();
+    }
   }
 
   // Hidden Games functions
@@ -651,9 +677,12 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
                 Open Install Location
               </MenuItem>
               {selectedEmu?.install_type === "managed" && (
-                <MenuItem disabled sx={{ color: "error.main" }}>
-                  <DownloadIcon fontSize="small" sx={{ mr: 1, transform: "rotate(180deg)" }} />
-                  Uninstall (Coming Soon)
+                <MenuItem 
+                  onClick={handleUninstallEmulator}
+                  sx={{ color: "error.main" }}
+                >
+                  <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                  Uninstall
                 </MenuItem>
               )}
             </Menu>
