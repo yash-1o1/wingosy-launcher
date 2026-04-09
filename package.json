@@ -2,7 +2,11 @@
   "name": "wingosy-launcher",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "npm@11.12.1",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
