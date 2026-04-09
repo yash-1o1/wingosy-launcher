@@ -2,9 +2,15 @@
 
 ## Setup
 
-```bash
-# Prerequisites: Windows 10/11, Rust 1.70+, Node.js 18+, VS Build Tools (C++)
+Prerequisites: **Windows 10/11**, **Node.js 18+** (22 LTS recommended), **npm 11** (pinned in `package.json` as `packageManager`), **Rust 1.70+**, **VS Build Tools (C++)**.
 
+Enable [Corepack](https://nodejs.org/api/corepack.html) once so installs use the pinned npm version:
+
+```bash
+corepack enable
+```
+
+```bash
 git clone https://github.com/yash-1o1/wingosy-launcher.git
 cd wingosy-launcher
 npm install
