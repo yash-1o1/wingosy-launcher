@@ -1,3 +1,4 @@
+use std::path::Path;
 use serde::Serialize;
 
 use crate::api::{RomMClient, download::DownloadManager};
@@ -7,6 +8,48 @@ use crate::emulators::{EmulatorLauncher, LaunchCommand, LaunchResult};
 use crate::emulators::detection::{detect_installed_emulators, find_retroarch_cores};
 use crate::models::{Game, Platform, Collection, GameFilter, GameSort, default_emulators, retroarch_cores};
 use crate::scanner::RomScanner;
+
+/// Ensures a ROM filename has the correct extension for its platform.
+/// If the file already has a valid extension, returns it unchanged.
+fn ensure_rom_extension(filename: &str, platform_id: &str) -> String {
+    let path = Path::new(filename);
+    
+    // If it already has an extension, return as-is
+    if path.extension().is_some() {
+        return filename.to_string();
+    }
+    
+    // Map platform IDs to their primary ROM extension
+    let extension = match platform_id {
+        "gba" => "gba",
+        "gbc" => "gbc",
+        "gb" => "gb",
+        "nes" => "nes",
+        "snes" => "sfc",
+        "n64" => "z64",
+        "nds" => "nds",
+        "3ds" => "3ds",
+        "gc" | "gamecube" => "iso",
+        "wii" => "iso",
+        "wiiu" => "wud",
+        "switch" => "nsp",
+        "psx" | "ps1" => "bin",
+        "ps2" => "iso",
+        "psp" => "iso",
+        "ps3" => "iso",
+        "genesis" | "megadrive" => "md",
+        "sms" | "mastersystem" => "sms",
+        "gg" | "gamegear" => "gg",
+        "saturn" => "iso",
+        "dreamcast" => "gdi",
+        "xbox" => "iso",
+        "xbox360" => "iso",
+        "arcade" => "zip",
+        _ => return filename.to_string(), // Unknown platform, return as-is
+    };
+    
+    format!("{}.{}", filename, extension)
+}
 
 #[derive(Debug, Serialize)]
 pub struct EmulatorInfo {
@@ -385,6 +428,35 @@ pub async fn connect_romm(
     Ok(token_response.access_token)
 }
 
+/// Connect to RomM using a direct access token (for users with SSO/OIDC or API tokens)
+#[tauri::command]
+pub async fn connect_romm_with_token(
+    server_url: String,
+    token: String,
+) -> Result<String, String> {
+    tracing::info!("[RomM] Connecting to server with token: {}", server_url);
+    
+    // Verify the token works by making a test request
+    let client = RomMClient::new(&server_url).with_token(token.clone());
+    
+    // Try to fetch platforms as a connection test
+    client.get_platforms().await
+        .map_err(|e| {
+            tracing::error!("[RomM] Token verification failed: {}", e);
+            format!("Token verification failed: {}", e)
+        })?;
+    
+    tracing::info!("[RomM] Token verified, saving credentials");
+    
+    let mut config = AppConfig::load().unwrap_or_default();
+    config.romm.server_url = Some(server_url.clone());
+    config.romm.auth_token = Some(token.clone());
+    config.save().map_err(|e| e.to_string())?;
+    
+    tracing::info!("[RomM] Connected to {} with token", server_url);
+    Ok(token)
+}
+
 #[derive(Debug, Serialize)]
 pub struct SyncResult {
     pub games_added: i32,
@@ -568,7 +640,9 @@ pub async fn download_rom(
     let dest_dir = config.roms_dir().join(&game.platform_id);
     std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
     
-    let dest_path = dest_dir.join(&file_name);
+    // Ensure file has proper extension for the platform
+    let dest_file_name = ensure_rom_extension(&file_name, &game.platform_id);
+    let dest_path = dest_dir.join(&dest_file_name);
     tracing::info!("[Download] Downloading to {:?}", dest_path);
     
     let manager = DownloadManager::new();

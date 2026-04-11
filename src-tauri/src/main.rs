@@ -85,6 +85,7 @@ fn main() {
             commands::get_config,
             commands::save_config,
             commands::connect_romm,
+            commands::connect_romm_with_token,
             commands::sync_romm_library,
             commands::download_rom,
             commands::get_game_saves,

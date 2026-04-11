@@ -80,7 +80,7 @@ export default function BigPictureApp({
     loadData();
   }, [loadData]);
 
-  // Exit Big Picture when the toggle is turned off via Settings
+  // Exit Big Picture Mode and return to Desktop Mode when toggle is turned off
   useEffect(() => {
     if (!hasLoadedOnce.current) {
       hasLoadedOnce.current = true;
@@ -105,7 +105,7 @@ export default function BigPictureApp({
         toggleFullscreen();
       }
       if (e.key === "Escape" && view === "library") {
-        // Escape exits Big Picture from library.
+        // Escape exits Big Picture Mode and returns to Desktop Mode.
         e.preventDefault();
         handleExit();
       }
@@ -192,6 +192,13 @@ export default function BigPictureApp({
         }}
         onLaunch={handleLaunchGame}
         onToggleFavorite={handleToggleFavorite}
+        onGameUpdate={async (gameId) => {
+          await loadData();
+          const updated = games.find(g => g.id === gameId);
+          if (updated) setSelectedGame(updated);
+        }}
+        rommToken={rommToken}
+        rommUrl={rommUrl}
       />
     );
   }

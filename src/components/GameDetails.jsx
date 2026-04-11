@@ -19,6 +19,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
+import Tooltip from "@mui/material/Tooltip";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
@@ -85,10 +86,13 @@ export default function GameDetails({
   const playTimeStr =
     playHours > 0 ? `${playHours}h ${playMins}m` : `${playMins}m`;
 
-  // Check if ROM is available locally (either has local_file_path, sync_state is not remote_only, or just downloaded)
+  // Check if ROM is available locally
   const isRemoteOnly = (game.sync_state === "remote_only" || game.sync_state === "RemoteOnly") && !justDownloaded;
   const hasLocalFile = (game.local_file_path && game.local_file_path.length > 0) || justDownloaded;
-  const canPlay = hasLocalFile || (!isRemoteOnly && game.source !== "RomM");
+  const isSynced = game.sync_state === "synced" || game.sync_state === "Synced";
+  const isLocalGame = !game.romm_id && game.source !== "RomM";
+  // Can play if: has local file, is synced, is a local game, or not remote-only
+  const canPlay = hasLocalFile || isSynced || isLocalGame || !isRemoteOnly;
   const canDownload = game.romm_id && rommToken && rommUrl;
   
   const coverSrc = getCoverSrc(game.cover_path);
@@ -325,10 +329,10 @@ export default function GameDetails({
               {game.source === "RomM" && (
                 <Chip label="RomM" color="secondary" size="small" />
               )}
-              {game.sync_state && game.sync_state !== "local_only" && (
+              {game.sync_state && game.sync_state !== "local_only" && game.sync_state !== "LocalOnly" && (
                 <Chip
-                  label={game.sync_state === "remote_only" ? "Cloud Only" : "Synced"}
-                  color={game.sync_state === "remote_only" ? "info" : "success"}
+                  label={game.sync_state === "remote_only" || game.sync_state === "RemoteOnly" ? "Cloud Only" : "Synced"}
+                  color={game.sync_state === "remote_only" || game.sync_state === "RemoteOnly" ? "info" : "success"}
                   size="small"
                   variant="outlined"
                 />
@@ -455,26 +459,33 @@ export default function GameDetails({
               Play
             </Button>
           )}
-          
+
           {/* Show Download button for RomM games that aren't downloaded */}
-          {canDownload && !canPlay && (
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={downloading ? null : <CloudDownloadIcon />}
-              onClick={handleDownloadRom}
-              disabled={downloading}
-              sx={{
-                px: 5,
-                py: 1.5,
-                fontSize: "1.1rem",
-                borderRadius: 3,
-              }}
+          {game.romm_id && !canPlay && (
+            <Tooltip 
+              title={!rommToken || !rommUrl ? "Connect to RomM server in Settings to download" : ""}
+              arrow
             >
-              {downloading ? "Downloading..." : "Download ROM"}
-            </Button>
+              <span>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={downloading ? null : <CloudDownloadIcon />}
+                  onClick={handleDownloadRom}
+                  disabled={downloading || !rommToken || !rommUrl}
+                  sx={{
+                    px: 5,
+                    py: 1.5,
+                    fontSize: "1.1rem",
+                    borderRadius: 3,
+                  }}
+                >
+                  {downloading ? "Downloading..." : "Download ROM"}
+                </Button>
+              </span>
+            </Tooltip>
           )}
-          
+
           {/* Show Re-download option for already downloaded RomM games */}
           {canDownload && canPlay && (
             <Button
