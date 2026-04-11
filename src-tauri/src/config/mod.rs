@@ -142,10 +142,11 @@ pub struct DisplayConfig {
     pub show_platform_icons: bool,
     pub show_play_time: bool,
     pub cover_aspect_ratio: CoverAspectRatio,
-    /// Enable 10-foot UI layout (Steam Big Picture-style).
+    /// UI Mode: false = Desktop Mode (default), true = Big Picture Mode.
+    /// Big Picture is a 10-foot UI layout designed for couch gaming.
     #[serde(default)]
     pub big_picture: bool,
-    /// Request fullscreen window while in Big Picture mode.
+    /// Request fullscreen window while in Big Picture Mode.
     #[serde(default)]
     pub fullscreen: bool,
 }

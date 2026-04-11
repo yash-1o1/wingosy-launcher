@@ -45,6 +45,10 @@ import Select from "@mui/material/Select";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import TuneIcon from "@mui/icons-material/Tune";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import VpnKeyIcon from "@mui/icons-material/VpnKey";
+import LockIcon from "@mui/icons-material/Lock";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 import normalizeUrl from "../utils/normalizeUrl";
@@ -54,6 +58,8 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   const [rommUrl, setRommUrl] = useState(rommUrlProp || "");
   const [rommUsername, setRommUsername] = useState("");
   const [rommPassword, setRommPassword] = useState("");
+  const [rommDirectToken, setRommDirectToken] = useState("");
+  const [rommAuthMode, setRommAuthMode] = useState("password"); // "password" or "token"
   const [rommStatus, setRommStatus] = useState(null);
   const [scanMessage, setScanMessage] = useState(null);
   const [emulators, setEmulators] = useState([]);
@@ -77,7 +83,7 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   const [platformDefaults, setPlatformDefaults] = useState({});
   const [platforms, setPlatforms] = useState([]);
   
-  // Big Picture / fullscreen UI flags
+  // UI Mode flags: Desktop Mode (default) vs Big Picture Mode
   const [bigPictureEnabled, setBigPictureEnabled] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(false);
 
@@ -166,11 +172,22 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
       setRommStatus(null);
       const normalizedUrl = normalizeUrl(rommUrl);
       setRommUrl(normalizedUrl);
-      const token = await invoke("connect_romm", {
-        serverUrl: normalizedUrl,
-        username: rommUsername,
-        password: rommPassword,
-      });
+      
+      let token;
+      if (rommAuthMode === "token") {
+        // Connect using direct token (API key / access token)
+        token = await invoke("connect_romm_with_token", {
+          serverUrl: normalizedUrl,
+          token: rommDirectToken.trim(),
+        });
+      } else {
+        // Connect using username/password
+        token = await invoke("connect_romm", {
+          serverUrl: normalizedUrl,
+          username: rommUsername,
+          password: rommPassword,
+        });
+      }
       onRommConnect(normalizedUrl, token);
       setRommStatus({ type: "success", message: "Connected! Click 'Sync Library' to pull your games." });
     } catch (err) {
@@ -408,7 +425,7 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <Typography variant="h6" gutterBottom>UI</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Big Picture is a fullscreen, 10-foot-friendly interface for couch play.
+          Switch between Desktop Mode (default) and Big Picture Mode. Big Picture is a fullscreen, 10-foot-friendly interface designed for couch gaming with a controller.
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <FormControlLabel
@@ -466,10 +483,50 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
         </Box>
         <TextField fullWidth label="Server URL" placeholder="romm.example.com or 192.168.1.2:3000"
           value={rommUrl} onChange={(e) => setRommUrl(e.target.value)} sx={{ mb: 2 }} size="small" />
-        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-          <TextField label="Username" value={rommUsername} onChange={(e) => setRommUsername(e.target.value)} size="small" sx={{ flex: 1 }} />
-          <TextField label="Password" type="password" value={rommPassword} onChange={(e) => setRommPassword(e.target.value)} size="small" sx={{ flex: 1 }} />
+        
+        {/* Auth mode toggle */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Authentication Method
+          </Typography>
+          <ToggleButtonGroup
+            value={rommAuthMode}
+            exclusive
+            onChange={(e, newMode) => newMode && setRommAuthMode(newMode)}
+            size="small"
+            sx={{ mb: 2 }}
+          >
+            <ToggleButton value="password" sx={{ px: 2 }}>
+              <LockIcon sx={{ mr: 1, fontSize: 18 }} />
+              Username / Password
+            </ToggleButton>
+            <ToggleButton value="token" sx={{ px: 2 }}>
+              <VpnKeyIcon sx={{ mr: 1, fontSize: 18 }} />
+              Access Token
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
+        
+        {rommAuthMode === "password" ? (
+          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+            <TextField label="Username" value={rommUsername} onChange={(e) => setRommUsername(e.target.value)} size="small" sx={{ flex: 1 }} />
+            <TextField label="Password" type="password" value={rommPassword} onChange={(e) => setRommPassword(e.target.value)} size="small" sx={{ flex: 1 }} />
+          </Box>
+        ) : (
+          <Box sx={{ mb: 2 }}>
+            <TextField 
+              fullWidth 
+              label="Access Token" 
+              placeholder="Paste your RomM access token here"
+              value={rommDirectToken} 
+              onChange={(e) => setRommDirectToken(e.target.value)} 
+              size="small"
+              type="password"
+              helperText="Get your token from RomM web UI → Settings → Access Tokens, or from your OAuth provider"
+            />
+          </Box>
+        )}
+        
         <Box sx={{ display: "flex", gap: 2 }}>
           <Button variant="contained" onClick={handleConnectRomM}>Connect</Button>
           <Button variant="outlined" onClick={handleSyncRomM} disabled={!rommUrl}>Sync Library</Button>

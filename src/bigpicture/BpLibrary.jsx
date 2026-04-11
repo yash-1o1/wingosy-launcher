@@ -126,7 +126,7 @@ export default function BpLibrary({
             Wingosy
           </Typography>
           <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 700 }}>
-            Big Picture
+            Big Picture Mode
           </Typography>
           <Box sx={{ flex: 1 }} />
           <Button
