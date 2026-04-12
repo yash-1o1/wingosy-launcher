@@ -14,7 +14,10 @@
       "all": false,
       "window": {
         "setFullscreen": true,
-        "unmaximize": true
+        "unmaximize": true,
+        "maximize": true,
+        "minimize": true,
+        "close": true
       },
       "shell": {
         "all": false,
@@ -60,6 +63,7 @@
         "fullscreen": false,
         "maximized": true,
         "resizable": true,
+        "decorations": false,
         "title": "Wingosy Launcher",
         "width": 1280,
         "height": 720,

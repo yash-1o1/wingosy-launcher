@@ -9,8 +9,27 @@ import ImmersiveModeApp from "./immersive/ImmersiveModeApp";
 import { invoke } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
 import { setFullscreenReliable } from "./windowFullscreen";
+import WindowChrome from "./components/WindowChrome";
 
 const DRAWER_WIDTH = 260;
+
+function AppShell({ children }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        overflow: "hidden",
+      }}
+    >
+      <WindowChrome />
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {children}
+      </Box>
+    </Box>
+  );
+}
 
 function App() {
   const [showSetup, setShowSetup] = useState(null);
@@ -193,35 +212,42 @@ function App() {
 
   if (showSetup) {
     return (
-      <SetupWizard
-        onComplete={handleSetupComplete}
-        onRommConnect={handleRommConnect}
-      />
+      <AppShell>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <SetupWizard
+            onComplete={handleSetupComplete}
+            onRommConnect={handleRommConnect}
+          />
+        </Box>
+      </AppShell>
     );
   }
 
   if (immersiveModeEnabled) {
     return (
-      <ImmersiveModeApp
-        rommToken={rommToken}
-        rommUrl={rommUrl}
-        onRommConnect={handleRommConnect}
-        onExit={async () => {
-          setImmersiveModeEnabled(false);
-          setImmersiveModeFullscreen(false);
-          await loadData();
-          // loadData reapplies `cfg.display.big_picture`; after exit the config write can
-          // lag behind get_config in rare cases — keep desktop shell until next full reload.
-          setImmersiveModeEnabled(false);
-          setImmersiveModeFullscreen(false);
-        }}
-        requestedFullscreen={immersiveModeFullscreen}
-      />
+      <AppShell>
+        <ImmersiveModeApp
+          rommToken={rommToken}
+          rommUrl={rommUrl}
+          onRommConnect={handleRommConnect}
+          onExit={async () => {
+            setImmersiveModeEnabled(false);
+            setImmersiveModeFullscreen(false);
+            await loadData();
+            // loadData reapplies `cfg.display.big_picture`; after exit the config write can
+            // lag behind get_config in rare cases — keep desktop shell until next full reload.
+            setImmersiveModeEnabled(false);
+            setImmersiveModeFullscreen(false);
+          }}
+          requestedFullscreen={immersiveModeFullscreen}
+        />
+      </AppShell>
     );
   }
 
   return (
-    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+    <AppShell>
+      <Box sx={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
       <Sidebar
         platforms={platforms}
         selectedPlatform={selectedPlatform}
@@ -234,7 +260,7 @@ function App() {
         component="main"
         sx={{
           flex: 1,
-          height: "100vh",
+          minHeight: 0,
           overflow: "auto",
           bgcolor: "background.default",
         }}
@@ -293,7 +319,8 @@ function App() {
           />
         )}
       </Box>
-    </Box>
+      </Box>
+    </AppShell>
   );
 }
 

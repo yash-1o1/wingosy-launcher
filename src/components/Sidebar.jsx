@@ -122,10 +122,9 @@ export default function Sidebar({
       sx={{
         width: drawerWidth,
         minWidth: drawerWidth,
-        height: "100vh",
-        bgcolor: "background.paper",
-        borderRight: "1px solid",
-        borderColor: "divider",
+        minHeight: 0,
+        alignSelf: "stretch",
+        bgcolor: "background.default",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",

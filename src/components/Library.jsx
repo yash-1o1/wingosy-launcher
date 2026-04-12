@@ -2,6 +2,7 @@ import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import Typography from "@mui/material/Typography";
+import Stack from "@mui/material/Stack";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "@mui/material/Button";
@@ -9,7 +10,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import GameCard from "./GameCard";
-import { useAppTheme } from "../ThemeContext";
 
 export default function Library({
   games,
@@ -31,17 +31,26 @@ export default function Library({
         </Alert>
       )}
 
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
-        <Typography variant="h4" sx={{ flexShrink: 0 }}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        alignItems={{ xs: "stretch", sm: "center" }}
+        justifyContent="space-between"
+        sx={{ mb: 3 }}
+      >
+        <Typography variant="h4" component="h1" sx={{ flexShrink: 0, lineHeight: 1.2 }}>
           Library
         </Typography>
-        <Box sx={{ flex: 1 }} />
         <TextField
           size="small"
           placeholder="Search games..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          sx={{ width: 300, flexShrink: 0 }}
+          sx={{
+            width: "100%",
+            maxWidth: { sm: 360 },
+            flexShrink: 0,
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -50,7 +59,7 @@ export default function Library({
             ),
           }}
         />
-      </Box>
+      </Stack>
 
       {loading ? (
         <Box

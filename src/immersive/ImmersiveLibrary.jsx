@@ -118,7 +118,8 @@ export default function ImmersiveLibrary({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       sx={{
-        height: "100vh",
+        flex: 1,
+        minHeight: 0,
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
@@ -129,14 +130,14 @@ export default function ImmersiveLibrary({
       }}
     >
       <Box
-        sx={{
+        sx={(t) => ({
           px: 5,
           pt: 3.5,
-          pb: 2,
-          bgcolor: "background.paper",
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
+          pb: 2.5,
+          background: `linear-gradient(180deg, ${alpha(t.palette.background.paper, 0.88)} 0%, ${alpha(t.palette.background.paper, 0.42)} 52%, transparent 100%)`,
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+        })}
       >
         <Stack direction="row" alignItems="center" spacing={2}>
           <LauncherIcon size={48} />

@@ -97,7 +97,8 @@ export default function ImmersiveGameDetails({
   return (
     <Box
       sx={{
-        height: "100vh",
+        flex: 1,
+        minHeight: 0,
         overflow: "auto",
         p: 5,
         bgcolor: "background.default",
