@@ -88,5 +88,5 @@ jobs:
             Assets below include the Windows installer (`.exe`) and MSI where configured.
 
             Add a root `CHANGELOG.md` and link it here in this workflow if you want a changelog section.
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
