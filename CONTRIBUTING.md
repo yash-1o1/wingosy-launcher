@@ -12,6 +12,22 @@ Prerequisites: **Windows 10/11**, **Node.js 20+** (22 LTS recommended; required 
 $env:Path = "C:\Program Files\nodejs;$env:USERPROFILE\.cargo\bin;" + $env:Path
 ```
 
+Verify in that same terminal:
+
+```powershell
+node -v
+cargo -v
+```
+
+### Troubleshooting: `tauri dev` exits or “app isn’t running”
+
+| What you see | What it usually means | What to do |
+|----------------|----------------------|------------|
+| `npm` / `node` is not recognized | Node.js is not on `Path` for this terminal | Use the `$env:Path = ...` line above, or open a **new** terminal after installing Node; confirm with `node -v`. |
+| `failed to get cargo metadata: program not found` | **Cargo** is not on `Path` (Tauri needs Rust) | Add `%USERPROFILE%\.cargo\bin` (see line above), then `cargo -v`. Install Rust via `winget` / rustup if needed. |
+| No window yet, only compile logs | First **debug** build of `src-tauri` can take **30–120+ seconds** | Wait until you see **`Finished` `dev` profile** and the log line **Starting Wingosy Launcher**; check the taskbar for the window. |
+| Only the browser / `localhost:5173` | You ran **`npm run dev:web`** instead of the full app | Use **`npm run tauri dev`** (or **`npm run dev`**, which is the same) so the **native** window opens. |
+
 Install if missing:
 
 ```powershell
@@ -34,6 +50,23 @@ cd wingosy-launcher
 npm install
 npm run tauri dev
 ```
+
+### Development vs release
+
+**Development — `npm run tauri dev`**
+
+- Runs a **debug** native shell and serves the React app from your **`src/`** tree with Vite.
+- **Frontend:** Vite **hot module replacement** — many React/CSS changes show up while the window stays open.
+- **Rust (`src-tauri/`):** Saving files **rebuilds** the native side; the dev app **restarts** (not the same instant refresh as the web UI).
+- You are always tied to **whatever is on disk** in your clone when you run this command.
+
+**Release — `npm run tauri build`**
+
+- Produces an optimized **`Wingosy Launcher.exe`** under `src-tauri/target/release/` (and installers if configured).
+- The UI and Rust code are **fixed at build time**. New commits do **not** change an `.exe` you already built until you **build again** and **open the new binary**.
+- Use this when you care about **production-like** speed, installers, or **E2E** tests that target the release app.
+
+For everyday UI work, use **`tauri dev`**. Use a **release** build when you need to match what users install.
 
 ## Project Structure
 

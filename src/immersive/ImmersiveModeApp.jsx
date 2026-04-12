@@ -153,7 +153,7 @@ export default function ImmersiveModeApp({
 
   if (view === "settings") {
     return (
-      <Box sx={{ height: "100vh", overflow: "auto", bgcolor: "background.default" }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", bgcolor: "background.default" }}>
         <Settings
           onBack={() => {
             setView("library");
