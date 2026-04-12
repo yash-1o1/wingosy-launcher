@@ -142,11 +142,11 @@ pub struct DisplayConfig {
     pub show_platform_icons: bool,
     pub show_play_time: bool,
     pub cover_aspect_ratio: CoverAspectRatio,
-    /// UI Mode: false = Desktop Mode (default), true = Big Picture Mode.
-    /// Big Picture is a 10-foot UI layout designed for couch gaming.
+    /// UI Mode: false = desktop (default), true = Immersive mode (large-type / controller UI).
+    /// Stored as `big_picture` for backward compatibility with existing configs.
     #[serde(default)]
     pub big_picture: bool,
-    /// Request fullscreen window while in Big Picture Mode.
+    /// Request OS fullscreen while Immersive mode is active.
     #[serde(default)]
     pub fullscreen: bool,
 }
@@ -245,6 +245,8 @@ mod tests {
         assert!(display.show_platform_icons);
         assert!(display.show_play_time);
         assert_eq!(display.cover_aspect_ratio, CoverAspectRatio::Vertical);
+        assert!(!display.big_picture);
+        assert!(!display.fullscreen);
     }
 
     #[test]
@@ -322,6 +324,33 @@ mod tests {
         assert!(config.library.show_hidden_games);
         assert_eq!(config.display.grid_columns, 6);
         assert_eq!(config.display.cover_aspect_ratio, CoverAspectRatio::Square);
+        assert!(!config.display.big_picture);
+        assert!(!config.display.fullscreen);
+    }
+
+    #[test]
+    fn test_display_immersive_flags_deserialize() {
+        let toml_str = r#"
+            [romm]
+            auto_sync = false
+            sync_saves = false
+            [library]
+            scan_subdirectories = true
+            auto_extract_archives = true
+            show_hidden_games = false
+            [display]
+            theme = "Dark"
+            grid_columns = 5
+            show_platform_icons = true
+            show_play_time = true
+            cover_aspect_ratio = "Vertical"
+            big_picture = true
+            fullscreen = true
+            [emulators]
+        "#;
+        let config: AppConfig = toml::from_str(toml_str).expect("Should deserialize");
+        assert!(config.display.big_picture);
+        assert!(config.display.fullscreen);
     }
 
     #[test]

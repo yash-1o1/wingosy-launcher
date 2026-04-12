@@ -22,8 +22,9 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import { alpha } from "@mui/material/styles";
 import { invoke } from "@tauri-apps/api/tauri";
+import { useAppTheme } from "../ThemeContext";
 
-export default function BpGameDetails({
+export default function ImmersiveGameDetails({
   game,
   platformLabel,
   onBack,
@@ -33,18 +34,17 @@ export default function BpGameDetails({
   rommToken,
   rommUrl,
 }) {
+  const { colors } = useAppTheme();
   const [downloading, setDownloading] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState(null);
   const [justDownloaded, setJustDownloaded] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [actionStatus, setActionStatus] = useState(null);
 
-  // Check if ROM is available locally
   const isRemoteOnly = (game.sync_state === "remote_only" || game.sync_state === "RemoteOnly") && !justDownloaded;
   const hasLocalFile = (game.local_file_path && game.local_file_path.length > 0) || justDownloaded;
   const isSynced = game.sync_state === "synced" || game.sync_state === "Synced";
   const isLocalGame = !game.romm_id && game.source !== "RomM";
-  // Can play if: has local file, is synced, is a local game, or not remote-only
   const canPlay = hasLocalFile || isSynced || isLocalGame || !isRemoteOnly;
   const canDownload = game.romm_id && rommToken && rommUrl;
 
@@ -87,7 +87,6 @@ export default function BpGameDetails({
         onBack();
       }
       if (e.key === "Enter") {
-        // Enter = primary action
         onLaunch(game.id);
       }
     }
@@ -96,31 +95,40 @@ export default function BpGameDetails({
   }, [game.id, onBack, onLaunch]);
 
   return (
-    <Box sx={{ height: "100vh", overflow: "auto", p: 5 }}>
+    <Box
+      sx={{
+        height: "100vh",
+        overflow: "auto",
+        p: 5,
+        bgcolor: "background.default",
+        backgroundImage: `radial-gradient(1000px 380px at 10% -5%, ${alpha(colors.primary, 0.12)} 0%, transparent 52%),
+          radial-gradient(800px 320px at 92% 5%, ${alpha(colors.primaryLight, 0.07)} 0%, transparent 48%)`,
+      }}
+    >
       <Button
         startIcon={<ArrowBackIcon />}
         onClick={onBack}
         color="inherit"
-        sx={{ mb: 3, borderRadius: 999, px: 2.5 }}
+        sx={{ mb: 3, borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700 }}
       >
         Back
       </Button>
 
       <Paper
+        elevation={0}
         sx={(t) => ({
-          borderRadius: 4,
+          borderRadius: 3,
           overflow: "hidden",
-          background:
-            "linear-gradient(135deg, rgba(30,30,38,1) 0%, rgba(18,18,24,1) 100%)",
-          boxShadow: `0 20px 70px ${alpha("#000", 0.6)}`,
-          border: `1px solid ${alpha(t.palette.common.white, 0.06)}`,
+          bgcolor: t.palette.mode === "dark" ? alpha(t.palette.background.paper, 0.98) : t.palette.background.paper,
+          boxShadow: `0 20px 56px ${alpha("#000", t.palette.mode === "dark" ? 0.55 : 0.12)}`,
+          border: `1px solid ${t.palette.divider}`,
         })}
       >
         <Box
           sx={{
             p: 4,
-            background:
-              "radial-gradient(1200px 500px at 15% 0%, rgba(99,102,241,0.35) 0%, transparent 55%), radial-gradient(900px 450px at 85% 10%, rgba(139,92,246,0.25) 0%, transparent 60%)",
+            background: `radial-gradient(1200px 500px at 15% 0%, ${alpha(colors.primary, 0.22)} 0%, transparent 55%),
+              radial-gradient(900px 450px at 85% 10%, ${alpha(colors.primaryLight, 0.14)} 0%, transparent 58%)`,
           }}
         >
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2, flexWrap: "wrap" }}>
@@ -146,7 +154,7 @@ export default function BpGameDetails({
             ) : null}
           </Stack>
 
-          <Typography variant="h3" sx={{ fontWeight: 950, letterSpacing: "-0.9px", mb: 1 }}>
+          <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: "-0.5px", mb: 1, color: "text.primary" }}>
             {game.name}
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 1100, lineHeight: 1.8 }}>
@@ -168,22 +176,20 @@ export default function BpGameDetails({
           )}
 
           <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }}>
-            {/* Show Play button if ROM is available locally */}
             {canPlay && (
               <Button
                 variant="contained"
                 size="large"
                 startIcon={<PlayArrowIcon />}
                 onClick={() => onLaunch(game.id)}
-                sx={{ borderRadius: 3, px: 4, py: 1.6, fontSize: "1.1rem" }}
+                sx={{ borderRadius: 2, px: 4, py: 1.6, fontSize: "1.05rem", textTransform: "none", fontWeight: 700 }}
               >
                 Play
               </Button>
             )}
 
-            {/* Download button - for RomM games that aren't downloaded */}
             {game.romm_id && !canPlay && (
-              <Tooltip 
+              <Tooltip
                 title={!rommToken || !rommUrl ? "Connect to RomM server in Settings to download" : ""}
                 arrow
               >
@@ -194,7 +200,7 @@ export default function BpGameDetails({
                     startIcon={downloading ? null : <CloudDownloadIcon />}
                     onClick={handleDownloadRom}
                     disabled={downloading || !rommToken || !rommUrl}
-                    sx={{ borderRadius: 3, px: 4, py: 1.6, fontSize: "1.1rem" }}
+                    sx={{ borderRadius: 2, px: 4, py: 1.6, fontSize: "1.05rem", textTransform: "none", fontWeight: 700 }}
                   >
                     {downloading ? "Downloading..." : "Download"}
                   </Button>
@@ -202,7 +208,6 @@ export default function BpGameDetails({
               </Tooltip>
             )}
 
-            {/* Re-download option for already downloaded RomM games */}
             {canDownload && canPlay && (
               <Button
                 variant="outlined"
@@ -210,7 +215,7 @@ export default function BpGameDetails({
                 startIcon={downloading ? null : <CloudDownloadIcon />}
                 onClick={handleDownloadRom}
                 disabled={downloading}
-                sx={{ borderRadius: 3, px: 3, py: 1.6 }}
+                sx={{ borderRadius: 2, px: 3, py: 1.6, textTransform: "none", fontWeight: 700 }}
               >
                 {downloading ? "Downloading..." : "Re-download"}
               </Button>
@@ -221,12 +226,11 @@ export default function BpGameDetails({
               size="large"
               startIcon={game.is_favorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
               onClick={() => onToggleFavorite(game.id)}
-              sx={{ borderRadius: 3, px: 4, py: 1.6, fontSize: "1.1rem" }}
+              sx={{ borderRadius: 2, px: 4, py: 1.6, fontSize: "1.05rem", textTransform: "none", fontWeight: 700 }}
             >
               {game.is_favorite ? "Unfavorite" : "Favorite"}
             </Button>
 
-            {/* Delete button - only if has local file */}
             {hasLocalFile && (
               <Button
                 variant="outlined"
@@ -234,7 +238,7 @@ export default function BpGameDetails({
                 color="error"
                 startIcon={<DeleteIcon />}
                 onClick={() => setDeleteDialogOpen(true)}
-                sx={{ borderRadius: 3, px: 3, py: 1.6 }}
+                sx={{ borderRadius: 2, px: 3, py: 1.6, textTransform: "none", fontWeight: 700 }}
               >
                 Delete
               </Button>
@@ -243,13 +247,12 @@ export default function BpGameDetails({
         </Box>
       </Paper>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
         <DialogTitle>Delete Downloaded ROM?</DialogTitle>
         <DialogContent>
           <DialogContentText>
             This will delete the local ROM file for "{game.name}".
-            {game.romm_id ? " The game will remain in your library (from RomM) and can be re-downloaded." 
+            {game.romm_id ? " The game will remain in your library (from RomM) and can be re-downloaded."
               : " This will remove the game from your library completely."}
           </DialogContentText>
         </DialogContent>
@@ -263,4 +266,3 @@ export default function BpGameDetails({
     </Box>
   );
 }
-

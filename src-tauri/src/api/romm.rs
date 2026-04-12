@@ -391,6 +391,9 @@ pub struct IgdbMetadata {
     pub franchises: Option<Vec<String>>,
     #[serde(default)]
     pub companies: Option<Vec<String>>,
+    /// IGDB game mode labels when RomM exposes them (e.g. Single player, Multiplayer).
+    #[serde(default)]
+    pub game_modes: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -464,10 +467,27 @@ impl RomMRom {
 
         let genres = self.genres();
         let rating = self.aggregated_rating();
-        let developer = self.igdb_metadata.as_ref()
+        let (developer, publisher) = self
+            .igdb_metadata
+            .as_ref()
             .and_then(|m| m.companies.as_ref())
-            .and_then(|c| c.first())
-            .cloned();
+            .map(|c| {
+                let dev = c.first().cloned();
+                let pub_ = if c.len() > 1 {
+                    c.get(1).cloned()
+                } else {
+                    None
+                };
+                (dev, pub_)
+            })
+            .unwrap_or((None, None));
+
+        let player_count = self
+            .igdb_metadata
+            .as_ref()
+            .and_then(|m| m.game_modes.as_ref())
+            .filter(|modes| !modes.is_empty())
+            .map(|modes| modes.join(", "));
 
         crate::models::Game {
             id: 0,
@@ -478,10 +498,10 @@ impl RomMRom {
             romm_id: Some(self.id),
             summary: self.summary,
             developer,
-            publisher: None,
+            publisher,
             release_year,
             genres,
-            player_count: None,
+            player_count,
             cover_path,
             screenshot_paths: Vec::new(),
             is_favorite: false,
@@ -628,6 +648,7 @@ mod tests {
                 total_rating: None,
                 franchises: None,
                 companies: None,
+                game_modes: None,
             }),
         };
         let genres = rom.genres();
@@ -654,6 +675,7 @@ mod tests {
                 total_rating: Some(90.0),
                 franchises: None,
                 companies: None,
+                game_modes: None,
             }),
         };
         assert_eq!(rom.aggregated_rating(), Some(85.5));
@@ -678,6 +700,7 @@ mod tests {
                 total_rating: Some(75.0),
                 franchises: None,
                 companies: None,
+                game_modes: None,
             }),
         };
         assert_eq!(rom.aggregated_rating(), Some(75.0));
@@ -831,6 +854,36 @@ mod tests {
         let game = rom.into_game("https://romm.example.com");
         assert_eq!(game.sync_state, crate::models::SyncState::RemoteOnly);
         assert!(game.local_file_path.is_none());
+    }
+
+    #[test]
+    fn rom_into_game_maps_publisher_and_game_modes_from_igdb_metadata() {
+        let rom = RomMRom {
+            id: 9,
+            platform_id: 1,
+            platform_slug: "snes".into(),
+            name: "RPG".into(),
+            fs_name: "rpg.sfc".into(),
+            fs_size_bytes: 1024,
+            igdb_id: Some(1),
+            summary: None,
+            url_cover: None,
+            igdb_metadata: Some(IgdbMetadata {
+                genres: Some(vec!["Role-playing (RPG)".into()]),
+                first_release_date: None,
+                aggregated_rating: Some(88.0),
+                total_rating: None,
+                franchises: None,
+                companies: Some(vec!["Dev Studio".into(), "Pub Co".into()]),
+                game_modes: Some(vec!["Single player".into(), "Co-operative".into()]),
+            }),
+        };
+        let game = rom.into_game("https://romm.example.com");
+        assert_eq!(game.developer.as_deref(), Some("Dev Studio"));
+        assert_eq!(game.publisher.as_deref(), Some("Pub Co"));
+        assert_eq!(game.player_count.as_deref(), Some("Single player, Co-operative"));
+        assert_eq!(game.user_rating, Some(88.0));
+        assert_eq!(game.genres, vec!["Role-playing (RPG)"]);
     }
 
     #[test]

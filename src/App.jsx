@@ -5,7 +5,7 @@ import Library from "./components/Library";
 import GameDetails from "./components/GameDetails";
 import Settings from "./components/Settings";
 import SetupWizard from "./components/SetupWizard";
-import BigPictureApp from "./bigpicture/BigPictureApp";
+import ImmersiveModeApp from "./immersive/ImmersiveModeApp";
 import { invoke } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
 import { setFullscreenReliable } from "./windowFullscreen";
@@ -24,8 +24,8 @@ function App() {
   const [error, setError] = useState(null);
   const [rommToken, setRommToken] = useState(null);
   const [rommUrl, setRommUrl] = useState("");
-  const [bigPictureEnabled, setBigPictureEnabled] = useState(false);
-  const [bigPictureFullscreen, setBigPictureFullscreen] = useState(false);
+  const [immersiveModeEnabled, setImmersiveModeEnabled] = useState(false);
+  const [immersiveModeFullscreen, setImmersiveModeFullscreen] = useState(false);
 
   useEffect(() => {
     checkFirstRun();
@@ -78,8 +78,8 @@ function App() {
         if (cfg.romm?.auth_token) {
           setRommToken(cfg.romm.auth_token);
         }
-        setBigPictureEnabled(Boolean(cfg.display?.big_picture));
-        setBigPictureFullscreen(Boolean(cfg.display?.fullscreen));
+        setImmersiveModeEnabled(Boolean(cfg.display?.big_picture));
+        setImmersiveModeFullscreen(Boolean(cfg.display?.fullscreen));
       } catch {
         // config may not exist yet
       }
@@ -200,18 +200,22 @@ function App() {
     );
   }
 
-  if (bigPictureEnabled) {
+  if (immersiveModeEnabled) {
     return (
-      <BigPictureApp
+      <ImmersiveModeApp
         rommToken={rommToken}
         rommUrl={rommUrl}
         onRommConnect={handleRommConnect}
-        onExit={() => {
-          setBigPictureEnabled(false);
-          setBigPictureFullscreen(false);
-          loadData();
+        onExit={async () => {
+          setImmersiveModeEnabled(false);
+          setImmersiveModeFullscreen(false);
+          await loadData();
+          // loadData reapplies `cfg.display.big_picture`; after exit the config write can
+          // lag behind get_config in rare cases — keep desktop shell until next full reload.
+          setImmersiveModeEnabled(false);
+          setImmersiveModeFullscreen(false);
         }}
-        requestedFullscreen={bigPictureFullscreen}
+        requestedFullscreen={immersiveModeFullscreen}
       />
     );
   }

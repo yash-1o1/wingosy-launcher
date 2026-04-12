@@ -292,9 +292,15 @@ impl Database {
                 let mut updated = game.clone();
                 updated.id = existing.id;
                 updated.is_favorite = existing.is_favorite;
+                updated.is_hidden = existing.is_hidden;
                 updated.play_count = existing.play_count;
                 updated.play_time_minutes = existing.play_time_minutes;
                 updated.last_played_at = existing.last_played_at;
+                // Keep local library state across RomM metadata syncs
+                if existing.local_file_path.is_some() {
+                    updated.local_file_path = existing.local_file_path.clone();
+                    updated.sync_state = crate::models::SyncState::Synced;
+                }
                 self.update_game(&updated)?;
                 return Ok(existing.id);
             }
