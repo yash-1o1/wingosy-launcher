@@ -53,4 +53,3 @@ export function useFullscreen({ enabled, onChange } = {}) {
 
   return { isFullscreen, setFullscreen, toggleFullscreen, sync };
 }
-

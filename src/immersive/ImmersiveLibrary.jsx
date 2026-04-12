@@ -6,7 +6,10 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
-import BpGameTile from "./BpGameTile";
+import { alpha } from "@mui/material/styles";
+import ImmersiveGameTile from "./ImmersiveGameTile";
+import LauncherIcon from "../components/LauncherIcon";
+import { useAppTheme } from "../ThemeContext";
 
 const DEFAULT_COLUMNS = 6;
 
@@ -16,7 +19,7 @@ function byLastPlayedDesc(a, b) {
   return bx.localeCompare(ax);
 }
 
-export default function BpLibrary({
+export default function ImmersiveLibrary({
   loading,
   error,
   games,
@@ -24,11 +27,12 @@ export default function BpLibrary({
   selectedIndex,
   onSelectedIndexChange,
   onSelectGame,
-  onExitBigPicture,
+  onExitImmersive,
   onOpenSettings,
 }) {
   const [section, setSection] = useState("all"); // all | favorites | recent
   const gridRef = useRef(null);
+  const { colors } = useAppTheme();
 
   const platformNameById = useMemo(() => {
     const map = new Map();
@@ -67,7 +71,7 @@ export default function BpLibrary({
 
     if (e.key === "Escape") {
       e.preventDefault();
-      onExitBigPicture();
+      onExitImmersive();
       return;
     }
 
@@ -102,7 +106,7 @@ export default function BpLibrary({
       e.preventDefault();
       onSelectedIndexChange(next);
       const el = gridRef.current?.querySelector?.(
-        `[data-bp-index="${next}"]`
+        `[data-immersive-index="${next}"]`
       );
       el?.focus?.();
     }
@@ -110,6 +114,7 @@ export default function BpLibrary({
 
   return (
     <Box
+      data-testid="immersive-library"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       sx={{
@@ -118,49 +123,79 @@ export default function BpLibrary({
         display: "flex",
         flexDirection: "column",
         outline: "none",
+        bgcolor: "background.default",
+        backgroundImage: `radial-gradient(1200px 420px at 12% -8%, ${alpha(colors.primary, 0.14)} 0%, transparent 55%),
+          radial-gradient(900px 380px at 88% 0%, ${alpha(colors.primaryLight, 0.08)} 0%, transparent 50%)`,
       }}
     >
-      <Box sx={{ px: 5, pt: 4, pb: 2 }}>
+      <Box
+        sx={{
+          px: 5,
+          pt: 3.5,
+          pb: 2,
+          bgcolor: "background.paper",
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
         <Stack direction="row" alignItems="center" spacing={2}>
-          <Typography variant="h3" sx={{ fontWeight: 900, letterSpacing: "-0.8px" }}>
-            Wingosy
-          </Typography>
-          <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 700 }}>
-            Big Picture Mode
-          </Typography>
+          <LauncherIcon size={48} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                letterSpacing: "-0.6px",
+                lineHeight: 1.15,
+                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Wingosy
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: "0.04em" }}>
+              Immersive mode
+            </Typography>
+          </Box>
           <Box sx={{ flex: 1 }} />
           <Button
             variant={section === "all" ? "contained" : "outlined"}
             onClick={() => setSection("all")}
-            sx={{ borderRadius: 999, px: 2.5 }}
+            sx={{ borderRadius: 2, px: 2.25, textTransform: "none", fontWeight: 700 }}
           >
             All
           </Button>
           <Button
             variant={section === "favorites" ? "contained" : "outlined"}
             onClick={() => setSection("favorites")}
-            sx={{ borderRadius: 999, px: 2.5 }}
+            sx={{ borderRadius: 2, px: 2.25, textTransform: "none", fontWeight: 700 }}
           >
             Favorites
           </Button>
           <Button
             variant={section === "recent" ? "contained" : "outlined"}
             onClick={() => setSection("recent")}
-            sx={{ borderRadius: 999, px: 2.5 }}
+            sx={{ borderRadius: 2, px: 2.25, textTransform: "none", fontWeight: 700 }}
           >
             Recent
           </Button>
-          <Divider flexItem orientation="vertical" sx={{ mx: 1, opacity: 0.25 }} />
-          <Button variant="outlined" onClick={onOpenSettings} sx={{ borderRadius: 999, px: 2.5 }}>
+          <Divider flexItem orientation="vertical" sx={{ mx: 0.5 }} />
+          <Button variant="outlined" onClick={onOpenSettings} sx={{ borderRadius: 2, px: 2.25, textTransform: "none", fontWeight: 700 }}>
             Settings
           </Button>
-          <Button color="error" variant="outlined" onClick={onExitBigPicture} sx={{ borderRadius: 999, px: 2.5 }}>
-            Exit
+          <Button
+            data-testid="immersive-exit-to-desktop"
+            color="error"
+            variant="outlined"
+            onClick={onExitImmersive}
+            sx={{ borderRadius: 2, px: 2.25, textTransform: "none", fontWeight: 700 }}
+          >
+            Exit to desktop
           </Button>
         </Stack>
       </Box>
-
-      <Divider sx={{ opacity: 0.12 }} />
 
       <Box sx={{ flex: 1, overflow: "auto", px: 5, py: 3 }}>
         {error ? (
@@ -170,8 +205,20 @@ export default function BpLibrary({
         ) : null}
 
         {loading ? (
-          <Box sx={{ height: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <CircularProgress />
+          <Box
+            sx={{
+              height: "60vh",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+            }}
+          >
+            <CircularProgress color="primary" />
+            <Typography variant="body2" color="text.secondary">
+              Loading your library…
+            </Typography>
           </Box>
         ) : visibleGames.length === 0 ? (
           <Box sx={{ height: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -189,8 +236,8 @@ export default function BpLibrary({
             }}
           >
             {visibleGames.map((g, idx) => (
-              <Box key={g.id} data-bp-index={idx}>
-                <BpGameTile
+              <Box key={g.id} data-immersive-index={idx}>
+                <ImmersiveGameTile
                   game={g}
                   platformLabel={(platformNameById.get(g.platform_id) || g.platform_id || "").toUpperCase()}
                   focused={idx === selectedIndex}
@@ -205,4 +252,3 @@ export default function BpLibrary({
     </Box>
   );
 }
-

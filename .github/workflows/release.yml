@@ -1,3 +1,8 @@
+# Build Windows installers and attach them to a GitHub Release.
+#
+# Recommended: push an annotated tag after bumping versions (see CONTRIBUTING / repo docs).
+# Optional: Actions → Release → Run workflow → enter an existing tag (e.g. v0.2.0).
+
 name: Release
 
 on:
@@ -5,9 +10,17 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing git tag to build (e.g. v0.2.0). Create and push the tag first.'
+        required: true
+        type: string
 
 jobs:
   build:
+    permissions:
+      contents: write
+
     strategy:
       fail-fast: false
       matrix:
@@ -18,15 +31,24 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
+    env:
+      # Tag push: ref is refs/tags/v* ; manual run: ref is a branch, use the typed-in tag.
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.tag }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Enable Corepack (pinned npm from package.json)
+        run: corepack enable
 
       - name: Setup Rust
         uses: dtolnay/rust-action@stable
@@ -46,18 +68,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Wingosy Launcher ${{ github.ref_name }}'
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: 'Wingosy Launcher ${{ env.RELEASE_TAG }}'
           releaseBody: |
-            See the [changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-            
-            ## Installation
-            
-            ### Windows
-            - Download `Wingosy.Launcher_x.x.x_x64-setup.exe` for the installer
-            - Or download `Wingosy.Launcher_x.x.x_x64_en-US.msi` for MSI installer
-            
-            ### Portable Mode
-            To run in portable mode, create a `portable.txt` file next to the executable.
+            Assets below include the Windows installer (`.exe`) and MSI where configured.
+
+            Add a root `CHANGELOG.md` and link it here in this workflow if you want a changelog section.
           releaseDraft: true
           prerelease: false

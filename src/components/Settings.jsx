@@ -49,11 +49,14 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import LockIcon from "@mui/icons-material/Lock";
+import PaletteIcon from "@mui/icons-material/Palette";
 import { invoke } from "@tauri-apps/api/tauri";
+import { useAppTheme } from "../ThemeContext";
+import AccentHueSlider from "./AccentHueSlider";
 import { open } from "@tauri-apps/api/dialog";
 import normalizeUrl from "../utils/normalizeUrl";
 
-export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRommConnect, onLibraryChange, onBigPictureChange, onFullscreenChange }) {
+export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRommConnect, onLibraryChange, onImmersiveModeChange, onFullscreenChange }) {
   const [config, setConfig] = useState(null);
   const [rommUrl, setRommUrl] = useState(rommUrlProp || "");
   const [rommUsername, setRommUsername] = useState("");
@@ -83,9 +86,12 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   const [platformDefaults, setPlatformDefaults] = useState({});
   const [platforms, setPlatforms] = useState([]);
   
-  // UI Mode flags: Desktop Mode (default) vs Big Picture Mode
-  const [bigPictureEnabled, setBigPictureEnabled] = useState(false);
+  // UI Mode flags: Desktop (default) vs Immersive mode (`display.big_picture` in config)
+  const [immersiveModeEnabled, setImmersiveModeEnabled] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(false);
+  
+  // Theme/Appearance settings from context
+  const { themeMode, setThemeMode, accentHue, setAccentHue } = useAppTheme();
 
   useEffect(() => {
     loadConfig();
@@ -102,15 +108,15 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
       setRommUrl(cfg.romm?.server_url || rommUrlProp || "");
       setRommUsername(cfg.romm?.username || "");
       setRomsDirectory(cfg.library?.roms_directory || "");
-      setBigPictureEnabled(Boolean(cfg.display?.big_picture));
+      setImmersiveModeEnabled(Boolean(cfg.display?.big_picture));
       setFullscreenEnabled(Boolean(cfg.display?.fullscreen));
     } catch {}
   }
 
-  async function persistDisplayFlags(nextBigPicture, nextFullscreen) {
+  async function persistDisplayFlags(nextImmersive, nextFullscreen) {
     const cfg = config || (await invoke("get_config"));
     cfg.display = cfg.display || {};
-    cfg.display.big_picture = Boolean(nextBigPicture);
+    cfg.display.big_picture = Boolean(nextImmersive);
     cfg.display.fullscreen = Boolean(nextFullscreen);
     await invoke("save_config", { config: cfg });
     setConfig(cfg);
@@ -425,53 +431,97 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <Typography variant="h6" gutterBottom>UI</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Switch between Desktop Mode (default) and Big Picture Mode. Big Picture is a fullscreen, 10-foot-friendly interface designed for couch gaming with a controller.
+          Switch between desktop (default) and Immersive mode — a large-type, controller-friendly layout aligned with the Wingosy look. Optional OS fullscreen is ideal for couch play.
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box data-testid="immersive-mode-row">
+            <FormControlLabel
+              control={
+                <Switch
+                  inputProps={{ "data-testid": "immersive-mode-switch" }}
+                  checked={immersiveModeEnabled}
+                  onChange={async (e) => {
+                    const next = e.target.checked;
+                    setImmersiveModeEnabled(next);
+                    // When enabling Immersive mode, default fullscreen on.
+                    const nextFs = next ? true : fullscreenEnabled;
+                    if (next) setFullscreenEnabled(nextFs);
+                    await persistDisplayFlags(next, nextFs);
+                    if (onImmersiveModeChange) {
+                      onImmersiveModeChange(next);
+                    } else if (next && onLibraryChange) {
+                      // Fallback: trigger library refresh so App.jsx picks up the new display flags
+                      onLibraryChange();
+                    }
+                  }}
+                />
+              }
+              label="Immersive mode"
+            />
+          </Box>
           <FormControlLabel
             control={
               <Switch
-                checked={bigPictureEnabled}
-                onChange={async (e) => {
-                  const next = e.target.checked;
-                  setBigPictureEnabled(next);
-                  // If enabling Big Picture, default fullscreen on.
-                  const nextFs = next ? true : fullscreenEnabled;
-                  if (next) setFullscreenEnabled(nextFs);
-                  await persistDisplayFlags(next, nextFs);
-                  // Notify parent of Big Picture change
-                  if (onBigPictureChange) {
-                    onBigPictureChange(next);
-                  } else if (next && onLibraryChange) {
-                    // Fallback: trigger library refresh so App.jsx picks up the new display flags
-                    onLibraryChange();
-                  }
-                }}
-              />
-            }
-            label="Big Picture mode"
-          />
-          <FormControlLabel
-            control={
-              <Switch
+                inputProps={{ "data-testid": "immersive-fullscreen-switch" }}
                 checked={fullscreenEnabled}
-                disabled={!bigPictureEnabled}
+                disabled={!immersiveModeEnabled}
                 onChange={async (e) => {
                   const nextFs = e.target.checked;
                   setFullscreenEnabled(nextFs);
-                  await persistDisplayFlags(bigPictureEnabled, nextFs);
+                  await persistDisplayFlags(immersiveModeEnabled, nextFs);
                   if (onFullscreenChange) {
                     onFullscreenChange(nextFs);
                   }
                 }}
               />
             }
-            label="Fullscreen (Big Picture)"
+            label="Fullscreen (Immersive)"
           />
           <Typography variant="caption" color="text.secondary">
-            Tip: Press F11 to toggle fullscreen. Press Esc to go back.
+            Tip: F11 toggles fullscreen. From the Immersive library, Esc exits to desktop.
           </Typography>
         </Box>
+      </Paper>
+
+      {/* Appearance */}
+      <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+          <PaletteIcon color="primary" />
+          <Typography variant="h6">Appearance</Typography>
+        </Box>
+        
+        {/* Theme Mode */}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Theme
+        </Typography>
+        <ToggleButtonGroup
+          value={themeMode}
+          exclusive
+          onChange={async (e, newMode) => {
+            if (!newMode) return;
+            setThemeMode(newMode);
+            try {
+              const cfg = await invoke("get_config");
+              cfg.display = cfg.display || {};
+              cfg.display.theme_mode = newMode;
+              await invoke("save_config", { config: cfg });
+            } catch (err) {
+              console.error("Failed to save theme mode:", err);
+            }
+          }}
+          size="small"
+          sx={{ mb: 3 }}
+        >
+          <ToggleButton value="system" sx={{ px: 2 }}>System</ToggleButton>
+          <ToggleButton value="light" sx={{ px: 2 }}>Light</ToggleButton>
+          <ToggleButton value="dark" sx={{ px: 2 }}>Dark</ToggleButton>
+        </ToggleButtonGroup>
+        
+        {/* Accent Color */}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Accent Color
+        </Typography>
+        <AccentHueSlider accentHue={accentHue} setAccentHue={setAccentHue} />
       </Paper>
 
       {/* RomM */}
@@ -738,6 +788,7 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
                             {emuCores.map((core) => (
                               <Chip
                                 key={core.core_filename}
+                                data-testid="retroarch-core-chip"
                                 icon={downloadingCore === core.core_filename ? null : <MemoryIcon sx={{ fontSize: 14 }} />}
                                 label={
                                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>

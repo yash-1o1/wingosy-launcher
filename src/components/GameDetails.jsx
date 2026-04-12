@@ -36,6 +36,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import StarIcon from "@mui/icons-material/Star";
+import GroupsIcon from "@mui/icons-material/Groups";
 import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 
@@ -547,6 +549,34 @@ export default function GameDetails({
                 </Typography>
                 <Typography variant="body2" fontWeight={600}>
                   {game.release_year}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {game.user_rating != null && game.user_rating !== undefined && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <StarIcon color="action" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  IGDB rating
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {Number(game.user_rating).toFixed(1)} / 100
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {game.player_count && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <GroupsIcon color="action" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Game modes
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {game.player_count}
                 </Typography>
               </Box>
             </Box>

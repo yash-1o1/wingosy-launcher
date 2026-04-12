@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Settings from "../components/Settings";
-import BpLibrary from "./BpLibrary";
-import BpGameDetails from "./BpGameDetails";
+import ImmersiveLibrary from "./ImmersiveLibrary";
+import ImmersiveGameDetails from "./ImmersiveGameDetails";
 import { invoke } from "@tauri-apps/api/tauri";
 import { useFullscreen } from "./useFullscreen";
 
-export default function BigPictureApp({
+export default function ImmersiveModeApp({
   onExit,
   rommToken,
   rommUrl,
   onRommConnect,
-  /** Mirrors `cfg.display.fullscreen` from App — request OS fullscreen when entering Big Picture. */
+  /** Mirrors `cfg.display.fullscreen` from App — request OS fullscreen when entering Immersive mode. */
   requestedFullscreen = false,
 }) {
   const [view, setView] = useState("library"); // library | details | settings
@@ -43,7 +43,7 @@ export default function BigPictureApp({
     return cfg;
   }, []);
 
-  const { isFullscreen, setFullscreen, toggleFullscreen } = useFullscreen({
+  const { setFullscreen, toggleFullscreen } = useFullscreen({
     enabled: displayCfg.fullscreen,
     onChange: async (v) => {
       try {
@@ -80,7 +80,6 @@ export default function BigPictureApp({
     loadData();
   }, [loadData]);
 
-  // Exit Big Picture Mode and return to Desktop Mode when toggle is turned off
   useEffect(() => {
     if (!hasLoadedOnce.current) {
       hasLoadedOnce.current = true;
@@ -105,7 +104,6 @@ export default function BigPictureApp({
         toggleFullscreen();
       }
       if (e.key === "Escape" && view === "library") {
-        // Escape exits Big Picture Mode and returns to Desktop Mode.
         e.preventDefault();
         handleExit();
       }
@@ -155,7 +153,7 @@ export default function BigPictureApp({
 
   if (view === "settings") {
     return (
-      <Box sx={{ height: "100vh", overflow: "auto" }}>
+      <Box sx={{ height: "100vh", overflow: "auto", bgcolor: "background.default" }}>
         <Settings
           onBack={() => {
             setView("library");
@@ -165,7 +163,7 @@ export default function BigPictureApp({
           rommUrl={rommUrl}
           onRommConnect={onRommConnect}
           onLibraryChange={loadData}
-          onBigPictureChange={(enabled) => {
+          onImmersiveModeChange={(enabled) => {
             if (!enabled) {
               handleExit();
             }
@@ -183,7 +181,7 @@ export default function BigPictureApp({
       .toString()
       .toUpperCase();
     return (
-      <BpGameDetails
+      <ImmersiveGameDetails
         game={selectedGame}
         platformLabel={platformLabel}
         onBack={() => {
@@ -194,7 +192,7 @@ export default function BigPictureApp({
         onToggleFavorite={handleToggleFavorite}
         onGameUpdate={async (gameId) => {
           await loadData();
-          const updated = games.find(g => g.id === gameId);
+          const updated = games.find((g) => g.id === gameId);
           if (updated) setSelectedGame(updated);
         }}
         rommToken={rommToken}
@@ -204,7 +202,7 @@ export default function BigPictureApp({
   }
 
   return (
-    <BpLibrary
+    <ImmersiveLibrary
       loading={loading}
       error={error}
       games={games}
@@ -212,10 +210,8 @@ export default function BigPictureApp({
       selectedIndex={selectedIndex}
       onSelectedIndexChange={setSelectedIndex}
       onSelectGame={handleSelectGame}
-      onExitBigPicture={handleExit}
+      onExitImmersive={handleExit}
       onOpenSettings={() => setView("settings")}
-      fullscreenActive={isFullscreen}
     />
   );
 }
-

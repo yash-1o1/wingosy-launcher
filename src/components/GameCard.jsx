@@ -1,29 +1,31 @@
 import { useState } from "react";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardActionArea from "@mui/material/CardActionArea";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
-import Chip from "@mui/material/Chip";
 import FavoriteIcon from "@mui/icons-material/Favorite";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 import CloudIcon from "@mui/icons-material/Cloud";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { useAppTheme } from "../ThemeContext";
 
 const PLATFORM_COLORS = {
-  nes: "#e60012", snes: "#e60012", n64: "#e60012", gc: "#e60012",
-  wii: "#e60012", wiiu: "#e60012", switch: "#e60012",
-  gb: "#e60012", gbc: "#e60012", gba: "#e60012",
-  nds: "#e60012", "3ds": "#e60012",
-  psx: "#0052a5", ps2: "#0052a5", ps3: "#0052a5", psp: "#0052a5",
-  genesis: "#0070c0", saturn: "#0070c0", dreamcast: "#0070c0",
+  // Nintendo
+  nes: "#e60012", snes: "#7b5aa6", n64: "#00a651", gc: "#6a5acd",
+  wii: "#00a4e4", wiiu: "#009ac7", switch: "#e60012",
+  gb: "#8b956d", gbc: "#8b008b", gba: "#6b5a9e",
+  nds: "#b8b8b8", "3ds": "#d12228",
+  // PlayStation
+  psx: "#003087", ps2: "#003087", ps3: "#003087", ps4: "#003087", ps5: "#003087",
+  psp: "#003087", psvita: "#003087",
+  // Sega
+  genesis: "#1a5c9b", saturn: "#0072c6", dreamcast: "#f47920",
+  // Xbox
   xbox: "#107c10", xbox360: "#107c10",
-  arcade: "#ffcc00", pc: "#4a90e2",
+  // Other
+  arcade: "#ff6b00", pc: "#00ACC1",
 };
 
 function isLocalPath(path) {
@@ -41,206 +43,306 @@ function getCoverSrc(coverPath) {
 
 export default function GameCard({ game, onClick, onToggleFavorite, onLaunch }) {
   const [imgError, setImgError] = useState(false);
-  const platformColor = PLATFORM_COLORS[game.platform_id] || "#4a90e2";
+  const [isHovered, setIsHovered] = useState(false);
+  const { colors } = useAppTheme();
+  const platformColor = PLATFORM_COLORS[game.platform_id] || colors.primary;
   const coverSrc = getCoverSrc(game.cover_path);
   const showCover = coverSrc && !imgError;
-  
-  // Check if game is playable (has local file or is not remote-only)
+
   const isRemoteOnly = game.sync_state === "remote_only" || game.sync_state === "RemoteOnly";
   const hasLocalFile = game.local_file_path && game.local_file_path.length > 0;
   const canPlay = hasLocalFile || (!isRemoteOnly && game.source !== "RomM");
 
-  const syncBadge = (() => {
-    if (game.sync_state === "remote_only") {
-      return (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 6,
-            left: 6,
-            bgcolor: "rgba(0,0,0,0.7)",
-            borderRadius: "50%",
-            width: 26,
-            height: 26,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          <CloudIcon sx={{ fontSize: 16, color: "#64b5f6" }} />
-        </Box>
-      );
-    }
-    if (game.sync_state === "synced") {
-      return (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 6,
-            left: 6,
-            bgcolor: "rgba(0,0,0,0.7)",
-            borderRadius: "50%",
-            width: 26,
-            height: 26,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          <CheckCircleIcon sx={{ fontSize: 16, color: "#66bb6a" }} />
-        </Box>
-      );
-    }
-    return null;
-  })();
+  const platformSlug = (game.platform_id || "").toUpperCase().slice(0, 6);
 
   return (
-    <Card
+    <Box
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       sx={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        transition: "transform 0.2s, box-shadow 0.2s",
-        "&:hover": {
-          transform: "translateY(-4px)",
-          boxShadow: `0 8px 24px rgba(0,0,0,0.4)`,
-        },
-        "&:hover .game-actions": { opacity: 1 },
         position: "relative",
+        aspectRatio: "3 / 4",
+        borderRadius: "8px",
         overflow: "visible",
+        cursor: "pointer",
+        transition: "transform 0.2s ease, box-shadow 0.25s ease",
+        transform: isHovered ? "scale(1.08)" : "scale(1)",
+        boxShadow: isHovered
+          ? `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${colors.focusGlow}`
+          : "0 2px 8px rgba(0,0,0,0.3)",
+        zIndex: isHovered ? 10 : 1,
+        "&:focus-visible": {
+          outline: `2px solid ${colors.primary}`,
+          outlineOffset: 2,
+        },
       }}
+      tabIndex={0}
     >
-      <CardActionArea onClick={onClick} sx={{ flexGrow: 1 }}>
+      {/* Main card container with border */}
+      <Box
+        sx={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          borderRadius: "8px",
+          overflow: "hidden",
+          border: isHovered ? `2px solid ${colors.primary}` : "2px solid transparent",
+          transition: "border-color 0.2s ease",
+          bgcolor: "background.paper",
+        }}
+      >
+        {/* Cover image or placeholder */}
+        {showCover ? (
+          <Box
+            component="img"
+            src={coverSrc}
+            alt={game.name}
+            onError={() => setImgError(true)}
+            draggable={false}
+            sx={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transition: "filter 0.2s ease",
+              filter: isHovered ? "brightness(1.05)" : "brightness(1)",
+            }}
+          />
+        ) : (
+          <Box
+            sx={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: `${platformColor}15`,
+              p: 2,
+            }}
+          >
+            <SportsEsportsIcon sx={{ fontSize: 48, color: `${platformColor}66`, mb: 1 }} />
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                textAlign: "center",
+                fontSize: "0.7rem",
+                lineHeight: 1.2,
+                maxHeight: "2.4em",
+                overflow: "hidden",
+                px: 1,
+              }}
+            >
+              {game.name}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Inner shadow effect (Argosy-style) */}
         <Box
           sx={{
-            height: 180,
-            bgcolor: `${platformColor}22`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderBottom: `3px solid ${platformColor}`,
-            position: "relative",
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            boxShadow: "inset 0 0 12px rgba(0,0,0,0.4)",
+            borderRadius: "6px",
+          }}
+        />
+
+        {/* Platform badge - top left corner (Argosy-style) */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            bgcolor: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(8px)",
+            px: 1,
+            py: 0.4,
+            borderBottomRightRadius: "8px",
+            minWidth: 32,
           }}
         >
-          {showCover ? (
-            <Box
-              component="img"
-              src={coverSrc}
-              alt={game.name}
-              onError={() => setImgError(true)}
-              sx={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-          ) : (
-            <SportsEsportsIcon
-              sx={{ fontSize: 64, color: `${platformColor}66` }}
-            />
-          )}
-          {syncBadge}
+          <Typography
+            sx={{
+              fontSize: "0.6rem",
+              fontWeight: 700,
+              color: "#fff",
+              letterSpacing: "0.5px",
+              textAlign: "center",
+            }}
+          >
+            {platformSlug}
+          </Typography>
         </Box>
 
-        <CardContent sx={{ py: 1.5, px: 1.5, "&:last-child": { pb: 1.5 } }}>
+        {/* Status badges - bottom row */}
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: 6,
+            left: 6,
+            right: 6,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            pointerEvents: "none",
+          }}
+        >
+          {/* Favorite badge */}
+          {game.is_favorite && (
+            <Box
+              sx={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                bgcolor: "rgba(0,0,0,0.6)",
+                backdropFilter: "blur(4px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <FavoriteIcon sx={{ fontSize: 12, color: "#fff" }} />
+            </Box>
+          )}
+          <Box sx={{ flex: 1 }} />
+
+          {/* Sync state badge */}
+          {game.sync_state === "remote_only" && (
+            <Box
+              sx={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                bgcolor: "rgba(0,0,0,0.6)",
+                backdropFilter: "blur(4px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CloudIcon sx={{ fontSize: 12, color: colors.primaryLight }} />
+            </Box>
+          )}
+          {game.sync_state === "synced" && (
+            <Box
+              sx={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                bgcolor: "rgba(0,0,0,0.6)",
+                backdropFilter: "blur(4px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CheckCircleIcon sx={{ fontSize: 12, color: "#66BB6A" }} />
+            </Box>
+          )}
+        </Box>
+
+        {/* Hover overlay with actions */}
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            bgcolor: "rgba(0,0,0,0.5)",
+            opacity: isHovered ? 1 : 0,
+            transition: "opacity 0.2s ease",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+            pointerEvents: isHovered ? "auto" : "none",
+          }}
+        >
+          {/* Game title on hover */}
           <Typography
             variant="body2"
-            fontWeight={600}
-            noWrap
-            title={game.name}
+            sx={{
+              color: "#fff",
+              fontWeight: 600,
+              textAlign: "center",
+              px: 1.5,
+              maxWidth: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              textShadow: "0 2px 4px rgba(0,0,0,0.8)",
+              mb: 1,
+            }}
           >
             {game.name}
           </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mt: 0.5,
-            }}
-          >
-            <Chip
-              label={game.platform_id.toUpperCase()}
-              size="small"
-              sx={{
-                height: 20,
-                fontSize: "0.65rem",
-                fontWeight: 700,
-                bgcolor: `${platformColor}33`,
-                color: platformColor,
-              }}
-            />
-            {game.play_count > 0 && (
-              <Typography variant="caption" color="text.secondary">
-                {game.play_count}x played
-              </Typography>
-            )}
-          </Box>
-        </CardContent>
-      </CardActionArea>
 
-      <Box
-        className="game-actions"
-        sx={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          display: "flex",
-          gap: 0.5,
-          opacity: 0,
-          transition: "opacity 0.2s",
-        }}
-      >
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite();
-          }}
-          sx={{
-            bgcolor: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)",
-            "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
-          }}
-        >
-          {game.is_favorite ? (
-            <FavoriteIcon fontSize="small" color="error" />
-          ) : (
-            <FavoriteBorderIcon fontSize="small" />
-          )}
-        </IconButton>
-        {canPlay ? (
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onLaunch();
-            }}
-            sx={{
-              bgcolor: "rgba(74,144,226,0.8)",
-              "&:hover": { bgcolor: "rgba(74,144,226,1)" },
-            }}
-          >
-            <PlayArrowIcon fontSize="small" />
-          </IconButton>
-        ) : isRemoteOnly ? (
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick(); // Navigate to details to download
-            }}
-            sx={{
-              bgcolor: "rgba(255,152,0,0.8)",
-              "&:hover": { bgcolor: "rgba(255,152,0,1)" },
-            }}
-          >
-            <CloudDownloadIcon fontSize="small" />
-          </IconButton>
-        ) : null}
+          {/* Action buttons */}
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {canPlay ? (
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLaunch();
+                }}
+                sx={{
+                  bgcolor: colors.primary,
+                  color: "#fff",
+                  width: 40,
+                  height: 40,
+                  "&:hover": {
+                    bgcolor: colors.primaryLight,
+                    boxShadow: `0 0 16px ${colors.focusGlow}`,
+                  },
+                }}
+              >
+                <PlayArrowIcon />
+              </IconButton>
+            ) : isRemoteOnly ? (
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick();
+                }}
+                sx={{
+                  bgcolor: "#FF7043",
+                  color: "#fff",
+                  width: 40,
+                  height: 40,
+                  "&:hover": { bgcolor: "#FFAB91" },
+                }}
+              >
+                <CloudDownloadIcon />
+              </IconButton>
+            ) : null}
+
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite();
+              }}
+              sx={{
+                bgcolor: game.is_favorite ? "#E53935" : "rgba(255,255,255,0.15)",
+                color: "#fff",
+                width: 40,
+                height: 40,
+                "&:hover": {
+                  bgcolor: game.is_favorite ? "#E53935" : "rgba(255,255,255,0.25)",
+                },
+              }}
+            >
+              <FavoriteIcon />
+            </IconButton>
+          </Box>
+        </Box>
       </Box>
-    </Card>
+    </Box>
   );
 }

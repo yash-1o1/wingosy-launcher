@@ -6,11 +6,10 @@
  * - msedgedriver: Microsoft Edge WebDriver (Windows)
  * 
  * Prerequisites:
- * 1. Install tauri-driver: cargo install tauri-driver
- * 2. Download EdgeDriver matching your Edge version from:
- *    https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
- * 3. Place msedgedriver.exe in e2e-webdriver/ folder
- * 4. Build the app: npm run tauri build
+ * 1. Install tauri-driver: cargo install tauri-driver (on PATH)
+ * 2. Edge WebDriver: downloaded automatically via devDependency `edgedriver` into e2e-webdriver/
+ *    (override CDN with EDGEDRIVER_CDNURL if needed)
+ * 3. Build the app: npm run tauri build
  * 
  * Run tests:
  *   npm run test:e2e
@@ -25,8 +24,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Path to the built Tauri app
 const tauriAppPath = path.join(__dirname, 'src-tauri', 'target', 'release', 'Wingosy Launcher.exe');
 
-// Path to EdgeDriver
-const edgeDriverPath = path.join(__dirname, 'e2e-webdriver', 'msedgedriver.exe');
+const edgeDriverDir = path.join(__dirname, 'e2e-webdriver');
+const edgeDriverPath = path.join(edgeDriverDir, 'msedgedriver.exe');
 
 let tauriDriver;
 
@@ -38,6 +37,7 @@ export const config = {
   specs: [
     './e2e-webdriver/setup-wizard.spec.js',
     './e2e-webdriver/app.spec.js',
+    './e2e-webdriver/immersive.spec.js',
     './e2e-webdriver/rom-download.spec.js',
     './e2e-webdriver/settings.spec.js',
     './e2e-webdriver/emulator-sensing.spec.js',
@@ -100,8 +100,12 @@ export const config = {
   
   // Start tauri-driver before tests
   onPrepare: async function () {
-    console.log('Starting tauri-driver with EdgeDriver...');
+    const { download } = await import('edgedriver');
+    console.log('Ensuring msedgedriver.exe in e2e-webdriver/...');
+    await download(undefined, edgeDriverDir);
     console.log(`EdgeDriver path: ${edgeDriverPath}`);
+
+    console.log('Starting tauri-driver with EdgeDriver...');
     console.log(`App path: ${tauriAppPath}`);
     
     // Start tauri-driver pointing to msedgedriver

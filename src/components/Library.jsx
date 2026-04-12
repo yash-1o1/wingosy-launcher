@@ -2,7 +2,6 @@ import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import Typography from "@mui/material/Typography";
-import Grid from "@mui/material/Grid";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "@mui/material/Button";
@@ -10,6 +9,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import GameCard from "./GameCard";
+import { useAppTheme } from "../ThemeContext";
 
 export default function Library({
   games,
@@ -56,12 +56,17 @@ export default function Library({
         <Box
           sx={{
             display: "flex",
+            flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
             height: "60vh",
+            gap: 2,
           }}
         >
-          <CircularProgress />
+          <CircularProgress color="primary" />
+          <Typography variant="body2" color="text.secondary">
+            Loading your library...
+          </Typography>
         </Box>
       ) : games.length === 0 ? (
         <Box
@@ -82,7 +87,7 @@ export default function Library({
           </Typography>
           <Box sx={{ display: "flex", gap: 2 }}>
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<FolderOpenIcon />}
               onClick={onNavigateSettings}
             >
@@ -92,24 +97,37 @@ export default function Library({
               variant="outlined"
               startIcon={<CloudSyncIcon />}
               onClick={onNavigateSettings}
+              color="info"
             >
               Sync from RomM
             </Button>
           </Box>
         </Box>
       ) : (
-        <Grid container spacing={2}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(2, 1fr)",
+              sm: "repeat(3, 1fr)",
+              md: "repeat(4, 1fr)",
+              lg: "repeat(5, 1fr)",
+              xl: "repeat(6, 1fr)",
+            },
+            gap: 2.5,
+            pb: 4,
+          }}
+        >
           {games.map((game) => (
-            <Grid item xs={6} sm={4} md={3} lg={2.4} xl={2} key={game.id}>
-              <GameCard
-                game={game}
-                onClick={() => onSelectGame(game)}
-                onToggleFavorite={() => onToggleFavorite(game.id)}
-                onLaunch={() => onLaunchGame(game.id)}
-              />
-            </Grid>
+            <GameCard
+              key={game.id}
+              game={game}
+              onClick={() => onSelectGame(game)}
+              onToggleFavorite={() => onToggleFavorite(game.id)}
+              onLaunch={() => onLaunchGame(game.id)}
+            />
           ))}
-        </Grid>
+        </Box>
       )}
     </Box>
   );

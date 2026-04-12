@@ -14,6 +14,9 @@
 
 import { ensureMainApp, goToSettings } from './helpers.js';
 
+/** Missing-core download rows in Settings (excludes summary chips like "N cores needed"). */
+const RETROARCH_CORE_CHIP = '[data-testid="retroarch-core-chip"]';
+
 // Track if RetroArch is installed for conditional test requirements
 let retroarchInstalled = false;
 
@@ -174,30 +177,14 @@ describe('RetroArch Cores - Download Workflow', function() {
   });
 
   it('should show download icon on core chips', async () => {
-    // Cores are now shown as chips with download icons
-    const downloadIcons = await $$('[data-testid="DownloadIcon"]');
-    console.log(`Download icons visible: ${downloadIcons.length}`);
-    
-    // Also check for chips in cores section
-    const chips = await $$('[class*="Chip"]');
-    console.log(`Total chips on page: ${chips.length}`);
+    const coreChips = await $$(RETROARCH_CORE_CHIP);
+    console.log(`RetroArch missing-core chips: ${coreChips.length}`);
   });
 
   it('should download a core when chip is clicked', async () => {
-    // Look for core chips with download icon
-    const chips = await $$('[class*="Chip"]');
-    let downloadableChip = null;
-    
-    for (const chip of chips) {
-      const hasDownloadIcon = await chip.$('[data-testid="DownloadIcon"]').isDisplayed().catch(() => false);
-      const hasMemoryIcon = await chip.$('[data-testid="MemoryIcon"]').isDisplayed().catch(() => false);
-      
-      if (hasDownloadIcon || hasMemoryIcon) {
-        downloadableChip = chip;
-        break;
-      }
-    }
-    
+    const chips = await $$(RETROARCH_CORE_CHIP);
+    const downloadableChip = chips.length > 0 ? chips[0] : null;
+
     if (!downloadableChip) {
       // If RetroArch is installed but no cores to download, that's fine
       // If RetroArch is NOT installed, this is expected
@@ -215,7 +202,9 @@ describe('RetroArch Cores - Download Workflow', function() {
     
     const chipText = await downloadableChip.getText().catch(() => 'Unknown');
     console.log(`Attempting to download core: ${chipText}`);
-    
+
+    await downloadableChip.scrollIntoView();
+    await browser.pause(300);
     await downloadableChip.click();
     await browser.pause(2000);
     
@@ -266,23 +255,16 @@ describe('RetroArch Cores - Download Workflow', function() {
   });
 
   it('should show progress indicator during download', async () => {
-    // Look for any downloadable chip
-    const chips = await $$('[class*="Chip"]');
-    let downloadableChip = null;
-    
-    for (const chip of chips) {
-      const hasDownloadIcon = await chip.$('[data-testid="DownloadIcon"]').isDisplayed().catch(() => false);
-      if (hasDownloadIcon) {
-        downloadableChip = chip;
-        break;
-      }
-    }
-    
+    const chips = await $$(RETROARCH_CORE_CHIP);
+    const downloadableChip = chips.length > 0 ? chips[0] : null;
+
     if (!downloadableChip) {
       console.log('SKIP: No downloadable cores found');
       return;
     }
-    
+
+    await downloadableChip.scrollIntoView();
+    await browser.pause(300);
     await downloadableChip.click();
     await browser.pause(500);
     
@@ -319,23 +301,16 @@ describe('RetroArch Cores - Error Handling', function() {
   });
 
   it('should handle download errors gracefully', async () => {
-    // Look for downloadable chip
-    const chips = await $$('[class*="Chip"]');
-    let downloadableChip = null;
-    
-    for (const chip of chips) {
-      const hasDownloadIcon = await chip.$('[data-testid="DownloadIcon"]').isDisplayed().catch(() => false);
-      if (hasDownloadIcon) {
-        downloadableChip = chip;
-        break;
-      }
-    }
-    
+    const chips = await $$(RETROARCH_CORE_CHIP);
+    const downloadableChip = chips.length > 0 ? chips[0] : null;
+
     if (!downloadableChip) {
       console.log('SKIP: No downloadable cores found');
       return;
     }
-    
+
+    await downloadableChip.scrollIntoView();
+    await browser.pause(300);
     await downloadableChip.click();
     
     const alert = await $('[role="alert"]');
@@ -395,18 +370,9 @@ describe('RetroArch Cores - Error Handling', function() {
       }
     }
     
-    // Check that core chips are still interactive
-    const chips = await $$('[class*="Chip"]');
-    let downloadableChip = null;
-    
-    for (const chip of chips) {
-      const hasDownloadIcon = await chip.$('[data-testid="DownloadIcon"]').isDisplayed().catch(() => false);
-      if (hasDownloadIcon) {
-        downloadableChip = chip;
-        break;
-      }
-    }
-    
+    const chips = await $$(RETROARCH_CORE_CHIP);
+    const downloadableChip = chips.length > 0 ? chips[0] : null;
+
     if (downloadableChip) {
       const isDisabled = await downloadableChip.getAttribute('disabled');
       console.log(`Core chip disabled: ${isDisabled}`);

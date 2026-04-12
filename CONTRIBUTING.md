@@ -2,7 +2,25 @@
 
 ## Setup
 
-Prerequisites: **Windows 10/11**, **Node.js 18+** (22 LTS recommended), **npm 11** (pinned in `package.json` as `packageManager`), **Rust 1.70+**, **VS Build Tools (C++)**.
+Prerequisites: **Windows 10/11**, **Node.js 20+** (22 LTS recommended; required for the `edgedriver` devDependency), **npm 11** (pinned in `package.json` as `packageManager`), **Rust 1.70+**, **VS Build Tools (C++)**.
+
+### PATH on Windows
+
+`node`, `npm`, and `cargo` must be on your `Path`. This repo’s `.vscode/settings.json` prepends **Node** (`C:\Program Files\nodejs`) and **Rust** (`%USERPROFILE%\.cargo\bin`) for Cursor/VS Code integrated terminals. If a shell still cannot find them, prepend manually for that session:
+
+```powershell
+$env:Path = "C:\Program Files\nodejs;$env:USERPROFILE\.cargo\bin;" + $env:Path
+```
+
+Install if missing:
+
+```powershell
+winget install OpenJS.NodeJS.LTS --accept-package-agreements
+winget install Rustlang.Rustup --accept-package-agreements
+rustup default stable
+```
+
+After installing, **close and reopen** terminals (or sign out) so `Path` updates apply.
 
 Enable [Corepack](https://nodejs.org/api/corepack.html) once so installs use the pinned npm version:
 
@@ -32,12 +50,38 @@ e2e-webdriver/          # E2E tests
 
 ## Testing
 
-See [TESTING.md](TESTING.md) for full details.
+See [TESTING.md](TESTING.md) for the full matrix, **opt-in** (network) integration tests, and the E2E spec list.
+
+**Default local loop** (fast, no live RomM / heavy downloads):
 
 ```bash
-cargo test              # Unit tests
-npm run test:e2e        # E2E tests
+cargo test              # Rust unit tests + integration tests that are not #[ignore]
+npm run test:unit       # Vitest: pure JS (`*.test.js`) + React (`*.test.jsx` with Testing Library)
 ```
+
+See [TESTING.md](TESTING.md) → *Unit Tests (JavaScript)* for `MuiTestProvider` and file naming.
+
+**Integration tests** that talk to the real network are marked `#[ignore]` in Rust so `cargo test` stays offline-friendly. **Do run them** when you change RomM, downloads, or emulator fetch code — see [TESTING.md](TESTING.md) → *Integration Tests (Rust)* for the exact `cargo test --test … -- --ignored` commands. That is “opt in with a flag,” not “pretend integration tests do not exist.”
+
+**E2E** (`npm run test:e2e`) is optional and needs more than `npm install` + `tauri dev`:
+
+1. **`tauri-driver` on your `PATH`** — WebDriver talks to the native app through it. Install with Rust’s toolchain:
+
+   ```bash
+   cargo install tauri-driver
+   ```
+
+   The binary is usually `%USERPROFILE%\.cargo\bin\tauri-driver.exe`. If you see `spawn tauri-driver ENOENT` or `ECONNREFUSED` on `localhost:4444`, the driver is missing or not on `PATH`.
+
+2. **Edge WebDriver** — Pulled automatically on E2E runs via the `edgedriver` devDependency (into `e2e-webdriver/`). Microsoft Edge must be installed so the driver version can be matched.
+
+3. **Release build** — `wdio.conf.js` expects `src-tauri/target/release/Wingosy Launcher.exe`:
+
+   ```bash
+   npm run tauri build
+   ```
+
+Step (1) was documented in [TESTING.md](TESTING.md) and in `wdio.conf.js` comments, but not in this file until now, so it was easy to miss when only reading **Contributing**.
 
 ## Adding Features
 

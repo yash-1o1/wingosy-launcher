@@ -64,9 +64,19 @@ export async function waitForAppReady(maxWaitSeconds = 30) {
 export async function ensureMainApp() {
   // First wait for any content to appear
   await waitForAppReady(30);
-  
+
+  // Desktop sidebar says "All Games"; immersive shell does not — leave immersive first
+  let allGames = await $('*=All Games');
+  if (!(await allGames.isDisplayed().catch(() => false))) {
+    const immersiveLib = await $('[data-testid="immersive-library"]');
+    if (await immersiveLib.isDisplayed().catch(() => false)) {
+      console.log('[Helper] Immersive mode detected, switching to desktop');
+      await ensureDesktopMode();
+    }
+  }
+
   // Check if already in main app
-  const allGames = await $('*=All Games');
+  allGames = await $('*=All Games');
   if (await allGames.isDisplayed().catch(() => false)) {
     console.log('[Helper] Already in main app');
     return true;
@@ -144,6 +154,32 @@ export async function goToSettings() {
 /**
  * Navigate to Library (All Games)
  */
+/**
+ * Leave Immersive mode when the immersive chrome is showing (library or after backing out of in-shell Settings).
+ */
+export async function ensureDesktopMode() {
+  await navigateToApp();
+  for (let step = 0; step < 4; step++) {
+    const exitImmersive = await $('[data-testid="immersive-exit-to-desktop"]');
+    if (await exitImmersive.isDisplayed().catch(() => false)) {
+      await exitImmersive.click();
+      await browser.pause(2500);
+      return;
+    }
+    const immersiveLib = await $('[data-testid="immersive-library"]');
+    const settingsHeading = await $('h4=Settings');
+    const backBtn = await $('button*=Back');
+    const onSettings = await settingsHeading.isDisplayed().catch(() => false);
+    const libraryVisible = await immersiveLib.isDisplayed().catch(() => false);
+    if (onSettings && !libraryVisible && (await backBtn.isDisplayed().catch(() => false))) {
+      await backBtn.click();
+      await browser.pause(1500);
+      continue;
+    }
+    break;
+  }
+}
+
 export async function goToLibrary() {
   await ensureMainApp();
   

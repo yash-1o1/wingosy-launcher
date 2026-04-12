@@ -1,84 +1,109 @@
+import { useEffect, useState } from "react";
+import { Icon } from "@iconify/react";
 import Box from "@mui/material/Box";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
+import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
-import Avatar from "@mui/material/Avatar";
+import LauncherIcon from "./LauncherIcon";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import SettingsIcon from "@mui/icons-material/Settings";
 import HomeIcon from "@mui/icons-material/Home";
-import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
+import { useAppTheme } from "../ThemeContext";
+import {
+  PLATFORM_COLORS,
+  packIconId,
+  platformInitials,
+} from "../utils/platformIcons";
 
-const PLATFORM_COLORS = {
-  nes: "#e60012",
-  snes: "#7b5aa6", 
-  n64: "#00a651",
-  gc: "#6a5acd",
-  wii: "#00a4e4",
-  wiiu: "#009ac7",
-  switch: "#e60012",
-  gb: "#8b956d",
-  gbc: "#8b008b",
-  gba: "#6b5a9e",
-  nds: "#b8b8b8",
-  "3ds": "#d12228",
-  psx: "#003087",
-  ps2: "#003087",
-  ps3: "#003087",
-  ps4: "#003087",
-  ps5: "#003087",
-  psp: "#003087",
-  psvita: "#003087",
-  genesis: "#1a5c9b",
-  saturn: "#0072c6",
-  dreamcast: "#f47920",
-  xbox: "#107c10",
-  xbox360: "#107c10",
-  arcade: "#ff6b00",
-  pc: "#00bcf2",
-  default: "#6366f1",
-};
+/** Integer px sizes avoid blurry subpixel scaling; square corners avoid clipping SVG edges. */
+const ICON_BOX = (size) => ({
+  width: size,
+  height: size,
+  minWidth: size,
+  borderRadius: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+  overflow: "visible",
+  bgcolor: (theme) =>
+    theme.palette.mode === "dark"
+      ? "rgba(255,255,255,0.06)"
+      : "rgba(0,0,0,0.04)",
+});
 
 function PlatformIcon({ platform, size = 24 }) {
-  const logoPath = platform.logo_path;
   const color = PLATFORM_COLORS[platform.id] || PLATFORM_COLORS.default;
-  
-  if (logoPath) {
+  const bundledId = packIconId(platform.id);
+  const rommUrl = platform.logo_path || null;
+  const innerPx = Math.max(18, Math.round(size * 0.92));
+
+  const [rommFailed, setRommFailed] = useState(false);
+  useEffect(() => {
+    setRommFailed(false);
+  }, [platform.id, rommUrl]);
+
+  if (bundledId) {
     return (
-      <Avatar
-        src={logoPath}
-        alt={platform.name}
-        variant="rounded"
-        sx={{
-          width: size,
-          height: size,
-          bgcolor: "transparent",
-          "& img": {
-            objectFit: "contain",
-          },
-        }}
-      >
-        <SportsEsportsIcon sx={{ fontSize: size * 0.7, color }} />
-      </Avatar>
+      <Box sx={ICON_BOX(size)} title={platform.name}>
+        <Icon
+          icon={bundledId}
+          width={innerPx}
+          height={innerPx}
+          inline={false}
+          style={{ color, display: "block", flexShrink: 0 }}
+        />
+      </Box>
     );
   }
-  
+
+  if (rommUrl && !rommFailed) {
+    return (
+      <Box sx={ICON_BOX(size)} title={platform.name}>
+        <Box
+          component="img"
+          src={rommUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setRommFailed(true)}
+          sx={{
+            width: innerPx,
+            height: innerPx,
+            maxWidth: innerPx,
+            maxHeight: innerPx,
+            objectFit: "contain",
+            display: "block",
+            flexShrink: 0,
+          }}
+        />
+      </Box>
+    );
+  }
+
+  const label = platformInitials(platform);
   return (
-    <Avatar
-      variant="rounded"
-      sx={{
-        width: size,
-        height: size,
-        bgcolor: `${color}22`,
-        color: color,
-        fontSize: size * 0.5,
-        fontWeight: 700,
-      }}
-    >
-      {(platform.short_name || platform.name || platform.id).substring(0, 2).toUpperCase()}
-    </Avatar>
+    <Box sx={ICON_BOX(size)} title={platform.name}>
+      <Typography
+        component="span"
+        sx={{
+          fontSize: Math.max(10, Math.round(size * 0.36)),
+          fontWeight: 800,
+          lineHeight: 1,
+          color,
+          letterSpacing: label.length <= 3 ? "0.02em" : "-0.02em",
+          textAlign: "center",
+          px: 0.25,
+        }}
+      >
+        {label}
+      </Typography>
+    </Box>
   );
 }
 
@@ -90,36 +115,44 @@ export default function Sidebar({
   currentView,
   drawerWidth,
 }) {
+  const { colors } = useAppTheme();
+  
   return (
     <Box
       sx={{
         width: drawerWidth,
         minWidth: drawerWidth,
         height: "100vh",
-        bgcolor: "#1a1a22",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
+        bgcolor: "background.paper",
+        borderRight: "1px solid",
+        borderColor: "divider",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
       }}
     >
       <Box sx={{ p: 2.5, pb: 1 }}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 800,
-            background: "linear-gradient(135deg, #4a90e2 0%, #8c5cc5 100%)",
-            backgroundClip: "text",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            letterSpacing: "-0.5px",
-          }}
-        >
-          Wingosy
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Game Launcher
-        </Typography>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <LauncherIcon size={40} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "-0.5px",
+              }}
+            >
+              Wingosy
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Game Launcher
+            </Typography>
+          </Box>
+        </Stack>
       </Box>
 
       <Divider sx={{ mx: 2, my: 1 }} />
@@ -179,8 +212,14 @@ export default function Sidebar({
             onClick={() => onSelectPlatform(platform.id)}
             sx={{ borderRadius: 2, mb: 0.25, py: 0.75 }}
           >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-              <PlatformIcon platform={platform} size={22} />
+            <ListItemIcon
+              sx={{
+                minWidth: 40,
+                justifyContent: "center",
+                color: "inherit",
+              }}
+            >
+              <PlatformIcon platform={platform} size={24} />
             </ListItemIcon>
             <ListItemText
               primary={platform.short_name || platform.name}

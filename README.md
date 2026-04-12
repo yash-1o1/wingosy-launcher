@@ -1,6 +1,6 @@
 # Wingosy Launcher
 
-A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](https://github.com/rommapp/argosy-launcher).
+A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](https://github.com/rommapp/argosy-launcher), with the goal of closely following Argosy's feature implementations.
 
 ## Features
 
