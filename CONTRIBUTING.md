@@ -98,7 +98,7 @@ If **GitHub Actions** is turned off, tags alone do not attach installers. Use an
    The main binary is also under `src-tauri/target/release/` (e.g. `Wingosy Launcher.exe`).
 4. **On GitHub:** **Releases** → **Draft a new release** → **Choose a tag** → pick the tag you already pushed (do not create a duplicate tag).
 5. **Stable:** leave **“Set as a pre-release”** unchecked so `/releases/latest` and the in-app **Stable** channel see it.
-6. **Nightly / Beta:** check **pre-release**, and use a tag whose name contains **`nightly`** or **`beta`** (and not `nightly` inside a beta track), matching the table above.
+6. **Nightly / Beta:** check **pre-release**, and use a tag that matches that channel (e.g. `nightly-*` or `beta-*`; see the table above).
 7. **Upload** the installer(s), publish the release.
 
 The in-app updater compares your running build to **GitHub Releases** metadata; it does not require Actions to have produced the assets, only that the **release + tag + files** exist.
