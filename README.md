@@ -30,8 +30,8 @@ A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](htt
 
 | Emulator | Platform(s) | Download | Launch Intent | Save Sync |
 | --- | --- | :---: | :---: | :---: |
-| mGBA | Game Boy / GBC / GBA | ✅ | ✅ | ⬜ |
 | RetroArch | Multi-system | ⬜ | ⬜ | ⬜ |
+| mGBA | Game Boy / GBC / GBA | ✅ | ✅ | ⬜ |
 | Dolphin | GameCube / Wii | ⬜ | ⬜ | ⬜ |
 | PCSX2 | PlayStation 2 | ⬜ | ⬜ | ⬜ |
 | RPCS3 | PlayStation 3 | ⬜ | ⬜ | ⬜ |
