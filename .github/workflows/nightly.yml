@@ -7,7 +7,12 @@
 #
 # Ways to publish:
 # - Push a tag matching `nightly*` — release uses that tag name.
-# - Weekday schedule (`nightly-<run_id>`) or Actions → Nightly → Run workflow.
+# - Daily schedule (`nightly-<run_id>`) or Actions → Nightly → Run workflow.
+#
+# Note: We do **not** gate on “Pacific midnight” at job start. GitHub often starts
+# scheduled runs long after the cron slot; a local-time gate then skipped every real
+# step while the job still showed success. One UTC cron ≈ one build per day in US
+# Pacific (roughly midnight PDT; late evening prior day in PST).
 
 name: Nightly
 
@@ -16,10 +21,8 @@ on:
     tags:
       - 'nightly*'
   schedule:
-    # GitHub cron is UTC. To achieve "00:00 Pacific" year-round across PST/PDT,
-    # schedule both possible UTC midnights and gate at runtime.
-    - cron: '0 7 * * *'  # 00:00 PDT (UTC-7)
-    - cron: '0 8 * * *'  # 00:00 PST (UTC-8)
+    # Single daily slot (UTC). ~00:00 Pacific in PDT; ~23:00 previous day in PST.
+    - cron: '0 7 * * *'
   workflow_dispatch:
     inputs:
       ref:
@@ -43,43 +46,21 @@ jobs:
       NIGHTLY_TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('nightly-{0}', github.run_id) }}
 
     steps:
-      - name: Gate schedule to Pacific midnight
-        id: gate
-        shell: pwsh
-        run: |
-          if ("${{ github.event_name }}" -ne "schedule") {
-            "run=true" >> $env:GITHUB_OUTPUT
-            exit 0
-          }
-          $pt = [System.TimeZoneInfo]::FindSystemTimeZoneById("Pacific Standard Time")
-          $now = [System.TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $pt)
-          # Match Pacific *hour* midnight (00:xx). Scheduled runs often start minutes after
-          # the cron slot; requiring Minute -eq 0 caused most scheduled nightlies to no-op.
-          if ($now.Hour -eq 0) {
-            "run=true" >> $env:GITHUB_OUTPUT
-          } else {
-            "run=false" >> $env:GITHUB_OUTPUT
-          }
-
       - name: Checkout
-        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.ref || 'main') || github.ref }}
 
       - name: Setup Node.js
-        if: steps.gate.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Enable Corepack
-        if: steps.gate.outputs.run == 'true'
         run: corepack enable
 
       - name: Prepare app version (bump PATCH on branch builds)
-        if: steps.gate.outputs.run == 'true'
         id: ver
         shell: bash
         run: |
@@ -92,23 +73,19 @@ jobs:
           echo "version=$VER" >> "$GITHUB_OUTPUT"
 
       - name: Setup Rust
-        if: steps.gate.outputs.run == 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ env.TARGET }}
 
       - name: Rust cache
-        if: steps.gate.outputs.run == 'true'
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
       - name: Install dependencies
-        if: steps.gate.outputs.run == 'true'
         run: npm ci
 
       - name: Build Tauri (nightly prerelease)
-        if: steps.gate.outputs.run == 'true'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -127,7 +104,7 @@ jobs:
           releaseDraft: false
 
       - name: Commit version bump to main
-        if: steps.gate.outputs.run == 'true' && success() && github.ref == 'refs/heads/main' && github.ref_type != 'tag'
+        if: success() && github.ref == 'refs/heads/main' && github.ref_type != 'tag'
         shell: bash
         env:
           VERSION: ${{ steps.ver.outputs.version }}

@@ -77,7 +77,7 @@ The in-app **Updates** settings use GitHub’s API to compare your build to the 
 |--------|----------------|-------------|
 | **Stable** | Latest **non-prerelease** release (`/releases/latest`) | [`.github/workflows/release.yml`](.github/workflows/release.yml) — tag `v*` **without** `beta` or `nightly` in the name (e.g. `v0.2.0`) |
 | **Beta** | Newest **prerelease** whose tag contains `beta` and not `nightly` | [`.github/workflows/beta.yml`](.github/workflows/beta.yml) — manual dispatch; tags like `beta-<run_id>` |
-| **Nightly** | Newest **prerelease** whose tag contains `nightly` | [`.github/workflows/nightly.yml`](.github/workflows/nightly.yml) — push a tag matching `nightly*` (e.g. `nightly-2026-04-11`), **or** weekday schedule / manual dispatch (`nightly-<run_id>`) |
+| **Nightly** | Newest **prerelease** whose tag contains `nightly` | [`.github/workflows/nightly.yml`](.github/workflows/nightly.yml) — push a tag matching `nightly*` (e.g. `nightly-2026-04-11`), **or** daily schedule / manual dispatch (`nightly-<run_id>`) |
 
 Pre-release workflows set **`prerelease: true`** so they do not replace **stable** on `/releases/latest`.
 
