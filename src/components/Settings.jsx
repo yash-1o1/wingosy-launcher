@@ -34,7 +34,6 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -1152,17 +1151,39 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
+          flexDirection: { xs: "column", lg: "row" },
           gap: 3,
           width: "100%",
-          alignItems: "stretch",
+          maxWidth: "100%",
+          minWidth: 0,
+          alignItems: "flex-start",
         }}
       >
-      <Paper sx={{ ...SETTINGS_CARD_SX, flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <Paper sx={{ ...SETTINGS_CARD_SX, flex: 1, minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
+            justifyContent: "space-between",
+            gap: 1.5,
+            mb: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "flex-start", sm: "center" },
+              gap: 1,
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", minWidth: 0 }}>
             <SportsEsportsIcon color="primary" />
-            <Typography variant="h6">Emulators</Typography>
+            <Typography variant="h6" sx={{ whiteSpace: "nowrap" }}>Emulators</Typography>
             <Chip label={`${installedEmus.length} installed`} size="small" color="success" variant="outlined" />
             {missingCores.length > 0 && (
               <Chip 
@@ -1173,10 +1194,11 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
                 icon={<MemoryIcon sx={{ fontSize: 14 }} />}
               />
             )}
+            </Box>
           </Box>
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box sx={{ display: "flex", gap: 1, flexShrink: 0, alignItems: "center", alignSelf: { xs: "stretch", sm: "center" } }}>
             <Tooltip title="Auto-apply detected paths to config">
-              <Button size="small" variant="outlined" onClick={handleApplyPaths}>
+              <Button size="small" variant="outlined" onClick={handleApplyPaths} sx={{ whiteSpace: "nowrap" }}>
                 Apply Paths
               </Button>
             </Tooltip>
@@ -1206,19 +1228,32 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
                         mb: isExpanded ? 0 : 0.5,
                         bgcolor: "rgba(76, 175, 80, 0.08)",
                         "&:hover": { bgcolor: "rgba(76, 175, 80, 0.12)" },
-                        cursor: isRetroArch && emuCores.length > 0 ? "pointer" : "default"
+                        cursor: isRetroArch && emuCores.length > 0 ? "pointer" : "default",
+                        alignItems: "flex-start",
+                        flexWrap: "wrap",
+                        rowGap: 1,
+                        columnGap: 0,
+                        pr: 1,
+                        pl: 1,
                       }}
                       onClick={() => isRetroArch && emuCores.length > 0 && setExpandedEmu(isExpanded ? null : emu.id)}
                     >
-                      <ListItemIcon sx={{ minWidth: 36 }}>
+                      <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
                         <CheckCircleIcon color="success" fontSize="small" />
                       </ListItemIcon>
                       <ListItemText
+                        sx={{ 
+                          flex: "1 1 200px", 
+                          minWidth: 0, 
+                          maxWidth: { xs: "100%", sm: "calc(100% - 48px)" },
+                        }}
                         primary={
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            {emu.name}
+                          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75, columnGap: 1, rowGap: 0.5 }}>
+                            <Typography component="span" variant="body2" fontWeight={600}>
+                              {emu.name}
+                            </Typography>
                             {emu.version && (
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography component="span" variant="caption" color="text.secondary">
                                 v{emu.version}
                               </Typography>
                             )}
@@ -1227,7 +1262,7 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
                               size="small" 
                               color={emu.install_type === "steam" ? "primary" : "default"}
                               variant="outlined"
-                              sx={{ fontSize: "0.6rem", height: 18 }}
+                              sx={{ fontSize: "0.65rem", height: 22 }}
                             />
                             {isRetroArch && emuCores.length > 0 && (
                               <Chip 
@@ -1235,21 +1270,53 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
                                 size="small" 
                                 color="warning"
                                 variant="filled"
-                                sx={{ fontSize: "0.6rem", height: 18 }}
+                                sx={{ fontSize: "0.65rem", height: 22 }}
                               />
                             )}
                           </Box>
                         }
                         secondary={emu.installed_path}
-                        secondaryTypographyProps={{ fontSize: "0.7rem", noWrap: true, sx: { maxWidth: 300 } }}
+                        secondaryTypographyProps={{
+                          fontSize: "0.7rem",
+                          sx: {
+                            display: "block",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: "100%",
+                            mt: 0.5,
+                          },
+                        }}
                       />
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <Chip 
-                          label={emu.supported_platforms.slice(0, 3).join(", ").toUpperCase() + (emu.supported_platforms.length > 3 ? "..." : "")} 
-                          size="small" 
-                          variant="outlined"
-                          sx={{ fontSize: "0.6rem", maxWidth: 120 }} 
-                        />
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: { xs: "row", sm: "row" },
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          gap: 0.5,
+                          flex: { xs: "1 1 100%", sm: "0 0 auto" },
+                          flexBasis: { xs: "100%", sm: "auto" },
+                          minWidth: 0,
+                          pl: { xs: 4.5, sm: 0 },
+                          order: { xs: 3, sm: 0 },
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Tooltip title="Supported platforms / systems">
+                          <Chip 
+                            label={emu.supported_platforms.slice(0, 3).join(", ").toUpperCase() + (emu.supported_platforms.length > 3 ? "…" : "")} 
+                            size="small" 
+                            variant="outlined"
+                            sx={{ 
+                              fontSize: "0.65rem", 
+                              maxWidth: { xs: 160, sm: 150 },
+                              "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis", display: "block" },
+                            }} 
+                          />
+                        </Tooltip>
+                        <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 0.25, ml: { xs: "auto", sm: 0 } }}>
                         <Tooltip title="Launch">
                           <IconButton 
                             size="small" 
@@ -1284,6 +1351,7 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
                             {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                           </IconButton>
                         )}
+                        </Box>
                       </Box>
                     </ListItem>
                     
@@ -1448,10 +1516,12 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
       </Paper>
 
       {platforms.length > 0 && installedEmus.length > 0 ? (
-        <Paper sx={{ ...SETTINGS_CARD_GRADIENT_SX, flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <Paper sx={{ ...SETTINGS_CARD_GRADIENT_SX, flex: 1, minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, flexWrap: "wrap" }}>
             <TuneIcon color="primary" />
-            <Typography variant="h6">Platform defaults</Typography>
+            <Typography variant="h6" component="div" sx={{ flex: "1 1 auto", minWidth: 0 }}>
+              Platform defaults
+            </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Choose which emulator to use for each platform. &quot;Auto&quot; uses the first available.
@@ -1499,10 +1569,12 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
           </Box>
         </Paper>
       ) : (
-        <Paper sx={{ ...SETTINGS_CARD_GRADIENT_SX, flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <Paper sx={{ ...SETTINGS_CARD_GRADIENT_SX, flex: 1, minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, flexWrap: "wrap" }}>
             <TuneIcon color="primary" />
-            <Typography variant="h6">Platform defaults</Typography>
+            <Typography variant="h6" component="div" sx={{ flex: "1 1 auto", minWidth: 0 }}>
+              Platform defaults
+            </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary">
             Add games to your library and install at least one emulator to choose a default per platform.
