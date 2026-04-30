@@ -111,10 +111,11 @@ pub fn default_emulators() -> Vec<Emulator> {
             core_name: None,
             is_retroarch: false,
             is_installed: false,
-            github_repo: None,
-            asset_pattern: None,
-            download_url: Some("https://rpcs3.net/latest".into()),
-            archive_format: None,
+            // Official Windows CI builds (`rpcs3.net/latest` triggers 403 for non-browser clients)
+            github_repo: Some("RPCS3/rpcs3-binaries-win".into()),
+            asset_pattern: Some("(?i)^rpcs3-.*_win64_msvc\\.7z$".into()),
+            download_url: None,
+            archive_format: Some("7z".into()),
         },
         Emulator {
             id: "ppsspp".into(),
@@ -171,9 +172,10 @@ pub fn default_emulators() -> Vec<Emulator> {
             core_name: None,
             is_retroarch: false,
             is_installed: false,
-            github_repo: Some("eden-emulator/eden".into()),
-            asset_pattern: Some("(?i)eden.*windows.*\\.zip$".into()),
-            download_url: None,
+            // Releases live on git.eden-emu.dev (no GitHub `releases/latest` for upstream)
+            github_repo: None,
+            asset_pattern: Some("(?i)^Eden-Windows-.*amd64-msvc-standard\\.zip$".into()),
+            download_url: Some("forgejo://git.eden-emu.dev/eden-emu/eden".into()),
             archive_format: Some("zip".into()),
         },
         Emulator {
@@ -277,7 +279,8 @@ pub fn default_emulators() -> Vec<Emulator> {
             is_retroarch: false,
             is_installed: false,
             github_repo: Some("mamedev/mame".into()),
-            asset_pattern: Some("(?i)mame.*64bit.*\\.exe$".into()),
+            // Releases use e.g. mame0287b_x64.exe (not "*64bit*"); prefer 64-bit MSVC build over arm64
+            asset_pattern: Some("(?i)^mame\\d+b_x64\\.exe$".into()),
             download_url: None,
             archive_format: Some("exe".into()),
         },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -60,6 +60,7 @@ import SystemUpdateIcon from "@mui/icons-material/SystemUpdate";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import { invoke } from "@tauri-apps/api/tauri";
+import { listen } from "@tauri-apps/api/event";
 import { open as shellOpen } from "@tauri-apps/api/shell";
 import { useAppTheme } from "../ThemeContext";
 import { useUiSounds } from "../UiSoundsContext";
@@ -67,6 +68,7 @@ import AccentHueSlider from "./AccentHueSlider";
 import { open } from "@tauri-apps/api/dialog";
 import normalizeUrl from "../utils/normalizeUrl";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
+import { formatDownloadLabel } from "../RomDownloadsContext";
 
 /** Full-width cards in the scroll column (avoids uneven widths after flex/scroll changes). */
 const SETTINGS_CARD_SX = {
@@ -81,6 +83,12 @@ const SETTINGS_CARD_GRADIENT_SX = {
   ...SETTINGS_CARD_SX,
   background: "linear-gradient(135deg, #1e1e26 0%, #252530 100%)",
 };
+
+/** Human-friendly name for a libretro DLL (e.g. `mgba_libretro.dll` → "mgba"). */
+function formatLibretroDllLabel(dll) {
+  if (!dll || typeof dll !== "string") return "";
+  return dll.replace(/_libretro\.dll$/i, "").replace(/_/g, " ");
+}
 
 const SETTINGS_SECTIONS = [
   { id: "general", label: "General", Icon: DesktopWindowsIcon },
@@ -103,7 +111,11 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   const [rommStatus, setRommStatus] = useState(null);
   const [scanMessage, setScanMessage] = useState(null);
   const [emulators, setEmulators] = useState([]);
-  const [downloadingEmu, setDownloadingEmu] = useState(null);
+  /** platform_id → default libretro DLL from backend (for RetroArch menu labels). */
+  const [retroarchCoreDllByPlatform, setRetroarchCoreDllByPlatform] = useState({});
+  /** Per-emulator install progress (`emulator_id` → phase + optional bytes); allows parallel installs. */
+  const [emuInstallProgress, setEmuInstallProgress] = useState({});
+  const emuDownloadInflightRef = useRef(new Set());
   const [missingCores, setMissingCores] = useState([]);
   const [downloadingCore, setDownloadingCore] = useState(null);
   const [emuMessage, setEmuMessage] = useState(null);
@@ -161,6 +173,76 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
     loadMissingCores();
     loadPlatformDefaults();
     loadPlatforms();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unlisteners = [];
+
+    (async () => {
+      const safeListen = async (event, handler) => {
+        const unlisten = await listen(event, handler);
+        if (cancelled) {
+          unlisten();
+          return;
+        }
+        unlisteners.push(unlisten);
+      };
+
+      await safeListen("emulator-download-started", (event) => {
+        const { emulator_id, filename } = event.payload;
+        setEmuInstallProgress((prev) => ({
+          ...prev,
+          [emulator_id]: {
+            phase: "download",
+            downloaded: 0,
+            total: null,
+            percent: null,
+            filename: filename || "",
+          },
+        }));
+      });
+
+      await safeListen("emulator-download-progress", (event) => {
+        const { emulator_id, phase, downloaded, total, percent } = event.payload;
+        setEmuInstallProgress((prev) => {
+          const cur = prev[emulator_id] || {};
+          return {
+            ...prev,
+            [emulator_id]: {
+              ...cur,
+              phase: phase === "extract" ? "extract" : "download",
+              downloaded: typeof downloaded === "number" ? downloaded : cur.downloaded ?? 0,
+              total,
+              percent,
+            },
+          };
+        });
+      });
+
+      await safeListen("emulator-download-complete", (event) => {
+        const { emulator_id } = event.payload;
+        setEmuInstallProgress((prev) => {
+          const next = { ...prev };
+          delete next[emulator_id];
+          return next;
+        });
+      });
+
+      await safeListen("emulator-download-error", (event) => {
+        const { emulator_id } = event.payload;
+        setEmuInstallProgress((prev) => {
+          const next = { ...prev };
+          delete next[emulator_id];
+          return next;
+        });
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      unlisteners.forEach((u) => u());
+    };
   }, []);
 
   useEffect(() => {
@@ -390,8 +472,12 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
 
   async function loadEmulators() {
     try {
-      const emus = await invoke("get_all_emulators");
+      const [emus, raCores] = await Promise.all([
+        invoke("get_all_emulators"),
+        invoke("get_retroarch_default_core_dlls"),
+      ]);
       setEmulators(emus);
+      setRetroarchCoreDllByPlatform(raCores && typeof raCores === "object" ? raCores : {});
     } catch (err) {
       console.error("Failed to load emulators:", err);
     }
@@ -549,17 +635,32 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   }
 
   async function handleDownloadEmulator(emuId) {
+    if (emuDownloadInflightRef.current.has(emuId)) return;
+    emuDownloadInflightRef.current.add(emuId);
+    setEmuInstallProgress((prev) => ({
+      ...prev,
+      [emuId]: {
+        phase: "pending",
+        downloaded: 0,
+        total: null,
+        percent: null,
+      },
+    }));
+    setEmuMessage(null);
     try {
-      setDownloadingEmu(emuId);
-      setEmuMessage({ type: "info", message: `Downloading ${emuId}...` });
       const path = await invoke("download_emulator", { emulatorId: emuId });
       setEmuMessage({ type: "success", message: `Installed ${emuId} at ${path}` });
       await loadEmulators();
       await loadMissingCores();
     } catch (err) {
+      setEmuInstallProgress((prev) => {
+        const next = { ...prev };
+        delete next[emuId];
+        return next;
+      });
       setEmuMessage({ type: "error", message: err.message || String(err) });
     } finally {
-      setDownloadingEmu(null);
+      emuDownloadInflightRef.current.delete(emuId);
     }
   }
 
@@ -1209,7 +1310,7 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
         </Box>
 
         {emuMessage && <Alert severity={emuMessage.type} onClose={() => setEmuMessage(null)} sx={{ mb: 2 }}>{emuMessage.message}</Alert>}
-        {(downloadingEmu || downloadingCore) && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
+        {downloadingCore && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 
         {installedEmus.length > 0 && (
           <>
@@ -1458,28 +1559,79 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
               Available for Download
             </Typography>
             <List dense>
-              {availableEmus.map((emu) => (
-                <ListItem key={emu.id} sx={{ borderRadius: 2, mb: 0.5 }}>
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    <CloudDownloadIcon color="action" fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={emu.name}
-                    secondary={emu.supported_platforms.join(", ").toUpperCase()}
-                    secondaryTypographyProps={{ fontSize: "0.7rem" }}
-                  />
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => handleDownloadEmulator(emu.id)}
-                    disabled={downloadingEmu !== null}
-                    sx={{ ml: 1 }}
-                  >
-                    {downloadingEmu === emu.id ? "Installing..." : "Install"}
-                  </Button>
-                </ListItem>
-              ))}
+              {availableEmus.map((emu) => {
+                const prog = emuInstallProgress[emu.id];
+                const busy = Boolean(prog);
+                const btnLabel =
+                  prog?.phase === "extract"
+                    ? "Extracting…"
+                    : prog?.phase === "pending"
+                      ? "Starting…"
+                      : prog
+                        ? "Downloading…"
+                        : "Install";
+                const progressIndeterminate =
+                  prog?.phase === "extract" ||
+                  prog?.phase === "pending" ||
+                  (prog?.phase === "download" && prog?.total == null);
+                return (
+                  <Box key={emu.id} sx={{ width: "100%", mb: 0.75 }}>
+                    <ListItem
+                      sx={{
+                        borderRadius: 2,
+                        flexDirection: "column",
+                        alignItems: "stretch",
+                        bgcolor: busy ? "action.hover" : "transparent",
+                      }}
+                    >
+                      <Box sx={{ display: "flex", width: "100%", alignItems: "center", gap: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 36 }}>
+                          <CloudDownloadIcon color="action" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={emu.name}
+                          secondary={emu.supported_platforms.join(", ").toUpperCase()}
+                          secondaryTypographyProps={{ fontSize: "0.7rem" }}
+                          sx={{ flex: 1, minWidth: 0 }}
+                        />
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<DownloadIcon />}
+                          onClick={() => handleDownloadEmulator(emu.id)}
+                          disabled={busy}
+                          sx={{ ml: 1, flexShrink: 0 }}
+                        >
+                          {btnLabel}
+                        </Button>
+                      </Box>
+                      {prog ? (
+                        <Box sx={{ width: "100%", pl: { xs: 0, sm: 4.5 }, pr: 0.5, mt: 1, boxSizing: "border-box" }}>
+                          <LinearProgress
+                            variant={progressIndeterminate ? "indeterminate" : "determinate"}
+                            value={prog.percent ?? 0}
+                            sx={{ borderRadius: 1, height: 6 }}
+                          />
+                          {prog.phase === "download" && (prog.downloaded > 0 || prog.total) ? (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+                              {formatDownloadLabel({
+                                downloaded: prog.downloaded,
+                                total: prog.total,
+                                percent: prog.percent,
+                              })}
+                            </Typography>
+                          ) : null}
+                          {prog.phase === "extract" ? (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+                              Extracting archive…
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      ) : null}
+                    </ListItem>
+                  </Box>
+                );
+              })}
             </List>
           </>
         )}
@@ -1528,12 +1680,15 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {platforms.map(([platform, gameCount]) => {
-              const compatibleEmus = installedEmus.filter(e =>
-                e.supported_platforms.includes(platform.id)
+              const compatibleEmus = installedEmus.filter(
+                (e) =>
+                  e.supported_platforms.includes(platform.id) ||
+                  e.supported_platforms.includes("*"),
               );
               if (compatibleEmus.length === 0) return null;
 
               const currentDefault = platformDefaults[platform.id] || "";
+              const raDll = retroarchCoreDllByPlatform[platform.id];
 
               return (
                 <Box key={platform.id} sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
@@ -1557,8 +1712,11 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
                       </MenuItem>
                       {compatibleEmus.map((emu) => (
                         <MenuItem key={emu.id} value={emu.id}>
-                          {emu.name}
-                          {emu.id === "retroarch" && " (+ cores)"}
+                          {emu.id === "retroarch" && raDll
+                            ? `${emu.name} (${formatLibretroDllLabel(raDll)} core)`
+                            : emu.id === "retroarch"
+                              ? `${emu.name} (libretro)`
+                              : emu.name}
                         </MenuItem>
                       ))}
                     </Select>

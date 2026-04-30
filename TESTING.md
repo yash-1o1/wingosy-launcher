@@ -52,6 +52,12 @@ npm run test:rust:cores
 | `models/game.rs` | Game creation, play time, filters |
 | `scanner/mod.rs` | ROM name cleaning, multi-disc |
 
+### RetroArch vs standalone emulators
+
+**RetroArch** is a single install that pulls **many small cores** (`*_libretro.dll`). The launcher maps each platform id to one core (`retroarch_cores()`), so automated checks can iterate **those many buildbot artefacts** — see **`npm run test:rust:cores`** (opt-in; large downloads).
+
+**Standalone emulators** (Dolphin, PCSX2, mGBA as its own zip, PPSSPP, etc.) don’t expose a separate “cores” matrix in Wingosy: typically **one exe or one release archive per emulator**. Integration coverage is structured **per emulator**, not per sub-DLL — e.g. **`test_all_emulator_sources_accessible`** in **`emulator_integration.rs`** HEADs RetroArch stable and probes GitHub **`releases/latest`** plus asset regexes for listed repos.
+
 ## Integration Tests (Rust)
 
 These hit the **real network** (GitHub, buildbot, RomM, etc.). They are **important** for validating API clients and download paths; we are **not** telling anyone to skip them on purpose.
@@ -76,6 +82,7 @@ cargo test --test romm_integration -- --ignored
 | Test | What it Tests |
 |------|---------------|
 | `all_mapped_retroarch_core_buildbot_zips_are_valid` (in `emulators/cores.rs`, `#[ignore]`) | Every mapped core’s buildbot URL returns a real ZIP |
+| `test_all_emulator_sources_accessible` (`emulator_integration`, `#[ignore]`) | RetroArch stable HEAD + GitHub release assets regex for standalone emulators in the suite |
 | `test_github_release_download` | Full emulator download workflow |
 | `test_rom_download_url_format` | ROM URL construction |
 
