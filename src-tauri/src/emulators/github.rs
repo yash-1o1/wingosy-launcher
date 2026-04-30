@@ -16,18 +16,47 @@ pub struct GitHubAsset {
     pub content_type: Option<String>,
 }
 
-pub async fn fetch_latest_release(repo: &str) -> Result<GitHubRelease> {
+async fn fetch_latest_release_inner(url: &str, api_label: &str) -> Result<GitHubRelease> {
     let client = reqwest::Client::builder()
         .user_agent("wingosy-launcher/0.1")
         .build()?;
-    let url = format!("https://api.github.com/repos/{}/releases/latest", repo);
-    let resp = client.get(&url).send().await.context("Failed to reach GitHub")?;
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .with_context(|| format!("Failed to reach {}", api_label))?;
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("GitHub API returned {}: {}", status, &text[..text.len().min(200)]);
+        anyhow::bail!(
+            "{} API returned {}: {}",
+            api_label,
+            status,
+            &text[..text.len().min(200)]
+        );
     }
-    resp.json().await.context("Failed to parse GitHub release")
+    resp.json().await
+        .with_context(|| format!("Failed to parse {} release JSON", api_label))
+}
+
+/// `repo` is `owner/name` as on github.com (e.g. `hrydgard/ppsspp`).
+pub async fn fetch_latest_release(repo: &str) -> Result<GitHubRelease> {
+    let url = format!("https://api.github.com/repos/{}/releases/latest", repo);
+    fetch_latest_release_inner(&url, "GitHub").await
+}
+
+/// Forgejo/Gitea-compatible host (e.g. `https://git.eden-emu.dev`) plus `owner` and repo name.
+pub async fn fetch_forgejo_latest_release(
+    api_origin: &str,
+    owner: &str,
+    repo_name: &str,
+) -> Result<GitHubRelease> {
+    let origin = api_origin.trim_end_matches('/');
+    let url = format!(
+        "{}/api/v1/repos/{}/{}/releases/latest",
+        origin, owner, repo_name
+    );
+    fetch_latest_release_inner(&url, "Forgejo").await
 }
 
 pub fn find_matching_asset<'a>(release: &'a GitHubRelease, pattern: &str) -> Option<&'a GitHubAsset> {

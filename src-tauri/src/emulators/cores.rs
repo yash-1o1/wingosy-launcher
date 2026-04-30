@@ -4,6 +4,18 @@ use std::path::{Path, PathBuf};
 
 const BUILDBOT_BASE: &str = "https://buildbot.libretro.com/nightly/windows/x86_64/latest";
 
+/// Fixes `gambatte_libretro.dll_libretro.dll` produced by older builds where `retroarch_cores()`
+/// values (already full `*_libretro.dll`) were concatenated with `_libretro.dll` again.
+pub fn normalize_libretro_core_filename(name: &str) -> String {
+    if name.ends_with("_libretro.dll_libretro.dll") {
+        name.strip_suffix("_libretro.dll")
+            .unwrap_or(name)
+            .to_string()
+    } else {
+        name.to_string()
+    }
+}
+
 pub fn core_download_url(core_filename: &str) -> String {
     // The buildbot uses .dll.zip extension for Windows cores
     // Core filename is like "mgba_libretro.dll", URL is "mgba_libretro.dll.zip"
@@ -34,15 +46,24 @@ fn validate_zip_file(path: &Path) -> Result<()> {
 }
 
 pub async fn download_core(core_filename: &str, cores_dir: &Path) -> Result<PathBuf> {
+    let normalized = normalize_libretro_core_filename(core_filename);
+    if normalized != core_filename {
+        tracing::warn!(
+            "[Cores] Correcting malformed core filename: {} -> {}",
+            core_filename,
+            normalized
+        );
+    }
+    let core_filename = normalized;
     std::fs::create_dir_all(cores_dir).context("Failed to create cores directory")?;
 
-    let core_path = cores_dir.join(core_filename);
+    let core_path = cores_dir.join(&core_filename);
     if core_path.exists() {
         tracing::info!("[Cores] Core already exists: {:?}", core_path);
         return Ok(core_path);
     }
 
-    let url = core_download_url(core_filename);
+    let url = core_download_url(&core_filename);
     let zip_path = cores_dir.join(format!("{}.zip", core_filename));
     
     tracing::info!("[Cores] Downloading core from: {}", url);
@@ -127,6 +148,30 @@ pub fn is_core_installed(retroarch_path: &Path, core_filename: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn normalize_fixes_doubled_libretro_suffix() {
+        assert_eq!(
+            normalize_libretro_core_filename("gambatte_libretro.dll_libretro.dll"),
+            "gambatte_libretro.dll"
+        );
+        assert_eq!(
+            normalize_libretro_core_filename("mgba_libretro.dll_libretro.dll"),
+            "mgba_libretro.dll"
+        );
+    }
+
+    #[test]
+    fn normalize_leaves_valid_names_unchanged() {
+        assert_eq!(
+            normalize_libretro_core_filename("gambatte_libretro.dll"),
+            "gambatte_libretro.dll"
+        );
+        assert_eq!(
+            normalize_libretro_core_filename("fceumm_libretro.dll"),
+            "fceumm_libretro.dll"
+        );
+    }
 
     #[test]
     fn test_core_download_url_format() {

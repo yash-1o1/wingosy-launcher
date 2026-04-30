@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
@@ -9,6 +9,38 @@ use crate::emulators::{EmulatorLauncher, LaunchCommand, LaunchResult};
 use crate::emulators::detection::{detect_installed_emulators, find_retroarch_cores};
 use crate::models::{Game, Platform, Collection, GameFilter, GameSort, default_emulators, retroarch_cores};
 use crate::scanner::RomScanner;
+
+/// Path saved in config (e.g. after install or browse) counts as installed when detection missed it.
+fn configured_emulator_path(config: &AppConfig, emulator_id: &str) -> Option<PathBuf> {
+    let p = match emulator_id {
+        "retroarch" => config.emulators.retroarch.as_ref(),
+        "dolphin" => config.emulators.dolphin.as_ref(),
+        "pcsx2" => config.emulators.pcsx2.as_ref(),
+        "rpcs3" => config.emulators.rpcs3.as_ref(),
+        "ppsspp" => config.emulators.ppsspp.as_ref(),
+        "duckstation" => config.emulators.duckstation.as_ref(),
+        "cemu" => config.emulators.cemu.as_ref(),
+        "eden" => config.emulators.eden.as_ref(),
+        "citra" => config.emulators.citra.as_ref(),
+        "melonds" => config.emulators.melonds.as_ref(),
+        "mgba" => config.emulators.mgba.as_ref(),
+        "flycast" => config.emulators.flycast.as_ref(),
+        "xemu" => config.emulators.xemu.as_ref(),
+        "xenia" => config.emulators.xenia.as_ref(),
+        "mame" => config.emulators.mame.as_ref(),
+        _ => return None,
+    }?;
+    if p.exists() {
+        Some(p.clone())
+    } else {
+        None
+    }
+}
+
+/// True if this emulator supports the given platform id (including RetroArch wildcard `"*"`).
+fn emulator_supports_platform(supported: &[String], platform_id: &str) -> bool {
+    supported.contains(&platform_id.to_string()) || supported.contains(&"*".to_string())
+}
 
 /// Ensures a ROM filename has the correct extension for its platform.
 /// If the file already has a valid extension, returns it unchanged.
@@ -934,10 +966,19 @@ pub async fn refresh_game_metadata(
 }
 
 #[tauri::command]
+pub fn get_retroarch_default_core_dlls() -> std::collections::HashMap<String, String> {
+    retroarch_cores()
+        .into_iter()
+        .map(|(k, v)| (k, v.to_string()))
+        .collect()
+}
+
+#[tauri::command]
 pub async fn detect_emulators() -> Result<Vec<EmulatorInfo>, String> {
     tracing::info!("[Emulators] Starting emulator detection");
     
     let detected = detect_installed_emulators();
+    let config = AppConfig::load().unwrap_or_default();
     let all_emulators = default_emulators();
     
     let mut result: Vec<EmulatorInfo> = Vec::new();
@@ -945,17 +986,42 @@ pub async fn detect_emulators() -> Result<Vec<EmulatorInfo>, String> {
     
     for emu in all_emulators {
         let detected_match = detected.iter().find(|d| d.id == emu.id);
-        if detected_match.is_some() {
+        let configured_path = configured_emulator_path(&config, &emu.id);
+
+        let (is_installed, installed_path, install_type, version) = if let Some(d) = detected_match {
+            (
+                true,
+                Some(d.path.to_string_lossy().to_string()),
+                Some(d.install_type.as_str().to_string()),
+                d.version.clone(),
+            )
+        } else if let Some(p) = configured_path {
+            let kind = AppConfig::emulators_dir()
+                .ok()
+                .filter(|root| p.starts_with(root))
+                .map(|_| "managed")
+                .unwrap_or("custom");
+            (
+                true,
+                Some(p.to_string_lossy().to_string()),
+                Some(kind.to_string()),
+                None,
+            )
+        } else {
+            (false, None, None, None)
+        };
+
+        if is_installed {
             installed_count += 1;
         }
         
         result.push(EmulatorInfo {
             id: emu.id.clone(),
             name: emu.name.clone(),
-            is_installed: detected_match.is_some(),
-            installed_path: detected_match.map(|d| d.path.to_string_lossy().to_string()),
-            install_type: detected_match.map(|d| d.install_type.as_str().to_string()),
-            version: detected_match.and_then(|d| d.version.clone()),
+            is_installed,
+            installed_path,
+            install_type,
+            version,
             has_download: emu.download_url.is_some() || emu.github_repo.is_some(),
             supported_platforms: emu.supported_platforms,
         });
@@ -1083,19 +1149,69 @@ async fn fetch_dolphin_download_url() -> anyhow::Result<String> {
 }
 
 #[tauri::command]
-pub async fn download_emulator(emulator_id: String) -> Result<String, String> {
+pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Result<String, String> {
     tracing::info!("[Emulators] Downloading emulator: {}", emulator_id);
-    
+
+    fn emit_progress(app: &tauri::AppHandle, emulator_id: &str, phase: &str, downloaded: u64, total: Option<u64>, percent: Option<u8>) {
+        let _ = app.emit_all(
+            "emulator-download-progress",
+            serde_json::json!({
+                "emulator_id": emulator_id,
+                "phase": phase,
+                "downloaded": downloaded,
+                "total": total,
+                "percent": percent,
+            }),
+        );
+    }
+
+    let report_err = |msg: String| {
+        let _ = app.emit_all(
+            "emulator-download-error",
+            serde_json::json!({ "emulator_id": &emulator_id, "message": &msg }),
+        );
+        msg
+    };
+
     let emulators = default_emulators();
-    let emu = emulators.iter()
+    let emu = emulators
+        .iter()
         .find(|e| e.id == emulator_id)
-        .ok_or("Emulator not found")?;
-    
-    let dest_dir = AppConfig::emulators_dir().map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
-    
+        .ok_or_else(|| {
+            let msg = "Emulator not found".to_string();
+            let _ = app.emit_all(
+                "emulator-download-error",
+                serde_json::json!({ "emulator_id": emulator_id, "message": msg }),
+            );
+            msg
+        })?;
+
+    let dest_dir = AppConfig::emulators_dir().map_err(|e| {
+        let msg = e.to_string();
+        let _ = app.emit_all(
+            "emulator-download-error",
+            serde_json::json!({ "emulator_id": emulator_id, "message": msg }),
+        );
+        msg
+    })?;
+    std::fs::create_dir_all(&dest_dir).map_err(|e| {
+        let msg = e.to_string();
+        let _ = app.emit_all(
+            "emulator-download-error",
+            serde_json::json!({ "emulator_id": emulator_id, "message": msg }),
+        );
+        msg
+    })?;
+
     let emu_dir = dest_dir.join(&emulator_id);
-    std::fs::create_dir_all(&emu_dir).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&emu_dir).map_err(|e| {
+        let msg = e.to_string();
+        let _ = app.emit_all(
+            "emulator-download-error",
+            serde_json::json!({ "emulator_id": emulator_id, "message": msg }),
+        );
+        msg
+    })?;
     
     let (download_url, archive_name, format) = if let Some(github_repo) = &emu.github_repo {
         // GitHub release download
@@ -1104,7 +1220,7 @@ pub async fn download_emulator(emulator_id: String) -> Result<String, String> {
         let release = crate::emulators::github::fetch_latest_release(github_repo).await
             .map_err(|e| {
                 tracing::error!("[Emulators] Failed to fetch GitHub release: {}", e);
-                e.to_string()
+                report_err(e.to_string())
             })?;
         
         tracing::debug!("[Emulators] Found release: {}", release.tag_name);
@@ -1116,12 +1232,13 @@ pub async fn download_emulator(emulator_id: String) -> Result<String, String> {
             None
         }.or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)windows.*x64"))
          .or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)win64"))
+         .or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)mame\\d+b_x64\\.exe$"))
          .or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)win.*\\.zip$"))
          .or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)win.*\\.7z$"))
          .ok_or_else(|| {
              tracing::error!("[Emulators] No matching Windows asset found in release. Assets: {:?}", 
                  release.assets.iter().map(|a| &a.name).collect::<Vec<_>>());
-             "No Windows asset found in GitHub release".to_string()
+             report_err("No Windows asset found in GitHub release".to_string())
          })?;
         
         let fmt = if asset.name.ends_with(".zip") { "zip" } 
@@ -1130,14 +1247,70 @@ pub async fn download_emulator(emulator_id: String) -> Result<String, String> {
         
         (asset.browser_download_url.clone(), asset.name.clone(), fmt.to_string())
     } else if let Some(direct_url) = &emu.download_url {
-        // Check for special Dolphin API URL
-        if direct_url == "dolphin-api://latest" {
+        // Forgejo/Gitea: `forgejo://{host}/{owner}/{repo}` — same JSON shape as GitHub releases/latest
+        if let Some(rest) = direct_url.strip_prefix("forgejo://") {
+            tracing::debug!("[Emulators] Resolving Forgejo release URL: {}", direct_url);
+            let mut parts = rest.split('/');
+            let host = parts.next().filter(|s| !s.is_empty()).ok_or_else(|| {
+                report_err("Invalid forgejo:// URL (missing host)".to_string())
+            })?;
+            let owner = parts.next().filter(|s| !s.is_empty()).ok_or_else(|| {
+                report_err("Invalid forgejo:// URL (missing owner)".to_string())
+            })?;
+            let repo_name = parts.next().filter(|s| !s.is_empty()).ok_or_else(|| {
+                report_err("Invalid forgejo:// URL (missing repository)".to_string())
+            })?;
+            let api_origin = if host.starts_with("http://") || host.starts_with("https://") {
+                host.to_string()
+            } else {
+                format!("https://{}", host)
+            };
+            let release = crate::emulators::github::fetch_forgejo_latest_release(
+                &api_origin,
+                owner,
+                repo_name,
+            )
+            .await
+            .map_err(|e| {
+                tracing::error!("[Emulators] Failed to fetch Forgejo release: {}", e);
+                report_err(e.to_string())
+            })?;
+            tracing::debug!("[Emulators] Found Forgejo release: {}", release.tag_name);
+            let asset = if let Some(pattern) = &emu.asset_pattern {
+                crate::emulators::github::find_matching_asset(&release, pattern)
+            } else {
+                None
+            }
+            .or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)windows.*x64"))
+            .or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)win64"))
+            .or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)win.*\\.zip$"))
+            .or_else(|| crate::emulators::github::find_matching_asset(&release, "(?i)win.*\\.7z$"))
+            .ok_or_else(|| {
+                tracing::error!(
+                    "[Emulators] No matching Windows asset in Forgejo release. Assets: {:?}",
+                    release.assets.iter().map(|a| &a.name).collect::<Vec<_>>()
+                );
+                report_err("No Windows asset found in Forgejo release".to_string())
+            })?;
+            let fmt = if asset.name.ends_with(".zip") {
+                "zip"
+            } else if asset.name.ends_with(".7z") {
+                "7z"
+            } else {
+                emu.archive_format.as_deref().unwrap_or("zip")
+            };
+            (
+                asset.browser_download_url.clone(),
+                asset.name.clone(),
+                fmt.to_string(),
+            )
+        } else if direct_url == "dolphin-api://latest" {
             tracing::debug!("[Emulators] Fetching Dolphin download URL from API");
             
             let dolphin_url = fetch_dolphin_download_url().await
                 .map_err(|e| {
                     tracing::error!("[Emulators] Failed to fetch Dolphin URL: {}", e);
-                    e.to_string()
+                    report_err(e.to_string())
                 })?;
             
             let filename = dolphin_url.split('/').last().unwrap_or("dolphin.7z").to_string();
@@ -1155,25 +1328,71 @@ pub async fn download_emulator(emulator_id: String) -> Result<String, String> {
         }
     } else {
         tracing::error!("[Emulators] No download source configured for {}", emulator_id);
-        return Err("Emulator has no download URL or GitHub repo configured".to_string());
+        return Err(report_err(
+            "Emulator has no download URL or GitHub repo configured".to_string(),
+        ));
     };
-    
-    tracing::info!("[Emulators] Downloading: {}", archive_name);
-    
-    let archive_path = dest_dir.join(&archive_name);
-    crate::emulators::installer::download_file(&download_url, &archive_path).await
-        .map_err(|e| {
-            tracing::error!("[Emulators] Download failed: {}", e);
-            e.to_string()
-        })?;
-    
+
+    let safe_leaf = Path::new(&archive_name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("download.bin");
+    let archive_path = dest_dir.join(format!("{}__{}", emulator_id, safe_leaf));
+
+    tracing::info!("[Emulators] Downloading: {} -> {:?}", archive_name, archive_path);
+
+    let _ = app.emit_all(
+        "emulator-download-started",
+        serde_json::json!({
+            "emulator_id": &emulator_id,
+            "filename": archive_name,
+        }),
+    );
+
+    let eid_dl = emulator_id.clone();
+    let app_dl = app.clone();
+    if let Err(e) =
+        crate::emulators::installer::download_file_with_progress(&download_url, &archive_path, move |p| {
+            emit_progress(
+                &app_dl,
+                &eid_dl,
+                "download",
+                p.downloaded,
+                p.total,
+                p.percent,
+            );
+        })
+        .await
+    {
+        let msg = e.to_string();
+        tracing::error!("[Emulators] Download failed: {}", msg);
+        return Err(report_err(msg));
+    }
+
+    emit_progress(&app, &emulator_id, "extract", 0, None, None);
+
     tracing::info!("[Emulators] Download complete, extracting {} archive...", format);
-    
-    let extracted_dir = crate::emulators::installer::extract_archive(&archive_path, &emu_dir, &format)
-        .map_err(|e| {
-            tracing::error!("[Emulators] Extraction failed: {}", e);
-            e.to_string()
-        })?;
+
+    let extracted_dir = if format == "exe" && emulator_id.as_str() == "mame" {
+        let dest_exe = emu_dir.join("mame.exe");
+        match std::fs::copy(&archive_path, &dest_exe) {
+            Ok(_) => emu_dir.clone(),
+            Err(e) => {
+                let msg = e.to_string();
+                tracing::error!("[Emulators] Failed to install MAME executable: {}", msg);
+                return Err(report_err(msg));
+            }
+        }
+    } else {
+        match crate::emulators::installer::extract_archive(&archive_path, &emu_dir, &format) {
+            Ok(d) => d,
+            Err(e) => {
+                let msg = e.to_string();
+                tracing::error!("[Emulators] Extraction failed: {}", msg);
+                return Err(report_err(msg));
+            }
+        }
+    };
     
     // Clean up the archive
     std::fs::remove_file(&archive_path).ok();
@@ -1229,8 +1448,17 @@ pub async fn download_emulator(emulator_id: String) -> Result<String, String> {
     }
     config.save().map_err(|e| e.to_string())?;
     tracing::info!("[Emulators] Config updated with {} path", emulator_id);
-    
-    Ok(exe_path.to_string_lossy().to_string())
+
+    let dest_str = exe_path.to_string_lossy().to_string();
+    let _ = app.emit_all(
+        "emulator-download-complete",
+        serde_json::json!({
+            "emulator_id": emulator_id,
+            "path": dest_str,
+        }),
+    );
+
+    Ok(dest_str)
 }
 
 #[tauri::command]
@@ -1319,8 +1547,8 @@ pub async fn get_missing_cores() -> Result<Vec<MissingCore>, String> {
     for (platform, count) in platforms {
         if count == 0 { continue; }
         
-        if let Some(core_name) = cores_map.get(&platform.id) {
-            let core_filename = format!("{}_libretro.dll", core_name);
+        if let Some(core_dll) = cores_map.get(&platform.id).copied() {
+            let core_filename = core_dll.to_string();
             let is_installed = installed_cores.iter().any(|c| {
                 c.path.file_name()
                     .map(|n| n.to_string_lossy() == core_filename)
@@ -1456,7 +1684,7 @@ pub async fn get_emulators_for_platform(platform_id: String) -> Result<Vec<Emula
     // Filter emulators that support this platform
     let matching: Vec<EmulatorInfo> = all_emulators
         .into_iter()
-        .filter(|e| e.supported_platforms.contains(&platform_id))
+        .filter(|e| emulator_supports_platform(&e.supported_platforms, &platform_id))
         .collect();
     
     Ok(matching)

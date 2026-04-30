@@ -2,8 +2,19 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 pub async fn download_file(url: &str, dest: &Path) -> Result<()> {
+    download_file_with_progress(url, dest, |_| {}).await
+}
+
+pub async fn download_file_with_progress<F>(
+    url: &str,
+    dest: &Path,
+    progress: F,
+) -> Result<()>
+where
+    F: Fn(crate::api::download::DownloadProgress) + Send + 'static,
+{
     let dl = crate::api::download::DownloadManager::new();
-    dl.download_file(url, dest, None, |_| {}).await
+    dl.download_file(url, dest, None, progress).await
 }
 
 pub fn extract_archive(archive: &Path, dest_dir: &Path, format: &str) -> Result<PathBuf> {

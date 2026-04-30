@@ -425,6 +425,7 @@ mod download_workflow_tests {
             ("melonDS", "melonDS-emu/melonDS", "(?i)melonDS.*windows.*x86_64.*\\.zip$"),
             // Ryujinx - removed, original repo and forks taken down
             ("Lime3DS", "Lime3DS/Lime3DS", "(?i)(lime3ds|azahar).*windows.*msvc.*\\.zip$"),
+            ("RPCS3", "RPCS3/rpcs3-binaries-win", "(?i)^rpcs3-.*_win64_msvc\\.7z$"),
             ("xemu", "xemu-project/xemu", "(?i)xemu.*win.*\\.zip$"),
             ("Xenia", "xenia-canary/xenia-canary", "(?i)xenia_canary.*\\.zip$"),
         ];
@@ -475,6 +476,39 @@ mod download_workflow_tests {
                 }
                 Ok(resp) if resp.status().as_u16() == 403 => {
                     println!("  ⚠ {}: Rate limited", name);
+                }
+                Ok(resp) => println!("  ✗ {}: {}", name, resp.status()),
+                Err(e) => println!("  ✗ {}: {}", name, e),
+            }
+        }
+        
+        // Forgejo (Gitea-compatible) — Eden releases upstream
+        let forgejo_releases = vec![(
+            "Eden",
+            "https://git.eden-emu.dev/api/v1/repos/eden-emu/eden/releases/latest",
+            "(?i)^Eden-Windows-.*amd64-msvc-standard\\.zip$",
+        )];
+        
+        println!("\nForgejo Releases:\n");
+        for (name, api_url, pattern) in &forgejo_releases {
+            match client.get(*api_url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    let release: serde_json::Value = resp.json().await.unwrap();
+                    let tag = release["tag_name"].as_str().unwrap_or("?");
+                    let assets = release["assets"].as_array();
+                    let re = regex_lite::Regex::new(pattern).unwrap();
+                    let matched = assets.and_then(|a| {
+                        a.iter().find(|x| re.is_match(x["name"].as_str().unwrap_or("")))
+                    });
+                    match matched {
+                        Some(asset) => {
+                            let asset_name = asset["name"].as_str().unwrap_or("?");
+                            println!("  ✓ {} ({}): {}", name, tag, asset_name);
+                        }
+                        None => {
+                            println!("  ⚠ {} ({}): No asset matching pattern", name, tag);
+                        }
+                    }
                 }
                 Ok(resp) => println!("  ✗ {}: {}", name, resp.status()),
                 Err(e) => println!("  ✗ {}: {}", name, e),
