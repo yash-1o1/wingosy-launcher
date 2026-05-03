@@ -35,8 +35,10 @@ export function writeAppVersion(version) {
 
   const tauriPath = join(root, "src-tauri", "tauri.conf.json");
   const tauri = JSON.parse(readFileSync(tauriPath, "utf8"));
-  tauri.package = tauri.package || {};
-  tauri.package.version = v;
+  tauri.version = v;
+  if (tauri.package) {
+    delete tauri.package;
+  }
   writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + "\n");
 
   return v;

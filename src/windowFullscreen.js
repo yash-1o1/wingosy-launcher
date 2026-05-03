@@ -1,4 +1,6 @@
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+const appWindow = getCurrentWindow();
 
 /**
  * Enter/leave exclusive fullscreen. On Windows, calling `setFullscreen(true)` while

@@ -59,13 +59,13 @@ import DesktopWindowsIcon from "@mui/icons-material/DesktopWindows";
 import SystemUpdateIcon from "@mui/icons-material/SystemUpdate";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { open as shellOpen } from "@tauri-apps/api/shell";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { useAppTheme } from "../ThemeContext";
 import { useUiSounds } from "../UiSoundsContext";
 import AccentHueSlider from "./AccentHueSlider";
-import { open } from "@tauri-apps/api/dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import normalizeUrl from "../utils/normalizeUrl";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { formatDownloadLabel } from "../RomDownloadsContext";
@@ -163,6 +163,7 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   const [updateChannel, setUpdateChannel] = useState("stable");
   const [updateCheckLoading, setUpdateCheckLoading] = useState(false);
   const [updateCheckResult, setUpdateCheckResult] = useState(null);
+  const [signedUpdateInstalling, setSignedUpdateInstalling] = useState(false);
   const [prereleaseLeaveDialogOpen, setPrereleaseLeaveDialogOpen] = useState(false);
   /** Which pre-release channel the user is leaving (`nightly` | `beta`) — drives dialog copy. */
   const [leavingPrereleaseChannel, setLeavingPrereleaseChannel] = useState(null);
@@ -392,10 +393,33 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
         is_update_available: false,
         latest_version: null,
         release_url: null,
+        signed_update_manifest_url: null,
         channel: updateChannel,
       });
     } finally {
       setUpdateCheckLoading(false);
+    }
+  }
+
+  async function handleInstallSignedUpdateFromSettings() {
+    if (!updateCheckResult?.signed_update_manifest_url || signedUpdateInstalling) return;
+    setSignedUpdateInstalling(true);
+    setEmuMessage({ type: "info", message: "Downloading and installing update…" });
+    let unlistenProgress = () => {};
+    try {
+      unlistenProgress = await listen("signed-updater-progress", () => {
+        setEmuMessage({ type: "info", message: "Downloading update…" });
+      });
+    } catch {
+      unlistenProgress = () => {};
+    }
+    try {
+      await invoke("install_signed_app_update", { channel: updateChannel });
+    } catch (err) {
+      setEmuMessage({ type: "error", message: err?.message || String(err) });
+      setSignedUpdateInstalling(false);
+    } finally {
+      unlistenProgress();
     }
   }
 
@@ -1814,7 +1838,9 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
           <Typography variant="h6">Updates</Typography>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Compare this build to GitHub releases on the channel you choose. When an update is available, open the release page to download the installer. Full silent install may be added in a future build; enabling &quot;Automatic updates&quot; saves your preference for when that ships.
+          Wingosy checks GitHub for your selected channel. When a newer signed build is published, use{" "}
+          <strong>Download &amp; install</strong> for an in-place update (Windows restarts the app when the installer
+          finishes). You can still open the release page for installers or release notes.
         </Typography>
         <Typography variant="body2" sx={{ mb: 2 }}>
           Current version:{" "}
@@ -1833,7 +1859,8 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
           label="Automatic updates"
         />
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2, ml: 4.5, maxWidth: 560 }}>
-          When enabled, you can opt into pre-release channels below. In-app download/install is not active yet; this toggle records your intent for future releases.
+          When enabled, you can opt into pre-release channels below. Signed updates use the same installer pipeline for
+          stable, beta, and nightly releases that ship <code>latest.json</code>.
         </Typography>
 
         <FormControl component="fieldset" sx={{ mb: 2 }} variant="standard">
@@ -1917,11 +1944,23 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
             severity="success"
             sx={{ mt: 2 }}
             action={
-              updateCheckResult.release_url ? (
-                <Button color="inherit" size="small" onClick={() => shellOpen(updateCheckResult.release_url)}>
-                  Open release
-                </Button>
-              ) : null
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "center" }}>
+                {updateCheckResult.signed_update_manifest_url ? (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    disabled={signedUpdateInstalling}
+                    onClick={() => handleInstallSignedUpdateFromSettings()}
+                  >
+                    {signedUpdateInstalling ? "Installing…" : "Download & install"}
+                  </Button>
+                ) : null}
+                {updateCheckResult.release_url ? (
+                  <Button color="inherit" size="small" onClick={() => shellOpen(updateCheckResult.release_url)}>
+                    Open release
+                  </Button>
+                ) : null}
+              </Box>
             }
           >
             Update available on {updateCheckResult.channel || updateChannel}

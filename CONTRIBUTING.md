@@ -4,7 +4,7 @@
 
 ## Setup
 
-Prerequisites: **Windows 10/11**, **Node.js 20+** (22 LTS recommended; required for the `edgedriver` devDependency), **npm 11** (pinned in `package.json` as `packageManager`), **Rust 1.70+**, **VS Build Tools (C++)**.
+Prerequisites: **Windows 10/11**, **Node.js 20+** (22 LTS recommended; required for the `edgedriver` devDependency), **npm 11** (pinned in `package.json` as `packageManager`), **Rust 1.77.2+** (Tauri v2 / updater plugin), **VS Build Tools (C++)**.
 
 ### PATH on Windows
 
@@ -29,7 +29,7 @@ cargo -v
 | `failed to get cargo metadata: program not found` | **Cargo** is not on `Path` (Tauri needs Rust) | Add `%USERPROFILE%\.cargo\bin` (see line above), then `cargo -v`. Install Rust via `winget` / rustup if needed. |
 | No window yet, only compile logs | First **debug** build of `src-tauri` can take **30–120+ seconds** | Wait until you see **`Finished` `dev` profile** and the log line **Starting Wingosy Launcher**; check the taskbar for the window. |
 | Only the browser / `localhost:5173` | You ran **`npm run dev:web`** instead of the full app | Use **`npm run tauri dev`** (or **`npm run dev`**, which is the same) so the **native** window opens. |
-| Can’t drag the frameless window / title bar feels “dead” | Vite **HMR** doesn’t reload **`tauri.conf.json`** or the **Rust** shell; `-webkit-app-region` can also lag until a full reload | **Stop** `tauri dev` (Ctrl+C), start it again. After changing **`src-tauri/tauri.conf.json`** (e.g. `startDragging`), you must restart so the native binary picks up the new allowlist. |
+| Can’t drag the frameless window / title bar feels “dead” | Vite **HMR** doesn’t reload **`tauri.conf.json`** or the **Rust** shell; `-webkit-app-region` can also lag until a full reload | **Stop** `tauri dev` (Ctrl+C), start it again. After changing **`src-tauri/tauri.conf.json`** or **`src-tauri/capabilities/`**, restart so the native binary picks up the new config. |
 
 Install if missing:
 
@@ -83,9 +83,38 @@ The in-app **Updates** settings use GitHub’s API to compare your build to the 
 
 Pre-release workflows set **`prerelease: true`** so they do not replace **stable** on `/releases/latest`.
 
+### Signed in-app updates (Tauri v2 updater)
+
+Release, Beta, and Nightly workflows build **signed** NSIS artifacts and upload **`latest.json`** next to the installer so the app can call **`install_signed_app_update`** (in-place update, then restart).
+
+1. **One-time:** generate a minisign keypair (keep the private key secret; the public key is already in `src-tauri/tauri.conf.json` under `plugins.updater.pubkey` — replace it if you rotate keys):
+
+   ```bash
+   npm run tauri -- signer generate -w src-tauri/tauri-signing.key
+   ```
+
+   Commit only the **public** key line into `tauri.conf.json` (never commit `tauri-signing.key`; it is listed in `.gitignore`).
+
+2. **GitHub Actions:** add repository secrets (Settings → Secrets and variables → Actions):
+
+   - **`TAURI_SIGNING_PRIVATE_KEY`** — full contents of `tauri-signing.key` (or use `tauri signer sign` workflow that injects it from a password-protected vault).
+   - **`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`** — optional; only if the private key is password-protected.
+
+3. **Local release builds:** env vars are read by `tauri build`, not `.env`. The private key must be available as **`TAURI_SIGNING_PRIVATE_KEY`** (the full file contents). If the key is **password-protected** (`rsign encrypted secret key` in the decoded comment), also set **`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`**; otherwise the CLI waits for a TTY prompt and a piped or IDE terminal can look “stuck”.
+
+   ```powershell
+   $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content -Raw "$PWD\src-tauri\tauri-signing.key").Trim()
+   $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "your-password"   # omit if the key has no password
+   npm run tauri build
+   ```
+
+   `TAURI_SIGNING_PRIVATE_KEY_PATH` is supported by newer CLIs for some commands, but **inlining the key** (as above) matches CI (`secrets.TAURI_SIGNING_PRIVATE_KEY`) and avoids “public key found, but no private key” if the path form is not picked up for updater signing.
+
+4. **ROM / cover paths outside standard folders:** `app.security.assetProtocol.scope` lists common user directories. If covers or ambient audio live on another drive, extend the scope in `tauri.conf.json` (or open an issue with the path pattern you need).
+
 ### App versioning (automated in CI)
 
-The app semver is **`MAJOR.MINOR.PATCH`** in **`package.json`**, mirrored to **`package-lock.json`**, **`src-tauri/Cargo.toml`**, **`src-tauri/tauri.conf.json`**, and **`src-tauri/Cargo.lock`** via:
+The app semver is **`MAJOR.MINOR.PATCH`** in **`package.json`**, mirrored to **`package-lock.json`**, **`src-tauri/Cargo.toml`**, **`src-tauri/tauri.conf.json`** (root `version` field in Tauri v2), and **`src-tauri/Cargo.lock`** via:
 
 ```bash
 npm run version:set -- 1.2.3    # node scripts/set-version.mjs — set all files to an exact version

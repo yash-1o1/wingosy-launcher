@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { createTheme, alpha, ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 
 // Base color palette (from Argosy)
 const baseColors = {

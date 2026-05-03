@@ -20,8 +20,8 @@ import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
-import { invoke } from "@tauri-apps/api/tauri";
-import { open } from "@tauri-apps/api/dialog";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import normalizeUrl from "../utils/normalizeUrl";
 
 const STEPS = ["RomM Server", "ROM Folder", "Scan Games"];

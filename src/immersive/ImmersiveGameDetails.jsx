@@ -40,7 +40,7 @@ import TagIcon from "@mui/icons-material/Tag";
 import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
 import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import { alpha } from "@mui/material/styles";
-import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { useAppTheme } from "../ThemeContext";
 import GameScreenshotsSection from "../components/game/GameScreenshotsSection";
 import GameAchievementsSection from "../components/game/GameAchievementsSection";

@@ -6,7 +6,7 @@ import ImmersiveLibrary from "./ImmersiveLibrary";
 import ImmersiveGameDetails from "./ImmersiveGameDetails";
 import ImmersiveHintBar from "./ImmersiveHintBar";
 import RomDownloadsView from "../components/RomDownloadsView";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import { useFullscreen } from "./useFullscreen";
 import { useGamepadKeyboardMapper } from "./useGamepadKeyboardMapper";
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+const appWindow = getCurrentWindow();
 import { setFullscreenReliable } from "../windowFullscreen";
 
 export function useFullscreen({ enabled, onChange } = {}) {
