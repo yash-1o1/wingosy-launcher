@@ -9,9 +9,13 @@ import Settings from "./components/Settings";
 import RomDownloadsView from "./components/RomDownloadsView";
 import SetupWizard from "./components/SetupWizard";
 import ImmersiveModeApp from "./immersive/ImmersiveModeApp";
-import { invoke } from "@tauri-apps/api/tauri";
-import { open as openUrl } from "@tauri-apps/api/shell";
-import { appWindow, getCurrent } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { open as openUrl } from "@tauri-apps/plugin-shell";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+const appWindow = getCurrentWindow();
+const getCurrent = getCurrentWindow;
 import { setFullscreenReliable } from "./windowFullscreen";
 import WindowChrome from "./components/WindowChrome";
 import { isTauri, mousedownTargetElement } from "./utils/isTauri";
@@ -24,7 +28,7 @@ function AppShell({ children }) {
     if (!isTauri()) return undefined;
     /**
      * Ensures custom titlebar dragging works even when CSS/HMR is flaky (WebView2).
-     * Requires `window.startDragging` in tauri.conf.json allowlist.
+     * Requires `core:window:allow-start-dragging` in capabilities.
      */
     function onMouseDown(e) {
       if (e.button !== 0) return;
@@ -76,7 +80,15 @@ function App() {
   const [rommUrl, setRommUrl] = useState("");
   const [immersiveModeEnabled, setImmersiveModeEnabled] = useState(false);
   const [immersiveModeFullscreen, setImmersiveModeFullscreen] = useState(false);
-  const [updateSnack, setUpdateSnack] = useState({ open: false, url: "", version: "" });
+  const [updateSnack, setUpdateSnack] = useState({
+    open: false,
+    url: "",
+    version: "",
+    channel: "stable",
+    canInstall: false,
+    installing: false,
+    progressLabel: "",
+  });
   const startupUpdateCheckDone = useRef(false);
 
   useEffect(() => {
@@ -154,6 +166,10 @@ function App() {
                   open: true,
                   url: r.release_url,
                   version: r.latest_version || "",
+                  channel: ch,
+                  canInstall: Boolean(r.signed_update_manifest_url),
+                  installing: false,
+                  progressLabel: "",
                 });
               }
             })
@@ -180,6 +196,35 @@ function App() {
       setGames(gamesData);
     } catch (err) {
       console.error("Failed to refresh games:", err);
+    }
+  }
+
+  async function runSignedUpdateInstall() {
+    if (!updateSnack.channel || updateSnack.installing) return;
+    setUpdateSnack((s) => ({ ...s, installing: true, progressLabel: "Downloading…" }));
+    let unlistenProgress = () => {};
+    try {
+      unlistenProgress = await listen("signed-updater-progress", (ev) => {
+        const d = ev.payload?.downloaded;
+        const t = ev.payload?.total;
+        setUpdateSnack((prev) => ({
+          ...prev,
+          progressLabel:
+            d != null && t != null && t > 0
+              ? `${Math.min(100, Math.round((d / t) * 100))}%`
+              : "Downloading…",
+        }));
+      });
+    } catch {
+      unlistenProgress = () => {};
+    }
+    try {
+      await invoke("install_signed_app_update", { channel: updateSnack.channel });
+    } catch (err) {
+      setError(err?.message || String(err));
+      setUpdateSnack((s) => ({ ...s, installing: false, progressLabel: "" }));
+    } finally {
+      unlistenProgress();
     }
   }
 
@@ -434,26 +479,46 @@ function App() {
       </Box>
       <Snackbar
         open={updateSnack.open}
-        onClose={() => setUpdateSnack((s) => ({ ...s, open: false }))}
+        onClose={() => {
+          if (updateSnack.installing) return;
+          setUpdateSnack((s) => ({ ...s, open: false }));
+        }}
         message={
-          updateSnack.version
-            ? `Update available: ${updateSnack.version}`
-            : "Update available"
+          <span>
+            {updateSnack.version
+              ? `Update available: ${updateSnack.version}`
+              : "Update available"}
+            {updateSnack.installing && updateSnack.progressLabel
+              ? ` — ${updateSnack.progressLabel}`
+              : ""}
+          </span>
         }
         action={
           <>
+            {updateSnack.canInstall ? (
+              <Button
+                color="inherit"
+                size="small"
+                disabled={updateSnack.installing}
+                onClick={() => runSignedUpdateInstall()}
+              >
+                {updateSnack.installing ? "Installing…" : "Download & install"}
+              </Button>
+            ) : null}
             <Button
               color="inherit"
               size="small"
+              disabled={updateSnack.installing}
               onClick={() => {
                 if (updateSnack.url) openUrl(updateSnack.url);
               }}
             >
-              View
+              View release
             </Button>
             <Button
               color="inherit"
               size="small"
+              disabled={updateSnack.installing}
               onClick={() => setUpdateSnack((s) => ({ ...s, open: false }))}
             >
               Dismiss

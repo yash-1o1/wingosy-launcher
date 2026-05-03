@@ -23,6 +23,9 @@ Desktop.ini
 .env.*
 !.env.example
 
+# Tauri updater signing (never commit the private key)
+src-tauri/tauri-signing.key
+
 # Logs
 *.log
 

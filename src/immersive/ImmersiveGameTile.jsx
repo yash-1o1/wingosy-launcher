@@ -7,7 +7,7 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import CloudIcon from "@mui/icons-material/Cloud";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { alpha } from "@mui/material/styles";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppTheme } from "../ThemeContext";
 
 const PLATFORM_COLORS = {

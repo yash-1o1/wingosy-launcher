@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import { ARGOSY_SOUND_URLS } from "./argosySounds";
 
 const UiSoundsContext = createContext(null);

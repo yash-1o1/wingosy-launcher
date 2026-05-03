@@ -49,8 +49,8 @@ import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import GameScreenshotsSection from "./game/GameScreenshotsSection";
 import GameAchievementsSection from "./game/GameAchievementsSection";
 import CollectionPickerDialog from "./game/CollectionPickerDialog";
-import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
-import { open } from "@tauri-apps/api/dialog";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { useRomDownloads, formatDownloadLabel } from "../RomDownloadsContext";
 

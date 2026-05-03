@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
-use tauri::Manager;
+use tauri::Emitter;
 
 use crate::api::{RomMClient, download::DownloadManager};
 use crate::config::{AppConfig, UpdateChannel};
@@ -738,7 +738,7 @@ pub async fn download_rom(
     
     let app_handle = app.clone();
     let gid = game_id;
-    let _ = app_handle.emit_all(
+    let _ = app_handle.emit(
         "rom-download-started",
         serde_json::json!({
             "game_id": gid,
@@ -750,7 +750,7 @@ pub async fn download_rom(
     let manager = DownloadManager::new();
     let download_result = manager
         .download_file(&download_url, &dest_path, Some(&token), move |p| {
-            let _ = app_progress.emit_all(
+            let _ = app_progress.emit(
                 "rom-download-progress",
                 serde_json::json!({
                     "game_id": gid,
@@ -764,7 +764,7 @@ pub async fn download_rom(
 
     if let Err(e) = download_result {
         let msg = e.to_string();
-        let _ = app_handle.emit_all(
+        let _ = app_handle.emit(
             "rom-download-error",
             serde_json::json!({
                 "game_id": gid,
@@ -781,7 +781,7 @@ pub async fn download_rom(
     db.update_game(&updated_game).map_err(|e| e.to_string())?;
     
     let dest_str = dest_path.to_string_lossy().to_string();
-    let _ = app_handle.emit_all(
+    let _ = app_handle.emit(
         "rom-download-complete",
         serde_json::json!({
             "game_id": gid,
@@ -1181,7 +1181,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
     tracing::info!("[Emulators] Downloading emulator: {}", emulator_id);
 
     fn emit_progress(app: &tauri::AppHandle, emulator_id: &str, phase: &str, downloaded: u64, total: Option<u64>, percent: Option<u8>) {
-        let _ = app.emit_all(
+        let _ = app.emit(
             "emulator-download-progress",
             serde_json::json!({
                 "emulator_id": emulator_id,
@@ -1194,7 +1194,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
     }
 
     let report_err = |msg: String| {
-        let _ = app.emit_all(
+        let _ = app.emit(
             "emulator-download-error",
             serde_json::json!({ "emulator_id": &emulator_id, "message": &msg }),
         );
@@ -1207,7 +1207,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
         .find(|e| e.id == emulator_id)
         .ok_or_else(|| {
             let msg = "Emulator not found".to_string();
-            let _ = app.emit_all(
+            let _ = app.emit(
                 "emulator-download-error",
                 serde_json::json!({ "emulator_id": emulator_id, "message": msg }),
             );
@@ -1216,7 +1216,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
 
     let dest_dir = AppConfig::emulators_dir().map_err(|e| {
         let msg = e.to_string();
-        let _ = app.emit_all(
+        let _ = app.emit(
             "emulator-download-error",
             serde_json::json!({ "emulator_id": emulator_id, "message": msg }),
         );
@@ -1224,7 +1224,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
     })?;
     std::fs::create_dir_all(&dest_dir).map_err(|e| {
         let msg = e.to_string();
-        let _ = app.emit_all(
+        let _ = app.emit(
             "emulator-download-error",
             serde_json::json!({ "emulator_id": emulator_id, "message": msg }),
         );
@@ -1234,7 +1234,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
     let emu_dir = dest_dir.join(&emulator_id);
     std::fs::create_dir_all(&emu_dir).map_err(|e| {
         let msg = e.to_string();
-        let _ = app.emit_all(
+        let _ = app.emit(
             "emulator-download-error",
             serde_json::json!({ "emulator_id": emulator_id, "message": msg }),
         );
@@ -1369,7 +1369,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
 
     tracing::info!("[Emulators] Downloading: {} -> {:?}", archive_name, archive_path);
 
-    let _ = app.emit_all(
+    let _ = app.emit(
         "emulator-download-started",
         serde_json::json!({
             "emulator_id": &emulator_id,
@@ -1478,7 +1478,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
     tracing::info!("[Emulators] Config updated with {} path", emulator_id);
 
     let dest_str = exe_path.to_string_lossy().to_string();
-    let _ = app.emit_all(
+    let _ = app.emit(
         "emulator-download-complete",
         serde_json::json!({
             "emulator_id": emulator_id,
@@ -1749,12 +1749,23 @@ pub async fn get_emulators_for_platform(platform_id: String) -> Result<Vec<Emula
 /// GitHub repo used for "latest release" update checks (see README Releases link).
 const UPDATE_CHECK_REPO: &str = "yash-1o1/wingosy-launcher";
 
+/// `latest.json` attached to each GitHub release (CI uploads it next to the NSIS installer).
+fn signed_updater_manifest_for_tag(tag: &str) -> String {
+    format!(
+        "https://github.com/{}/releases/download/{}/latest.json",
+        UPDATE_CHECK_REPO,
+        urlencoding::encode(tag)
+    )
+}
+
 #[derive(Debug, Serialize)]
 pub struct UpdateCheckResult {
     pub current_version: String,
     pub latest_version: Option<String>,
     pub is_update_available: bool,
     pub release_url: Option<String>,
+    /// Direct URL to `latest.json` for the Tauri signed updater (same GitHub release as `release_url`).
+    pub signed_update_manifest_url: Option<String>,
     pub error: Option<String>,
     /// Channel that was queried (`stable`, `beta`, `nightly`).
     pub channel: String,
@@ -1867,6 +1878,7 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
                 latest_version: None,
                 is_update_available: false,
                 release_url: None,
+                signed_update_manifest_url: None,
                 error: Some(e),
                 channel: ch_label,
             };
@@ -1886,6 +1898,7 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
                     latest_version: None,
                     is_update_available: false,
                     release_url: None,
+                    signed_update_manifest_url: None,
                     error: Some(format!("Request failed: {}", e)),
                     channel: ch_label,
                 };
@@ -1905,6 +1918,7 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
                 latest_version: None,
                 is_update_available: false,
                 release_url: None,
+                signed_update_manifest_url: None,
                 error: Some(format!("GitHub returned {}", status)),
                 channel: ch_label,
             };
@@ -1918,6 +1932,7 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
                     latest_version: None,
                     is_update_available: false,
                     release_url: None,
+                    signed_update_manifest_url: None,
                     error: Some(format!("Bad release JSON: {}", e)),
                     channel: ch_label,
                 };
@@ -1931,6 +1946,8 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
             latest_version: Some(latest.clone()),
             is_update_available: is_newer,
             release_url: Some(release.html_url),
+            signed_update_manifest_url: is_newer
+                .then(|| signed_updater_manifest_for_tag(&release.tag_name)),
             error: None,
             channel: ch_label,
         };
@@ -1949,6 +1966,7 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
                 latest_version: None,
                 is_update_available: false,
                 release_url: None,
+                signed_update_manifest_url: None,
                 error: Some(format!("Request failed: {}", e)),
                 channel: ch_label,
             };
@@ -1962,6 +1980,7 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
             latest_version: None,
             is_update_available: false,
             release_url: None,
+            signed_update_manifest_url: None,
             error: Some(format!("GitHub returned {}", status)),
             channel: ch_label,
         };
@@ -1975,6 +1994,7 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
                 latest_version: None,
                 is_update_available: false,
                 release_url: None,
+                signed_update_manifest_url: None,
                 error: Some(format!("Bad release list JSON: {}", e)),
                 channel: ch_label,
             };
@@ -1993,6 +2013,7 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
             latest_version: None,
             is_update_available: false,
             release_url: None,
+            signed_update_manifest_url: None,
             error: Some(hint.to_string()),
             channel: ch_label,
         };
@@ -2005,9 +2026,61 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
         latest_version: Some(latest.clone()),
         is_update_available: is_newer,
         release_url: Some(release.html_url.clone()),
+        signed_update_manifest_url: is_newer
+            .then(|| signed_updater_manifest_for_tag(&release.tag_name)),
         error: None,
         channel: ch_label,
     }
+}
+
+/// Download and install the signed update for the given channel, then restart the app (Windows).
+#[tauri::command]
+pub async fn install_signed_app_update(app: tauri::AppHandle, channel: String) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    let info = check_for_app_update(channel).await;
+    if !info.is_update_available {
+        return Err("No update available for this channel.".to_string());
+    }
+    let manifest_url = info.signed_update_manifest_url.ok_or_else(|| {
+        "Missing signed updater manifest URL (this release may predate signed updates).".to_string()
+    })?;
+    let manifest_url_parsed = url::Url::parse(&manifest_url)
+        .map_err(|e| format!("Invalid updater manifest URL: {}", e))?;
+
+    let update = app
+        .updater_builder()
+        .endpoints(vec![manifest_url_parsed])
+        .map_err(|e| e.to_string())?
+        .build()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Signed updater manifest reported no update.".to_string())?;
+
+    let app_emit = app.clone();
+    let downloaded = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let dl = downloaded.clone();
+    update
+        .download_and_install(
+            move |chunk_len, content_len| {
+                let cur = dl.fetch_add(chunk_len as u64, std::sync::atomic::Ordering::Relaxed)
+                    + chunk_len as u64;
+                let _ = app_emit.emit(
+                    "signed-updater-progress",
+                    serde_json::json!({
+                        "downloaded": cur,
+                        "total": content_len,
+                    }),
+                );
+            },
+            || {},
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    app.restart();
 }
 
 #[cfg(test)]

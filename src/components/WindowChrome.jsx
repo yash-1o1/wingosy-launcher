@@ -7,7 +7,9 @@ import { alpha, useTheme } from "@mui/material/styles";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CropSquareIcon from "@mui/icons-material/CropSquare";
 import CloseIcon from "@mui/icons-material/Close";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+const appWindow = getCurrentWindow();
 import { isTauri, tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 
 const CHROME_HEIGHT = 40;

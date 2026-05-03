@@ -69,6 +69,9 @@ fn main() {
     tracing::info!("Build type: {}", if cfg!(debug_assertions) { "debug" } else { "release" });
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::is_first_run,
             commands::complete_setup,
@@ -119,6 +122,7 @@ fn main() {
             commands::get_emulators_for_platform,
             commands::get_app_version,
             commands::check_for_app_update,
+            commands::install_signed_app_update,
         ])
         .setup(|_app| {
             let db = database::Database::open()

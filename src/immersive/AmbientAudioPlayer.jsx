@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { convertFileSrc, invoke } from "@tauri-apps/api/tauri";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { isTauri } from "../utils/isTauri";
 
 function toAudioUrl(path) {

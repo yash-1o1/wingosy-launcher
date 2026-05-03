@@ -18,3 +18,5 @@ Informal backlog and QA checklist — not shipped in the installer; for contribu
    - Prefer a small **`CustomEvent`** (e.g. `wingosy-immersive-gamepad` with `{ action }`) for actions that are not literal key spoofing; keep `ImmersiveHintBar` in sync.
 
 _Add sub-bullets, dates, or PR links below as items are completed._
+
+- **Done (2026-05):** **Tauri v2** migration — tightened `capabilities/default.json` + `assetProtocol` scopes; **signed updater** (`plugins.updater`, `install_signed_app_update`, `latest.json` upload in release/beta/nightly workflows). Configure **`TAURI_SIGNING_PRIVATE_KEY`** (+ optional **`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`**) in GitHub Actions and for local `tauri build` — see [CONTRIBUTING.md](CONTRIBUTING.md#signed-in-app-updates-tauri-v2-updater).

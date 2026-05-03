@@ -89,6 +89,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ env.NIGHTLY_TAG }}
           releaseName: 'Wingosy Launcher Nightly v${{ steps.ver.outputs.version }} — ${{ env.NIGHTLY_TAG }}'
@@ -102,6 +104,14 @@ jobs:
             - **Beta** channel: run the *Beta* workflow.
           prerelease: true
           releaseDraft: false
+
+      - name: Upload latest.json (signed updater)
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ env.NIGHTLY_TAG }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/write-updater-manifest.mjs
 
       - name: Commit version bump to main
         if: success() && github.ref == 'refs/heads/main' && github.ref_type != 'tag'
