@@ -30,7 +30,18 @@ A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](htt
 
 | Emulator | Platform(s) | Download | Launch Intent | Save Sync |
 | --- | --- | :---: | :---: | :---: |
-| RetroArch | Multi-system | ⬜ | ⬜ | ⬜ |
+| RetroArch (FCEUmm core) | NES | ⬜ | ⬜ | ⬜ |
+| RetroArch (Snes9x core) | SNES | ⬜ | ⬜ | ⬜ |
+| RetroArch (Mupen64Plus-Next core) | Nintendo 64 | ⬜ | ⬜ | ⬜ |
+| RetroArch (Gambatte core) | Game Boy | ⬜ | ⬜ | ⬜ |
+| RetroArch (Gambatte core) | Game Boy Color | ⬜ | ⬜ | ⬜ |
+| RetroArch (mGBA core) | Game Boy Advance | ⬜ | ⬜ | ⬜ |
+| RetroArch (melonDS core) | Nintendo DS | ⬜ | ⬜ | ⬜ |
+| RetroArch (Genesis Plus GX core) | Genesis / Mega Drive | ⬜ | ⬜ | ⬜ |
+| RetroArch (PCSX-ReARMed core) | PlayStation 1 | ⬜ | ⬜ | ⬜ |
+| RetroArch (Flycast core) | Dreamcast | ⬜ | ⬜ | ⬜ |
+| RetroArch (PPSSPP core) | PSP | ⬜ | ⬜ | ⬜ |
+| RetroArch (MAME core) | Arcade | ⬜ | ⬜ | ⬜ |
 | mGBA | Game Boy / GBC / GBA | ✅ | ✅ | ⬜ |
 | Dolphin | GameCube / Wii | ⬜ | ⬜ | ⬜ |
 | PCSX2 | PlayStation 2 | ⬜ | ⬜ | ⬜ |

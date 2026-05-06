@@ -4,11 +4,27 @@ Informal backlog and QA checklist — not shipped in the installer; for contribu
 
 ## Todo list
 
-1. **Emulators:** Test and support **all available platform emulators** and **RetroArch** (detection, install, cores, launches, per-platform defaults). Cover the platforms and emulators surfaced in Settings and docs. For **RetroArch buildbot coverage** of every core listed in `retroarch_cores()` (11 distinct DLLs), run:
+1. **Emulators:** Test and support **all available platform emulators** and **RetroArch** (detection, install, cores, launches, per-platform defaults). Cover the platforms and emulators surfaced in Settings and docs.
+
+   **RetroArch mapped-core checklist (each core verified separately):** Wingosy maps each platform id to exactly one libretro core DLL via `retroarch_cores()` — check each line off only after you’ve verified **install + launch** for that platform.
+   - [ ] **nes** → `fceumm_libretro.dll`
+   - [ ] **snes** → `snes9x_libretro.dll`
+   - [ ] **n64** → `mupen64plus_next_libretro.dll`
+   - [ ] **gb** → `gambatte_libretro.dll`
+   - [ ] **gbc** → `gambatte_libretro.dll`
+   - [ ] **gba** → `mgba_libretro.dll`
+   - [ ] **nds** → `melonds_libretro.dll`
+   - [ ] **genesis** → `genesis_plus_gx_libretro.dll`
+   - [ ] **psx** → `pcsx_rearmed_libretro.dll`
+   - [ ] **dreamcast** → `flycast_libretro.dll`
+   - [ ] **psp** → `ppsspp_libretro.dll`
+   - [ ] **arcade** → `mame_libretro.dll`
+
+   **Buildbot validation (network; can be large downloads):** validates every distinct `*_libretro.dll` above against Libretro buildbot (sanity check, separate from the per-core launch checklist):
 
    `npm run test:rust:cores`
 
-   (Network; includes large archives such as MAME — see `TESTING.md`.)
+   See `TESTING.md` for details/troubleshooting.
 2. **Save sync:** Test **save sync** against RomM (listing saves, upload, download, and local integration with launches).
 
 3. **Immersive fullscreen (Big Picture), controller‑native UX:** Extend `useGamepadKeyboardMapper` with view‑aware shortcuts (beyond D‑pad → arrows / A→Enter / B→Escape / LB‑RB→sections / Start→settings / Back→hints). Target behavior when implemented:
