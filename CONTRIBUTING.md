@@ -100,8 +100,6 @@ Release, Beta, and Nightly workflows build **signed** NSIS artifacts and upload 
    - **`TAURI_SIGNING_PRIVATE_KEY`** — full contents of `tauri-signing.key` (or use `tauri signer sign` workflow that injects it from a password-protected vault).
    - **`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`** — optional; only if the private key is password-protected.
 
-   The key string **must** include the first line `untrusted comment: ...`. If CI fails with **`Missing comment in secret key`** or similar, the secret is usually the **public** `.pub` file, only the base64 line, or pasted with stray quotes — regenerate or re-copy from `src-tauri/tauri-signing.key` and update the secret. Locally you can sanity-check: `npm run validate:signing-key` (with `TAURI_SIGNING_PRIVATE_KEY` set in the shell).
-
 3. **Local release builds:** env vars are read by `tauri build`, not `.env`. The private key must be available as **`TAURI_SIGNING_PRIVATE_KEY`** (the full file contents). If the key is **password-protected** (`rsign encrypted secret key` in the decoded comment), also set **`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`**; otherwise the CLI waits for a TTY prompt and a piped or IDE terminal can look “stuck”.
 
    ```powershell
@@ -113,18 +111,6 @@ Release, Beta, and Nightly workflows build **signed** NSIS artifacts and upload 
    `TAURI_SIGNING_PRIVATE_KEY_PATH` is supported by newer CLIs for some commands, but **inlining the key** (as above) matches CI (`secrets.TAURI_SIGNING_PRIVATE_KEY`) and avoids “public key found, but no private key” if the path form is not picked up for updater signing.
 
 4. **ROM / cover paths outside standard folders:** `app.security.assetProtocol.scope` lists common user directories. If covers or ambient audio live on another drive, extend the scope in `tauri.conf.json` (or open an issue with the path pattern you need).
-
-### GitHub Actions pipeline (one-time setup)
-
-1. **Enable Actions** for the repository (Settings → Actions → General) and use **“Allow all actions and reusable workflows”** (or your org’s equivalent) so `.github/workflows/*.yml` runs.
-2. **Add signing secrets** (see **GitHub Actions** under *Signed in-app updates* above). Without a valid **`TAURI_SIGNING_PRIVATE_KEY`**, Windows jobs fail at the end of `tauri build` when creating **signed updater** artifacts.
-3. **Workflows in this repo**
-   - **Stable:** push tag `v*` → [`.github/workflows/release.yml`](.github/workflows/release.yml)
-   - **Beta:** Actions → *Beta* → Run workflow → [`.github/workflows/beta.yml`](.github/workflows/beta.yml)
-   - **Nightly:** cron + tag `nightly*` + manual → [`.github/workflows/nightly.yml`](.github/workflows/nightly.yml)
-4. **`GITHUB_TOKEN`** is provided automatically; you do **not** create it. It needs **`contents: write`** (already set in workflows) to create releases and upload assets.
-5. **Branch protection on `main`:** Nightly/Beta end with **`git push` to `main`** for version bumps. If that step fails with “refused” or permission errors, either allow **GitHub Actions** to push to `main` (rulesets: bypass for `github-actions[bot]`) or adjust protection; the default token cannot override admin-only restrictions.
-6. After fixing secrets, open **Actions** → failed workflow → **Re-run jobs**.
 
 ### App versioning (automated in CI)
 
