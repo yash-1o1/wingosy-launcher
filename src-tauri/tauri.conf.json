@@ -55,7 +55,7 @@
   "plugins": {
     "updater": {
       "active": true,
-      "pubkey": "RWToxFlnFBBgHHRdpBquqq0Yi+CKOfR45gUc2EXkX0GvW1XnocPJPPcU",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFDNjAxMDE0Njc1OUM0RTgKUldUb3hGbG5GQkJnSEhSZHBCcXVxcTBZaStDS09mUjQ1Z1VjMkVYa1gwR3ZXMVhub2NQSlBQY1UK",
       "endpoints": [
         "https://github.com/yash-1o1/wingosy-launcher/releases/latest/download/latest.json"
       ],
