@@ -5,7 +5,13 @@
  * The setup wizard shows on first run and has 3 steps: RomM Server, ROM Folder, Scan Games
  */
 
-import { waitForAppReady, getPageDiagnostics, goToSettings } from './helpers.js';
+import {
+  waitForAppReady,
+  getPageDiagnostics,
+  goToSettings,
+  isAppShellReady,
+  navigateToApp,
+} from './helpers.js';
 
 describe('Setup Wizard Flow', () => {
   before(async () => {
@@ -39,22 +45,19 @@ describe('Setup Wizard Flow', () => {
   });
 
   it('should show welcome screen or main app', async () => {
-    await browser.pause(3000);
-    
-    // Look for "Wingosy" title and "Get Started" button
-    const wingosyTitle = await $('*=Wingosy');
-    const getStartedBtn = await $('button*=Get Started');
-    
-    const hasWelcome = await wingosyTitle.isDisplayed().catch(() => false);
-    const hasGetStarted = await getStartedBtn.isDisplayed().catch(() => false);
-    
-    // Or we might already be past setup (if config exists)
-    const hasMainApp = await $('*=All Games').isDisplayed().catch(() => false);
-    
-    console.log(`State - Welcome: ${hasWelcome}, Get Started: ${hasGetStarted}, Main App: ${hasMainApp}`);
-    
-    // Either welcome screen or main app should be visible
-    expect(hasWelcome || hasGetStarted || hasMainApp).toBe(true);
+    await navigateToApp();
+    await browser.pause(1500);
+
+    const shell = await isAppShellReady();
+    const chrome = await $('[data-testid="window-chrome"]').isDisplayed().catch(() => false);
+    const getStarted = await $('button*=Get Started').isDisplayed().catch(() => false);
+    const mainApp = await $('*=All Games').isDisplayed().catch(() => false);
+
+    console.log(
+      `State — shell(DOM): ${shell}, chrome: ${chrome}, Get Started: ${getStarted}, All Games: ${mainApp}`
+    );
+
+    expect(shell || chrome || getStarted || mainApp).toBe(true);
   });
 
   it('should click Get Started to begin setup', async () => {

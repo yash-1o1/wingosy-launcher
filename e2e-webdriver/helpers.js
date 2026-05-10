@@ -3,57 +3,77 @@
  */
 
 /**
+ * True when the React shell has rendered real UI (not a blank root).
+ * Prefer this over `$('*=Wingosy')` — partial-text selectors match hidden nodes
+ * such as `<title>Wingosy Launcher</title>`, which WebdriverIO treats as not displayed.
+ */
+export async function isAppShellReady() {
+  return browser.execute(() => {
+    const root = document.getElementById("root");
+    if (!root || root.childElementCount === 0) return false;
+
+    if (document.querySelector('[data-testid="window-chrome"]')) return true;
+    if (document.querySelector('[data-testid="immersive-library"]')) return true;
+    if (document.querySelector('[data-testid="immersive-hintbar"]')) return true;
+    if (document.querySelector('[data-testid="immersive-exit-to-desktop"]')) return true;
+
+    const text = document.body?.innerText ?? "";
+    return /\b(Get Started|All Games|Favorites|Settings)\b/.test(text);
+  });
+}
+
+/**
  * Navigate to the Tauri app URL if on about:blank
  * This is needed because tauri-driver initially shows about:blank
  */
 export async function navigateToApp() {
-  const url = await browser.getUrl().catch(() => 'unknown');
-  if (url === 'about:blank') {
-    console.log('[Helper] On about:blank, navigating to https://tauri.localhost...');
-    await browser.url('https://tauri.localhost');
-    await browser.pause(2000);
-    const newUrl = await browser.getUrl().catch(() => 'unknown');
-    console.log(`[Helper] New URL: ${newUrl}`);
-    return newUrl !== 'about:blank';
+  let url = await browser.getUrl().catch(() => 'unknown');
+  if (url !== 'about:blank') return true;
+
+  const candidates = [
+    'https://tauri.localhost',
+    'http://tauri.localhost',
+    'tauri://localhost',
+  ];
+
+  for (const candidate of candidates) {
+    console.log(`[Helper] about:blank → trying ${candidate} ...`);
+    try {
+      await browser.url(candidate);
+      await browser.pause(2000);
+      url = await browser.getUrl().catch(() => 'unknown');
+      console.log(`[Helper] URL now: ${url}`);
+      if (url !== 'about:blank') return true;
+    } catch (err) {
+      console.log(`[Helper] navigate failed: ${err.message}`);
+    }
   }
-  return true;
+
+  return false;
 }
 
 /**
  * Wait for the app to be fully loaded (past blank screen)
  * Returns true if app is ready, false otherwise
  */
-export async function waitForAppReady(maxWaitSeconds = 30) {
-  console.log(`[Helper] Waiting up to ${maxWaitSeconds}s for app to load...`);
-  
-  // First ensure we're not on about:blank
+export async function waitForAppReady(maxWaitSeconds = 45) {
+  console.log(`[Helper] Waiting up to ${maxWaitSeconds}s for app shell...`);
+
   await navigateToApp();
-  
+
   for (let i = 0; i < maxWaitSeconds; i++) {
     try {
-      // Check for any indicator that the app is loaded
-      const wingosy = await $('*=Wingosy');
-      const getStarted = await $('button*=Get Started');
-      const allGames = await $('*=All Games');
-      const settings = await $('*=Settings');
-      
-      const hasWingosy = await wingosy.isDisplayed().catch(() => false);
-      const hasGetStarted = await getStarted.isDisplayed().catch(() => false);
-      const hasAllGames = await allGames.isDisplayed().catch(() => false);
-      const hasSettings = await settings.isDisplayed().catch(() => false);
-      
-      if (hasWingosy || hasGetStarted || hasAllGames || hasSettings) {
+      if (await isAppShellReady()) {
         console.log(`[Helper] App ready after ${i + 1}s`);
         return true;
       }
     } catch {
-      // Ignore errors during wait
+      // stale execution / transient WebDriver errors
     }
-    
     await browser.pause(1000);
   }
-  
-  console.log(`[Helper] App not ready after ${maxWaitSeconds}s`);
+
+  console.log(`[Helper] App shell not detected after ${maxWaitSeconds}s`);
   return false;
 }
 

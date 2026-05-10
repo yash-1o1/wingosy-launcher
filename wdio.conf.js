@@ -19,6 +19,8 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { waitForAppReady } from './e2e-webdriver/helpers.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Path to the built Tauri app
@@ -145,117 +147,31 @@ export const config = {
     }
   },
   
-  // Before test suite - wait for app to fully load
+  // Before test suite - wait for app shell (avoid partial-text selectors that hit <title>)
   before: async function () {
-    console.log('Waiting for app to initialize (5 seconds)...');
-    await browser.pause(5000);
-    
-    // Check all available windows/handles
+    await browser.pause(2000);
+
     try {
       const handles = await browser.getWindowHandles();
-      console.log(`Available window handles: ${handles.length}`);
-      for (const handle of handles) {
-        console.log(`  Handle: ${handle}`);
-      }
-      
-      // If more than one window, try switching
       if (handles.length > 1) {
-        console.log('Multiple windows found, trying to switch...');
         for (const handle of handles) {
           await browser.switchToWindow(handle);
           const url = await browser.getUrl().catch(() => 'unknown');
-          console.log(`  Window ${handle}: URL = ${url}`);
-          if (url !== 'about:blank') {
-            console.log(`Found non-blank window: ${handle}`);
-            break;
-          }
+          if (url !== 'about:blank') break;
         }
       }
     } catch (err) {
-      console.log(`Error getting window handles: ${err.message}`);
+      console.log(`[wdio before] window handles: ${err.message}`);
     }
-    
-    // Check current URL
-    let url = await browser.getUrl().catch(() => 'unknown');
-    console.log(`Current URL: ${url}`);
-    
-    // If still on about:blank, try to navigate to tauri protocol
-    if (url === 'about:blank') {
-      // Try multiple tauri URL formats
-      const tauriUrls = [
-        'tauri://localhost',
-        'https://tauri.localhost',
-        'http://tauri.localhost',
-        'wry://localhost'
-      ];
-      
-      for (const tauriUrl of tauriUrls) {
-        console.log(`Trying to navigate to ${tauriUrl}...`);
-        try {
-          await browser.url(tauriUrl);
-          await browser.pause(3000);
-          url = await browser.getUrl().catch(() => 'unknown');
-          console.log(`After ${tauriUrl}: URL = ${url}`);
-          if (url !== 'about:blank') {
-            console.log('Successfully navigated!');
-            break;
-          }
-        } catch (err) {
-          console.log(`  Failed: ${err.message}`);
-        }
-      }
-    }
-    
-    // Now try to wait for the app content to load
-    console.log('Checking if app content is loaded...');
-    
-    // Retry checking for app content up to 30 seconds
-    let attempts = 0;
-    const maxAttempts = 30;
-    let appLoaded = false;
-    
-    while (attempts < maxAttempts && !appLoaded) {
-      attempts++;
-      
-      try {
-        // Try to find any element that indicates the app is loaded
-        // Could be "Wingosy" title, "Get Started" button, or "All Games"
-        const wingosy = await $('*=Wingosy');
-        const getStarted = await $('button*=Get Started');
-        const allGames = await $('*=All Games');
-        
-        const hasWingosy = await wingosy.isDisplayed().catch(() => false);
-        const hasGetStarted = await getStarted.isDisplayed().catch(() => false);
-        const hasAllGames = await allGames.isDisplayed().catch(() => false);
-        
-        if (hasWingosy || hasGetStarted || hasAllGames) {
-          appLoaded = true;
-          console.log(`App loaded after ${attempts} seconds! (Wingosy: ${hasWingosy}, GetStarted: ${hasGetStarted}, AllGames: ${hasAllGames})`);
-        } else {
-          // Check page source to see what's happening
-          if (attempts % 5 === 0) {
-            const currentUrl = await browser.getUrl().catch(() => 'unknown');
-            console.log(`Attempt ${attempts}: App not ready yet. URL: ${currentUrl}`);
-          }
-          await browser.pause(1000);
-        }
-      } catch (err) {
-        if (attempts % 5 === 0) {
-          console.log(`Attempt ${attempts}: Error checking app state: ${err.message}`);
-        }
-        await browser.pause(1000);
-      }
-    }
-    
-    if (!appLoaded) {
-      console.log('WARNING: App may not be fully loaded after 30 attempts');
-      // Try to get page source for debugging
+
+    const ready = await waitForAppReady(45);
+    if (!ready) {
       try {
         const source = await browser.getPageSource();
-        console.log(`Page source length: ${source.length}`);
-        console.log(`Page source preview: ${source.substring(0, 500)}`);
+        console.log(`[wdio before] Page source length: ${source.length}`);
+        console.log(`[wdio before] Preview: ${source.substring(0, 600)}`);
       } catch (err) {
-        console.log(`Could not get page source: ${err.message}`);
+        console.log(`[wdio before] Could not get page source: ${err.message}`);
       }
     }
   },
