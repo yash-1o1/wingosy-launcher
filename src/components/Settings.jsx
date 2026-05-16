@@ -101,7 +101,21 @@ const SETTINGS_SECTIONS = [
   { id: "updates", label: "Updates", Icon: SystemUpdateIcon },
 ];
 
-export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRommConnect, onLibraryChange, onImmersiveModeChange, onFullscreenChange }) {
+function normalizeSettingsSection(section) {
+  if (!section || typeof section !== "string") return "general";
+  return SETTINGS_SECTIONS.some((s) => s.id === section) ? section : "general";
+}
+
+export default function Settings({
+  onBack,
+  rommToken,
+  rommUrl: rommUrlProp,
+  onRommConnect,
+  onLibraryChange,
+  onImmersiveModeChange,
+  onFullscreenChange,
+  initialSection = "general",
+}) {
   const [config, setConfig] = useState(null);
   const [rommUrl, setRommUrl] = useState(rommUrlProp || "");
   const [rommUsername, setRommUsername] = useState("");
@@ -156,7 +170,9 @@ export default function Settings({ onBack, rommToken, rommUrl: rommUrlProp, onRo
   const [ambientPath, setAmbientPath] = useState(null);
   const [ambientIsFolder, setAmbientIsFolder] = useState(false);
   const [ambientShuffle, setAmbientShuffle] = useState(false);
-  const [settingsSection, setSettingsSection] = useState("general");
+  const [settingsSection, setSettingsSection] = useState(() =>
+    normalizeSettingsSection(initialSection)
+  );
   const [appVersion, setAppVersion] = useState("");
   const [checkOnStartup, setCheckOnStartup] = useState(true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(false);
