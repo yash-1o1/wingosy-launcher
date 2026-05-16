@@ -89,6 +89,8 @@ function App() {
     installing: false,
     progressLabel: "",
   });
+  /** Which Settings sidebar section to show when opening Settings (desktop shell). */
+  const [settingsInitialSection, setSettingsInitialSection] = useState("general");
   const startupUpdateCheckDone = useRef(false);
 
   useEffect(() => {
@@ -294,10 +296,13 @@ function App() {
     setSelectedGame(null);
   }
 
-  function handleNavigate(newView) {
+  function handleNavigate(newView, options) {
     setView(newView);
     if (newView === "library" || newView === "downloads") {
       setSelectedGame(null);
+    }
+    if (newView === "settings") {
+      setSettingsInitialSection(options?.settingsSection ?? "general");
     }
   }
 
@@ -418,7 +423,12 @@ function App() {
             onSelectGame={handleSelectGame}
             onToggleFavorite={handleToggleFavorite}
             onLaunchGame={handleLaunchGame}
-            onNavigateSettings={() => handleNavigate("settings")}
+            onNavigateLibrarySettings={() =>
+              handleNavigate("settings", { settingsSection: "library" })
+            }
+            onNavigateRommSettings={() =>
+              handleNavigate("settings", { settingsSection: "romm" })
+            }
             error={error}
             onDismissError={() => setError(null)}
           />
@@ -464,6 +474,7 @@ function App() {
         {view === "settings" && (
           <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <Settings
+            initialSection={settingsInitialSection}
             onBack={() => {
               handleNavigate("library");
               loadData();

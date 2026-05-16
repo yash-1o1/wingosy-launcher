@@ -21,7 +21,8 @@ export default function Library({
   onSelectGame,
   onToggleFavorite,
   onLaunchGame,
-  onNavigateSettings,
+  onNavigateLibrarySettings,
+  onNavigateRommSettings,
   error,
   onDismissError,
 }) {
@@ -120,14 +121,14 @@ export default function Library({
             <Button
               variant="contained"
               startIcon={<FolderOpenIcon />}
-              onClick={onNavigateSettings}
+              onClick={onNavigateLibrarySettings}
             >
               Scan ROM Folder
             </Button>
             <Button
               variant="outlined"
               startIcon={<CloudSyncIcon />}
-              onClick={onNavigateSettings}
+              onClick={onNavigateRommSettings}
               color="info"
             >
               Sync from RomM
