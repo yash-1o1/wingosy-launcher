@@ -28,36 +28,38 @@ A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](htt
 
 ## Supported Emulators
 
-| Emulator | Platform(s) | Download | Launch Intent | Save Sync |
-| --- | --- | :---: | :---: | :---: |
-| RetroArch (FCEUmm core) | NES | ⬜ | ⬜ | ⬜ |
-| RetroArch (Snes9x core) | SNES | ⬜ | ⬜ | ⬜ |
-| RetroArch (Mupen64Plus-Next core) | Nintendo 64 | ⬜ | ⬜ | ⬜ |
-| RetroArch (Gambatte core) | Game Boy | ⬜ | ⬜ | ⬜ |
-| RetroArch (Gambatte core) | Game Boy Color | ⬜ | ⬜ | ⬜ |
-| RetroArch (mGBA core) | Game Boy Advance | ⬜ | ⬜ | ⬜ |
-| RetroArch (melonDS core) | Nintendo DS | ⬜ | ⬜ | ⬜ |
-| RetroArch (Genesis Plus GX core) | Genesis / Mega Drive | ⬜ | ⬜ | ⬜ |
-| RetroArch (PCSX-ReARMed core) | PlayStation 1 | ⬜ | ⬜ | ⬜ |
-| RetroArch (Flycast core) | Dreamcast | ⬜ | ⬜ | ⬜ |
-| RetroArch (PPSSPP core) | PSP | ⬜ | ⬜ | ⬜ |
-| RetroArch (MAME core) | Arcade | ⬜ | ⬜ | ⬜ |
-| mGBA | Game Boy / GBC / GBA | ✅ | ✅ | ⬜ |
-| Dolphin | GameCube / Wii | ⬜ | ⬜ | ⬜ |
-| PCSX2 | PlayStation 2 | ⬜ | ⬜ | ⬜ |
-| RPCS3 | PlayStation 3 | ⬜ | ⬜ | ⬜ |
-| PPSSPP | PSP | ⬜ | ⬜ | ⬜ |
-| DuckStation | PlayStation 1 | ⬜ | ⬜ | ⬜ |
-| Cemu | Wii U | ⬜ | ⬜ | ⬜ |
-| Eden | Switch | ⬜ | ⬜ | ⬜ |
-| melonDS | Nintendo DS | ⬜ | ⬜ | ⬜ |
-| Lime3DS | Nintendo 3DS | ⬜ | ⬜ | ⬜ |
-| Flycast | Dreamcast | ⬜ | ⬜ | ⬜ |
-| xemu | Xbox | ⬜ | ⬜ | ⬜ |
-| Xenia | Xbox 360 | ⬜ | ⬜ | ⬜ |
-| MAME | Arcade | ⬜ | ⬜ | ⬜ |
+| Emulator | Platform(s) | Download | Launch Intent | Save Sync (Wingosy) | Save Sync ([Argosy](https://github.com/rommapp/argosy-launcher)) |
+| --- | --- | :---: | :---: | :---: | :---: |
+| RetroArch (FCEUmm core) | NES | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (Snes9x core) | SNES | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (Mupen64Plus-Next core) | Nintendo 64 | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (Gambatte core) | Game Boy | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (Gambatte core) | Game Boy Color | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (mGBA core) | Game Boy Advance | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (melonDS core) | Nintendo DS | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (Genesis Plus GX core) | Genesis / Mega Drive | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (PCSX-ReARMed core) | PlayStation 1 | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (Flycast core) | Dreamcast | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (PPSSPP core) | PSP | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (MAME core) | Arcade | ⬜ | ⬜ | ⬜ | ✅ |
+| mGBA | Game Boy / GBC / GBA | ✅ | ✅ | ⬜ | ✅ |
+| Dolphin | GameCube / Wii | ⬜ | ⬜ | ⬜ | ✅ |
+| PCSX2 | PlayStation 2 | ⬜ | ⬜ | ⬜ | ✅ |
+| RPCS3 | PlayStation 3 | ⬜ | ⬜ | ⬜ | ⬜ |
+| PPSSPP | PSP | ⬜ | ⬜ | ⬜ | ✅ |
+| DuckStation | PlayStation 1 | ⬜ | ⬜ | ⬜ | ⬜ |
+| Cemu | Wii U | ⬜ | ⬜ | ⬜ | ✅ |
+| Eden | Switch | ⬜ | ⬜ | ⬜ | ✅ |
+| melonDS | Nintendo DS | ⬜ | ⬜ | ⬜ | ✅ |
+| Lime3DS | Nintendo 3DS | ⬜ | ⬜ | ⬜ | ✅ |
+| Flycast | Dreamcast | ⬜ | ⬜ | ⬜ | ⬜ |
+| xemu | Xbox | ⬜ | ⬜ | ⬜ | ⬜ |
+| Xenia | Xbox 360 | ⬜ | ⬜ | ⬜ | ⬜ |
+| MAME | Arcade | ⬜ | ⬜ | ⬜ | ⬜ |
 
 ✅ = implemented · ⬜ = planned
+
+**Save Sync (Argosy):** automatic bidirectional RomM save sync (negotiator API, pre/post-launch). Marked ✅ when [Argosy](https://github.com/rommapp/argosy-launcher) has save-path support for that emulator or RetroArch core on Android. **Save Sync (Wingosy):** manual list/upload/download in game details only (no automatic sync yet).
 
 ## Contributing
 
