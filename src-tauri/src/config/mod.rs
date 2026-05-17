@@ -198,6 +198,9 @@ pub struct RomMConfig {
     pub auth_token: Option<String>,
     pub auto_sync: bool,
     pub sync_saves: bool,
+    /// Stable device id for RomM 4.7+ save sync (auto-generated if empty).
+    #[serde(default)]
+    pub device_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -283,6 +286,9 @@ pub struct EmulatorPaths {
     pub duckstation: Option<PathBuf>,
     pub cemu: Option<PathBuf>,
     pub eden: Option<PathBuf>,
+    /// Override Eden `nand/user/save` directory (portable install or custom path).
+    #[serde(default)]
+    pub eden_save_root: Option<PathBuf>,
     pub citra: Option<PathBuf>,
     pub melonds: Option<PathBuf>,
     pub mgba: Option<PathBuf>,

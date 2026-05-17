@@ -11,6 +11,7 @@ mod database;
 mod emulators;
 mod models;
 mod scanner;
+mod sync;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -95,6 +96,9 @@ fn main() {
             commands::get_game_saves,
             commands::download_game_save,
             commands::upload_game_save,
+            commands::get_switch_save_path_info,
+            commands::upload_switch_save,
+            commands::download_switch_save,
             commands::delete_local_rom,
             commands::toggle_game_hidden,
             commands::get_hidden_games,

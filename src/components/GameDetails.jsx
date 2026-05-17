@@ -20,6 +20,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
+import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -107,7 +108,11 @@ export default function GameDetails({
   const [savesLoaded, setSavesLoaded] = useState(false);
   const [savesLoading, setSavesLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [switchSlot, setSwitchSlot] = useState("argosy-latest");
+  const [switchPathInfo, setSwitchPathInfo] = useState(null);
+  const [switchSyncBusy, setSwitchSyncBusy] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const isSwitch = game.platform_id === "switch";
   
   // Track if ROM was just downloaded (for immediate UI update)
   const [justDownloaded, setJustDownloaded] = useState(false);
@@ -124,6 +129,25 @@ export default function GameDetails({
   const [comingSoon, setComingSoon] = useState({ open: false, title: "", detail: "" });
   const [ratingsDialogOpen, setRatingsDialogOpen] = useState(false);
   const savesSectionRef = useRef(null);
+
+  useEffect(() => {
+    if (!isSwitch || !game.romm_id) {
+      setSwitchPathInfo(null);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await invoke("get_switch_save_path_info", { gameId: game.id });
+        if (!cancelled) setSwitchPathInfo(info);
+      } catch {
+        if (!cancelled) setSwitchPathInfo(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [game.id, game.romm_id, isSwitch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,6 +234,16 @@ export default function GameDetails({
     if (!game.romm_id || !rommToken || !rommUrl) return;
     try {
       setSaveStatus(null);
+      if (isSwitch) {
+        setSwitchSyncBusy(true);
+        const result = await invoke("download_switch_save", {
+          gameId: game.id,
+          slot: switchSlot.trim() || null,
+          saveId,
+        });
+        setSaveStatus({ type: "success", message: result.message || "Switch save restored to Eden" });
+        return;
+      }
       const path = await invoke("download_game_save", {
         rommId: game.romm_id,
         saveId,
@@ -219,6 +253,44 @@ export default function GameDetails({
       setSaveStatus({ type: "success", message: `Save downloaded to ${path}` });
     } catch (err) {
       setSaveStatus({ type: "error", message: err.message || String(err) });
+    } finally {
+      setSwitchSyncBusy(false);
+    }
+  }
+
+  async function handleUploadSwitchSave() {
+    if (!game.romm_id) return;
+    try {
+      setSwitchSyncBusy(true);
+      setSaveStatus({ type: "info", message: "Uploading Eden save to RomM…" });
+      const result = await invoke("upload_switch_save", {
+        gameId: game.id,
+        slot: switchSlot.trim() || null,
+      });
+      setSaveStatus({ type: "success", message: result.message || "Uploaded to RomM" });
+      handleListSaves();
+    } catch (err) {
+      setSaveStatus({ type: "error", message: err.message || String(err) });
+    } finally {
+      setSwitchSyncBusy(false);
+    }
+  }
+
+  async function handleDownloadSwitchSave() {
+    if (!game.romm_id) return;
+    try {
+      setSwitchSyncBusy(true);
+      setSaveStatus({ type: "info", message: "Downloading save from RomM to Eden…" });
+      const result = await invoke("download_switch_save", {
+        gameId: game.id,
+        slot: switchSlot.trim() || null,
+        saveId: null,
+      });
+      setSaveStatus({ type: "success", message: result.message || "Restored to Eden" });
+    } catch (err) {
+      setSaveStatus({ type: "error", message: err.message || String(err) });
+    } finally {
+      setSwitchSyncBusy(false);
     }
   }
 
@@ -922,7 +994,33 @@ export default function GameDetails({
               <Typography variant="h6">Saves</Typography>
             </Box>
 
-            <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+            {isSwitch && (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Eden / Argosy-compatible sync: zips the title save folder to RomM. Use named slots for
+                separate backups (e.g. before a boss, different playthroughs). In-game Zelda slots share
+                one folder — use different RomM slot names for separate exports.
+              </Typography>
+            )}
+
+            {isSwitch && switchPathInfo && (
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                Title ID: {switchPathInfo.title_id} · Eden path: {switchPathInfo.local_save_path}
+              </Typography>
+            )}
+
+            {isSwitch && (
+              <TextField
+                label="RomM slot (channel)"
+                size="small"
+                value={switchSlot}
+                onChange={(e) => setSwitchSlot(e.target.value)}
+                helperText='Default "argosy-latest" matches Argosy Android'
+                sx={{ mb: 2, maxWidth: 360 }}
+                fullWidth
+              />
+            )}
+
+            <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
               <Button
                 variant="outlined"
                 size="small"
@@ -931,14 +1029,37 @@ export default function GameDetails({
               >
                 {savesLoading ? "Loading..." : savesLoaded ? "Refresh Saves" : "List Saves"}
               </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<UploadFileIcon />}
-                onClick={handleUploadSave}
-              >
-                Upload Save
-              </Button>
+              {isSwitch ? (
+                <>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<UploadFileIcon />}
+                    onClick={handleUploadSwitchSave}
+                    disabled={switchSyncBusy}
+                  >
+                    Sync to RomM
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<FileDownloadIcon />}
+                    onClick={handleDownloadSwitchSave}
+                    disabled={switchSyncBusy}
+                  >
+                    Restore from RomM
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<UploadFileIcon />}
+                  onClick={handleUploadSave}
+                >
+                  Upload Save
+                </Button>
+              )}
             </Box>
 
             {savesLoaded && saves.length === 0 && (
@@ -965,7 +1086,11 @@ export default function GameDetails({
                   >
                     <ListItemText
                       primary={save.file_name}
-                      secondary={save.updated_at || save.created_at || null}
+                      secondary={
+                        [save.slot, save.updated_at || save.created_at]
+                          .filter(Boolean)
+                          .join(" · ") || null
+                      }
                       secondaryTypographyProps={{ fontSize: "0.75rem" }}
                     />
                   </ListItem>

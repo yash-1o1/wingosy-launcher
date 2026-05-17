@@ -252,17 +252,17 @@ impl RomMClient {
             anyhow::bail!("Saves API returned {}", status);
         }
         
-        // Handle empty response (no saves)
+        let saves = Self::parse_saves_list_response(&text, rom_id)?;
+        tracing::info!("[RomM] Found {} saves for ROM id={}", saves.len(), rom_id);
+        Ok(saves)
+    }
+
+    fn parse_saves_list_response(text: &str, rom_id: i32) -> Result<Vec<RomMSave>> {
         if text.is_empty() || text == "[]" || text == "null" {
-            tracing::debug!("[RomM] No saves found for ROM id={}", rom_id);
             return Ok(vec![]);
         }
-        
-        // Try to parse as array first
-        let raw: serde_json::Value = serde_json::from_str(&text)
+        let raw: serde_json::Value = serde_json::from_str(text)
             .context(format!("Saves response is not valid JSON: {}", &text[..text.len().min(100)]))?;
-        
-        // Handle both array and object with items field
         let saves_array = if raw.is_array() {
             raw.as_array().cloned().unwrap_or_default()
         } else if let Some(items) = raw.get("items").and_then(|v| v.as_array()) {
@@ -270,36 +270,12 @@ impl RomMClient {
         } else if let Some(saves) = raw.get("saves").and_then(|v| v.as_array()) {
             saves.clone()
         } else {
-            tracing::warn!("[RomM] Unexpected saves response format: {}", &text[..text.len().min(200)]);
             return Ok(vec![]);
         };
-        
-        let saves: Vec<RomMSave> = saves_array.iter().filter_map(|v| {
-            Some(RomMSave {
-                id: v["id"].as_i64()? as i32,
-                rom_id: v["rom_id"].as_i64().unwrap_or(rom_id as i64) as i32,
-                file_name: v["file_name"].as_str()
-                    .or_else(|| v["filename"].as_str())
-                    .or_else(|| v["name"].as_str())
-                    .unwrap_or("unknown")
-                    .to_string(),
-                file_size_bytes: v["file_size_bytes"].as_i64()
-                    .or_else(|| v["size"].as_i64())
-                    .unwrap_or(0),
-                emulator: v["emulator"].as_str().map(|s| s.to_string()),
-                created_at: v["created_at"].as_str()
-                    .or_else(|| v["createdAt"].as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                updated_at: v["updated_at"].as_str()
-                    .or_else(|| v["updatedAt"].as_str())
-                    .unwrap_or("")
-                    .to_string(),
-            })
-        }).collect();
-        
-        tracing::info!("[RomM] Found {} saves for ROM id={}", saves.len(), rom_id);
-        Ok(saves)
+        Ok(saves_array
+            .iter()
+            .filter_map(|v| parse_save_value(v, rom_id))
+            .collect())
     }
 
     pub async fn upload_save(&self, rom_id: i32, save_data: Vec<u8>, filename: &str) -> Result<()> {
@@ -338,6 +314,108 @@ impl RomMClient {
             .await
             .map(|b| b.to_vec())
             .context("Failed to read save data")
+    }
+
+    /// RomM 4.7+ device-aware save list (Argosy-compatible).
+    pub async fn get_saves_for_rom_device(
+        &self,
+        rom_id: i32,
+        device_id: &str,
+    ) -> Result<Vec<RomMSave>> {
+        let mut request = self
+            .client
+            .get(format!("{}/api/saves", self.base_url))
+            .query(&[("rom_id", rom_id.to_string()), ("device_id", device_id.to_string())]);
+
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+
+        let response = request.send().await.context("Failed to list saves")?;
+        let status = response.status();
+        let text = response.text().await.context("read saves list")?;
+        if !status.is_success() {
+            if status.as_u16() == 404 {
+                return Ok(vec![]);
+            }
+            anyhow::bail!("Saves list returned {}: {}", status, &text[..text.len().min(200)]);
+        }
+        Self::parse_saves_list_response(&text, rom_id)
+    }
+
+    /// Upload a Switch save ZIP using Argosy-compatible query parameters.
+    pub async fn upload_save_device(
+        &self,
+        rom_id: i32,
+        emulator: &str,
+        device_id: &str,
+        slot: Option<&str>,
+        zip_bytes: Vec<u8>,
+        filename: &str,
+        overwrite: bool,
+    ) -> Result<RomMSave> {
+        let part = reqwest::multipart::Part::bytes(zip_bytes).file_name(filename.to_string());
+        let form = reqwest::multipart::Form::new().part("file", part);
+
+        let mut request = self
+            .client
+            .post(format!("{}/api/saves", self.base_url))
+            .multipart(form)
+            .query(&[
+                ("rom_id", rom_id.to_string()),
+                ("emulator", emulator.to_string()),
+                ("device_id", device_id.to_string()),
+                ("overwrite", overwrite.to_string()),
+                ("autocleanup", "true".to_string()),
+                ("autocleanup_limit", "10".to_string()),
+            ]);
+
+        if let Some(slot) = slot {
+            request = request.query(&[("slot", slot.to_string())]);
+        }
+
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+
+        let response = request.send().await.context("Failed to upload save")?;
+        let status = response.status();
+        let text = response.text().await.context("read upload response")?;
+        if !status.is_success() {
+            anyhow::bail!(
+                "Upload returned {}: {}",
+                status,
+                &text[..text.len().min(300)]
+            );
+        }
+        serde_json::from_str(&text).context("parse upload save response")
+    }
+
+    /// Download save bytes via device-aware content route (falls back to legacy ROM route).
+    pub async fn download_save_content_device(
+        &self,
+        save: &RomMSave,
+        device_id: &str,
+    ) -> Result<Vec<u8>> {
+        let file_name = urlencoding::encode(&save.file_name);
+        let mut request = self.client.get(format!(
+            "{}/api/saves/{}/content/{}",
+            self.base_url, save.id, file_name
+        ))
+        .query(&[("device_id", device_id), ("optimistic", "true")]);
+
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+
+        let response = request.send().await;
+        if let Ok(resp) = response {
+            if resp.status().is_success() {
+                return resp.bytes().await.map(|b| b.to_vec()).context("read save body");
+            }
+        }
+
+        self.download_save(save.rom_id, save.id).await
     }
 
     pub fn token(&self) -> Option<&str> {
@@ -613,6 +691,38 @@ pub struct RomMSave {
     pub created_at: String,
     #[serde(default, alias = "updatedAt")]
     pub updated_at: String,
+    /// Named save channel on RomM (Argosy: slot / channel); e.g. `argosy-latest`, `slot-1`.
+    #[serde(default)]
+    pub slot: Option<String>,
+}
+
+fn parse_save_value(v: &serde_json::Value, rom_id: i32) -> Option<RomMSave> {
+    Some(RomMSave {
+        id: v["id"].as_i64()? as i32,
+        rom_id: v["rom_id"].as_i64().unwrap_or(rom_id as i64) as i32,
+        file_name: v["file_name"]
+            .as_str()
+            .or_else(|| v["filename"].as_str())
+            .or_else(|| v["name"].as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        file_size_bytes: v["file_size_bytes"]
+            .as_i64()
+            .or_else(|| v["size"].as_i64())
+            .unwrap_or(0),
+        emulator: v["emulator"].as_str().map(|s| s.to_string()),
+        created_at: v["created_at"]
+            .as_str()
+            .or_else(|| v["createdAt"].as_str())
+            .unwrap_or("")
+            .to_string(),
+        updated_at: v["updated_at"]
+            .as_str()
+            .or_else(|| v["updatedAt"].as_str())
+            .unwrap_or("")
+            .to_string(),
+        slot: v["slot"].as_str().map(|s| s.to_string()),
+    })
 }
 
 #[cfg(test)]
