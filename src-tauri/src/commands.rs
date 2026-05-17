@@ -362,15 +362,19 @@ pub struct LaunchGameResult {
 pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     tracing::info!("[Launch] Launching game id={}", game_id);
     
-    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let mut config = AppConfig::load().map_err(|e| e.to_string())?;
     let db = Database::open().map_err(|e| e.to_string())?;
     
     let game = db.get_game(game_id).map_err(|e| e.to_string())?
         .ok_or("Game not found")?;
     
     tracing::info!("[Launch] Game: {} ({})", game.name, game.platform_id);
+
+    if let Err(e) = crate::sync::switch_romm::pre_launch_sync(&game, &mut config).await {
+        tracing::warn!("[SaveSync] Pre-launch: {e}");
+    }
     
-    let launcher = EmulatorLauncher::new(config, db);
+    let launcher = EmulatorLauncher::new(config.clone(), db);
     
     let result = launcher.launch(&game).await
         .map_err(|e| {
@@ -380,6 +384,9 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     
     match result {
         LaunchResult::Success { duration_minutes, exit_code, .. } => {
+            if let Err(e) = crate::sync::switch_romm::post_launch_sync(&game, &mut config).await {
+                tracing::warn!("[SaveSync] Post-launch: {e}");
+            }
             tracing::info!("[Launch] Game exited successfully (duration: {}min, exit_code: {:?})", duration_minutes, exit_code);
             Ok(LaunchGameResult {
                 success: true,
@@ -840,6 +847,71 @@ pub async fn upload_game_save(
         .unwrap_or_else(|| "save.sav".to_string());
     
     client.upload_save(romm_id, save_data, &filename).await
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Debug, Serialize)]
+pub struct SwitchSavePathInfo {
+    pub title_id: String,
+    pub local_save_path: String,
+    pub eden_save_base: String,
+    pub default_slot: String,
+}
+
+#[tauri::command]
+pub async fn get_switch_save_path_info(game_id: i64) -> Result<SwitchSavePathInfo, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let db = Database::open().map_err(|e| e.to_string())?;
+    let game = db
+        .get_game(game_id)
+        .map_err(|e| e.to_string())?
+        .ok_or("Game not found")?;
+    let rom_path = game
+        .local_file_path
+        .as_deref()
+        .or(Some(game.file_path.as_str()))
+        .ok_or("No ROM path")?;
+    let (local, title_id) =
+        crate::sync::resolve_local_title_save_path(&config, rom_path).map_err(|e| e.to_string())?;
+    let base = crate::sync::switch_save::resolve_eden_save_base(&config);
+    Ok(SwitchSavePathInfo {
+        title_id,
+        local_save_path: local.to_string_lossy().into_owned(),
+        eden_save_base: base.to_string_lossy().into_owned(),
+        default_slot: crate::sync::switch_save::DEFAULT_SAVE_SLOT.to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn upload_switch_save(
+    game_id: i64,
+    slot: Option<String>,
+) -> Result<crate::sync::SwitchSaveSyncResult, String> {
+    let mut config = AppConfig::load().map_err(|e| e.to_string())?;
+    let db = Database::open().map_err(|e| e.to_string())?;
+    let game = db
+        .get_game(game_id)
+        .map_err(|e| e.to_string())?
+        .ok_or("Game not found")?;
+    crate::sync::upload_switch_save_from_eden(&game, &mut config, slot)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn download_switch_save(
+    game_id: i64,
+    slot: Option<String>,
+    save_id: Option<i32>,
+) -> Result<crate::sync::SwitchSaveSyncResult, String> {
+    let mut config = AppConfig::load().map_err(|e| e.to_string())?;
+    let db = Database::open().map_err(|e| e.to_string())?;
+    let game = db
+        .get_game(game_id)
+        .map_err(|e| e.to_string())?
+        .ok_or("Game not found")?;
+    crate::sync::download_switch_save_to_eden(&game, &mut config, slot, save_id)
+        .await
         .map_err(|e| e.to_string())
 }
 
