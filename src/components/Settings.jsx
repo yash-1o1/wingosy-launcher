@@ -179,12 +179,12 @@ export default function Settings({
   const [updateChannel, setUpdateChannel] = useState("stable");
   const [updateCheckLoading, setUpdateCheckLoading] = useState(false);
   const [updateCheckResult, setUpdateCheckResult] = useState(null);
+  const [updateMessage, setUpdateMessage] = useState(null);
   const [signedUpdateInstalling, setSignedUpdateInstalling] = useState(false);
   const [prereleaseLeaveDialogOpen, setPrereleaseLeaveDialogOpen] = useState(false);
   /** Which pre-release channel the user is leaving (`nightly` | `beta`) — drives dialog copy. */
   const [leavingPrereleaseChannel, setLeavingPrereleaseChannel] = useState(null);
   const [pendingChannel, setPendingChannel] = useState("stable");
-  const [pendingAutoOff, setPendingAutoOff] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -313,7 +313,6 @@ export default function Settings({
       setAutoUpdateEnabled(auto);
       let ch = cfg.updater?.channel;
       if (ch !== "nightly" && ch !== "beta") ch = "stable";
-      if (!auto) ch = "stable";
       setUpdateChannel(ch);
       const a = cfg.audio || {};
       setAmbientEnabled(Boolean(a.ambient_enabled));
@@ -341,7 +340,6 @@ export default function Settings({
     if (leavingPre && nextChannel !== updateChannel) {
       setLeavingPrereleaseChannel(updateChannel);
       setPendingChannel(nextChannel);
-      setPendingAutoOff(false);
       setPrereleaseLeaveDialogOpen(true);
       return;
     }
@@ -353,10 +351,6 @@ export default function Settings({
       const cfg = config || (await invoke("get_config"));
       cfg.updater = cfg.updater || {};
       cfg.updater.channel = pendingChannel || "stable";
-      if (pendingAutoOff) {
-        cfg.updater.auto_update_enabled = false;
-        setAutoUpdateEnabled(false);
-      }
       await invoke("save_config", { config: cfg });
       setConfig(cfg);
       setUpdateChannel(pendingChannel || "stable");
@@ -364,32 +358,19 @@ export default function Settings({
     setPrereleaseLeaveDialogOpen(false);
     setLeavingPrereleaseChannel(null);
     setPendingChannel("stable");
-    setPendingAutoOff(false);
   }
 
   function cancelPrereleaseLeave() {
     setPrereleaseLeaveDialogOpen(false);
     setLeavingPrereleaseChannel(null);
     setPendingChannel("stable");
-    setPendingAutoOff(false);
   }
 
   async function persistAutoUpdate(nextAuto) {
-    if (!nextAuto && (updateChannel === "nightly" || updateChannel === "beta")) {
-      setLeavingPrereleaseChannel(updateChannel);
-      setPendingAutoOff(true);
-      setPendingChannel("stable");
-      setPrereleaseLeaveDialogOpen(true);
-      return;
-    }
     try {
       const cfg = config || (await invoke("get_config"));
       cfg.updater = cfg.updater || {};
       cfg.updater.auto_update_enabled = nextAuto;
-      if (!nextAuto) {
-        cfg.updater.channel = "stable";
-        setUpdateChannel("stable");
-      }
       await invoke("save_config", { config: cfg });
       setConfig(cfg);
       setAutoUpdateEnabled(nextAuto);
@@ -399,6 +380,7 @@ export default function Settings({
   async function handleCheckForUpdates() {
     setUpdateCheckLoading(true);
     setUpdateCheckResult(null);
+    setUpdateMessage(null);
     try {
       const r = await invoke("check_for_app_update", { channel: updateChannel });
       setUpdateCheckResult(r);
@@ -420,11 +402,17 @@ export default function Settings({
   async function handleInstallSignedUpdateFromSettings() {
     if (!updateCheckResult?.signed_update_manifest_url || signedUpdateInstalling) return;
     setSignedUpdateInstalling(true);
-    setEmuMessage({ type: "info", message: "Downloading and installing update…" });
+    setUpdateMessage({ type: "info", message: "Downloading and installing update…" });
     let unlistenProgress = () => {};
     try {
-      unlistenProgress = await listen("signed-updater-progress", () => {
-        setEmuMessage({ type: "info", message: "Downloading update…" });
+      unlistenProgress = await listen("signed-updater-progress", (ev) => {
+        const d = ev.payload?.downloaded;
+        const t = ev.payload?.total;
+        const label =
+          d != null && t != null && t > 0
+            ? `Downloading update… ${Math.min(100, Math.round((d / t) * 100))}%`
+            : "Downloading update…";
+        setUpdateMessage({ type: "info", message: label });
       });
     } catch {
       unlistenProgress = () => {};
@@ -432,7 +420,7 @@ export default function Settings({
     try {
       await invoke("install_signed_app_update", { channel: updateChannel });
     } catch (err) {
-      setEmuMessage({ type: "error", message: err?.message || String(err) });
+      setUpdateMessage({ type: "error", message: err?.message || String(err) });
       setSignedUpdateInstalling(false);
     } finally {
       unlistenProgress();
@@ -1875,8 +1863,8 @@ export default function Settings({
           label="Automatic updates"
         />
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2, ml: 4.5, maxWidth: 560 }}>
-          When enabled, you can opt into pre-release channels below. Signed updates use the same installer pipeline for
-          stable, beta, and nightly releases that ship <code>latest.json</code>.
+          When enabled, Wingosy installs available signed updates automatically after a startup check (no prompt).
+          Manual checks below always use your selected channel.
         </Typography>
 
         <FormControl component="fieldset" sx={{ mb: 2 }} variant="standard">
@@ -1890,20 +1878,17 @@ export default function Settings({
               value="beta"
               control={<Radio size="small" />}
               label='Beta — prerelease builds (tag contains "beta")'
-              disabled={!autoUpdateEnabled}
             />
             <FormControlLabel
               value="nightly"
               control={<Radio size="small" />}
               label='Nightly — automated prerelease builds (tag contains "nightly")'
-              disabled={!autoUpdateEnabled}
             />
           </RadioGroup>
-          {!autoUpdateEnabled && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-              Turn on Automatic updates to use Beta or Nightly.
-            </Typography>
-          )}
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, maxWidth: 560 }}>
+            Beta and Nightly apply to manual and startup checks. Signed in-app installs require a release that ships{" "}
+            <code>latest.json</code> next to the installer.
+          </Typography>
         </FormControl>
 
         <FormControlLabel
@@ -1944,6 +1929,11 @@ export default function Settings({
             All releases
           </Button>
         </Box>
+        {updateMessage && (
+          <Alert severity={updateMessage.type} onClose={() => setUpdateMessage(null)} sx={{ mt: 2 }}>
+            {updateMessage.message}
+          </Alert>
+        )}
         {updateCheckLoading && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
         {updateCheckResult?.error && (
           <Alert severity="warning" sx={{ mt: 2 }}>
@@ -1997,31 +1987,20 @@ export default function Settings({
 
       <Dialog open={prereleaseLeaveDialogOpen} onClose={cancelPrereleaseLeave} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {pendingAutoOff
-            ? "Turn off automatic updates?"
-            : leavingPrereleaseChannel === "beta"
-              ? "Leave the Beta channel?"
-              : "Leave the Nightly channel?"}
+          {leavingPrereleaseChannel === "beta" ? "Leave the Beta channel?" : "Leave the Nightly channel?"}
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" paragraph>
-            {pendingAutoOff ? (
-              <>
-                You’re on <strong>{leavingPrereleaseChannel === "beta" ? "Beta" : "Nightly"}</strong>. Turning off
-                automatic updates moves you to the <strong>Stable</strong> channel. Your next in-app update check will
-                follow stable releases until you enable automatic updates and pick a pre-release channel again.
-              </>
-            ) : (
-              <>
-                You’re switching away from{" "}
-                <strong>{leavingPrereleaseChannel === "beta" ? "Beta" : "Nightly"}</strong>. Your update checks will
-                follow the <strong>{pendingChannel === "stable" ? "Stable" : pendingChannel === "beta" ? "Beta" : "Nightly"}</strong>{" "}
-                channel.
-              </>
-            )}
+            You’re switching away from{" "}
+            <strong>{leavingPrereleaseChannel === "beta" ? "Beta" : "Nightly"}</strong>. Your update checks will follow
+            the{" "}
+            <strong>
+              {pendingChannel === "stable" ? "Stable" : pendingChannel === "beta" ? "Beta" : "Nightly"}
+            </strong>{" "}
+            channel.
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            {(pendingAutoOff || pendingChannel === "stable") && (
+            {pendingChannel === "stable" && (
               <>
                 On <strong>Stable</strong>, in-app updates follow regular releases.{" "}
               </>
@@ -2034,7 +2013,7 @@ export default function Settings({
         <DialogActions>
           <Button onClick={cancelPrereleaseLeave}>Cancel</Button>
           <Button variant="contained" onClick={confirmPrereleaseLeave}>
-            {pendingAutoOff ? "Turn off & use Stable" : "Continue"}
+            Continue
           </Button>
         </DialogActions>
       </Dialog>
