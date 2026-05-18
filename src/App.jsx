@@ -146,24 +146,27 @@ function App() {
         }
         setImmersiveModeEnabled(Boolean(cfg.display?.big_picture));
         setImmersiveModeFullscreen(Boolean(cfg.display?.fullscreen));
-        if (
-          !cfg.updater?.auto_update_enabled &&
-          (cfg.updater?.channel === "nightly" || cfg.updater?.channel === "beta")
-        ) {
-          cfg.updater = cfg.updater || {};
-          cfg.updater.channel = "stable";
-          await invoke("save_config", { config: cfg });
-        }
         if (!startupUpdateCheckDone.current && cfg.updater?.check_on_startup !== false) {
           startupUpdateCheckDone.current = true;
           const ch =
-            cfg.updater?.auto_update_enabled &&
-            (cfg.updater.channel === "nightly" || cfg.updater.channel === "beta")
+            cfg.updater?.channel === "nightly" || cfg.updater?.channel === "beta"
               ? cfg.updater.channel
               : "stable";
           invoke("check_for_app_update", { channel: ch })
-            .then((r) => {
-              if (r?.is_update_available && r?.release_url) {
+            .then(async (r) => {
+              if (!r?.is_update_available) return;
+              if (
+                cfg.updater?.auto_update_enabled &&
+                r.signed_update_manifest_url
+              ) {
+                try {
+                  await invoke("install_signed_app_update", { channel: ch });
+                } catch (err) {
+                  setError(err?.message || String(err));
+                }
+                return;
+              }
+              if (r.release_url) {
                 setUpdateSnack({
                   open: true,
                   url: r.release_url,
