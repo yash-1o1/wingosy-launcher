@@ -1971,6 +1971,12 @@ export default function Settings({
           >
             Update available on {updateCheckResult.channel || updateChannel}
             {updateCheckResult.latest_version ? ` (${updateCheckResult.latest_version})` : ""}.
+            {!updateCheckResult.signed_update_manifest_url ? (
+              <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                In-app install is unavailable for this release (missing or invalid signed updater manifest). Use{" "}
+                <strong>Open release</strong> to download the installer manually.
+              </Typography>
+            ) : null}
           </Alert>
         )}
         {updateCheckResult && !updateCheckResult.error && !updateCheckResult.is_update_available && (
