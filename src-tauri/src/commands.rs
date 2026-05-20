@@ -1830,6 +1830,51 @@ fn signed_updater_manifest_for_tag(tag: &str) -> String {
     )
 }
 
+/// True when `latest.json` exists and its Windows installer URL responds (avoids broken manifests).
+async fn signed_update_manifest_is_usable(client: &reqwest::Client, manifest_url: &str) -> bool {
+    let Ok(resp) = client.get(manifest_url).send().await else {
+        return false;
+    };
+    if !resp.status().is_success() {
+        return false;
+    }
+    let Ok(body) = resp.json::<serde_json::Value>().await else {
+        return false;
+    };
+    let Some(installer_url) = body
+        .pointer("/platforms/windows-x86_64/url")
+        .and_then(|v| v.as_str())
+    else {
+        return false;
+    };
+    client
+        .head(installer_url)
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+}
+
+async fn signed_manifest_url_if_ready(
+    client: &reqwest::Client,
+    tag: &str,
+    is_newer: bool,
+) -> Option<String> {
+    if !is_newer {
+        return None;
+    }
+    let url = signed_updater_manifest_for_tag(tag);
+    if signed_update_manifest_is_usable(client, &url).await {
+        Some(url)
+    } else {
+        tracing::warn!(
+            "[Updater] Signed manifest missing or installer URL unreachable for tag {}",
+            tag
+        );
+        None
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct UpdateCheckResult {
     pub current_version: String,
@@ -2013,13 +2058,14 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
 
         let latest = release.tag_name.clone();
         let is_newer = remote_version_is_newer(&latest, &current_version);
+        let signed_url =
+            signed_manifest_url_if_ready(&client, &release.tag_name, is_newer).await;
         return UpdateCheckResult {
             current_version,
             latest_version: Some(latest.clone()),
             is_update_available: is_newer,
             release_url: Some(release.html_url),
-            signed_update_manifest_url: is_newer
-                .then(|| signed_updater_manifest_for_tag(&release.tag_name)),
+            signed_update_manifest_url: signed_url,
             error: None,
             channel: ch_label,
         };
@@ -2093,13 +2139,13 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
 
     let latest = release.tag_name.clone();
     let is_newer = remote_version_is_newer(&latest, &current_version);
+    let signed_url = signed_manifest_url_if_ready(&client, &release.tag_name, is_newer).await;
     UpdateCheckResult {
         current_version,
         latest_version: Some(latest.clone()),
         is_update_available: is_newer,
         release_url: Some(release.html_url.clone()),
-        signed_update_manifest_url: is_newer
-            .then(|| signed_updater_manifest_for_tag(&release.tag_name)),
+        signed_update_manifest_url: signed_url,
         error: None,
         channel: ch_label,
     }

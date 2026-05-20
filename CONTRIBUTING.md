@@ -87,6 +87,8 @@ Pre-release workflows set **`prerelease: true`** so they do not replace **stable
 
 Release, Beta, and Nightly workflows build **signed** NSIS artifacts and upload **`latest.json`** next to the installer so the app can call **`install_signed_app_update`** (in-place update, then restart).
 
+`scripts/write-updater-manifest.mjs` reads the **published** NSIS asset URL from the GitHub API (GitHub renames `Wingosy Launcher` → `Wingosy.Launcher` in filenames). If an older release has a broken manifest (installer URL 404), run the **Repair updater manifest** workflow (`.github/workflows/repair-updater-manifest.yml`) with that release tag, or locally: `RELEASE_TAG=<tag> GITHUB_TOKEN=… node scripts/repair-updater-manifest.mjs`.
+
 1. **One-time:** generate a minisign keypair (keep the private key secret; the public key is already in `src-tauri/tauri.conf.json` under `plugins.updater.pubkey` — replace it if you rotate keys):
 
    ```bash

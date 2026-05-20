@@ -3,11 +3,12 @@
  *
  * Expects (after `npm run build && tauri build`):
  * - `src-tauri/target/release/bundle/nsis/*-setup.exe` and matching `*.sig`
+ * - The same release tag already published by `tauri-action` (installer assets on GitHub)
  *
  * Environment:
  * - `GITHUB_REPOSITORY` — `owner/repo` (set automatically in Actions)
  * - `RELEASE_TAG` — tag for this release (caller sets: stable tag, beta-*, nightly-*)
- * - `GITHUB_TOKEN` — for `gh release upload`
+ * - `GITHUB_TOKEN` — for `gh release upload` / `gh api`
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
@@ -49,7 +50,40 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const version = pkg.version;
 const signature = readFileSync(join(nsisDir, sigFile), "utf8").trim();
 
-const assetUrl = `https://github.com/${repo}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(exe)}`;
+/** Resolve the installer URL GitHub actually published (avoids space vs dot filename mismatches). */
+function resolveGithubSetupAssetUrl() {
+  const raw = execFileSync(
+    "gh",
+    ["api", `repos/${repo}/releases/tags/${encodeURIComponent(tag)}`, "--jq", ".assets"],
+    { encoding: "utf8", env: { ...process.env, GH_TOKEN: token } }
+  );
+  const assets = JSON.parse(raw);
+  const setup = assets.find(
+    (a) =>
+      typeof a.name === "string" &&
+      a.name.endsWith("-setup.exe") &&
+      !a.name.endsWith(".sig") &&
+      typeof a.browser_download_url === "string"
+  );
+  if (!setup) {
+    console.error(
+      "write-updater-manifest: no *-setup.exe asset on release",
+      tag,
+      "— assets:",
+      assets.map((a) => a.name).join(", ")
+    );
+    process.exit(1);
+  }
+  return setup.browser_download_url;
+}
+
+const assetUrl = resolveGithubSetupAssetUrl();
+
+const head = await fetch(assetUrl, { method: "HEAD" });
+if (!head.ok) {
+  console.error(`write-updater-manifest: installer HEAD failed (${head.status}): ${assetUrl}`);
+  process.exit(1);
+}
 
 const manifest = {
   version,
@@ -66,6 +100,7 @@ const manifest = {
 const outPath = join(root, "latest.json");
 writeFileSync(outPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
 console.log("Wrote", outPath);
+console.log("Installer URL:", assetUrl);
 
 execFileSync(
   "gh",
