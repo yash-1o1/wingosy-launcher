@@ -19,7 +19,7 @@ A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](htt
 1. Download from [Releases](https://github.com/yash-1o1/wingosy-launcher/releases).
 2. Run the setup wizard.
 3. Connect to RomM or scan local ROMs.
-4. Play!
+4. Start playing!
 
 ## Requirements
 
