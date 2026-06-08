@@ -1,12 +1,14 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isTauri } from "./utils/isTauri";
 
-const appWindow = getCurrentWindow();
+const appWindow = isTauri() ? getCurrentWindow() : null;
 
 /**
  * Enter/leave exclusive fullscreen. On Windows, calling `setFullscreen(true)` while
  * the window is maximized is often ignored; unmaximize first so the WM can switch modes.
  */
 export async function setFullscreenReliable(wantFullscreen) {
+  if (!appWindow) return;
   if (wantFullscreen) {
     if (await appWindow.isMaximized()) {
       await appWindow.unmaximize();

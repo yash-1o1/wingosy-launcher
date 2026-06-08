@@ -11,6 +11,7 @@ import CloudIcon from "@mui/icons-material/Cloud";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppTheme } from "../ThemeContext";
+import { platformBadgeLabel } from "../utils/platformIcons";
 
 const PLATFORM_COLORS = {
   // Nintendo
@@ -54,7 +55,7 @@ export default function GameCard({ game, onClick, onToggleFavorite, onLaunch, do
   const hasLocalFile = game.local_file_path && game.local_file_path.length > 0;
   const canPlay = hasLocalFile || (!isRemoteOnly && game.source !== "RomM");
 
-  const platformSlug = (game.platform_id || "").toUpperCase().slice(0, 6);
+  const platformSlug = platformBadgeLabel(game.platform_id);
 
   return (
     <Box
