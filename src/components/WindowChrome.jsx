@@ -8,9 +8,9 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import CropSquareIcon from "@mui/icons-material/CropSquare";
 import CloseIcon from "@mui/icons-material/Close";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-
-const appWindow = getCurrentWindow();
 import { isTauri, tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
+
+const appWindow = isTauri() ? getCurrentWindow() : null;
 
 const CHROME_HEIGHT = 40;
 
@@ -25,6 +25,7 @@ export default function WindowChrome() {
   const syncFullscreen = useCallback(async () => {
     if (!isTauri()) return;
     try {
+      if (!appWindow) return;
       setFullscreen(Boolean(await appWindow.isFullscreen()));
     } catch {
       // web preview / tests
