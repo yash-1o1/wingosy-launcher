@@ -9,6 +9,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { alpha } from "@mui/material/styles";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppTheme } from "../ThemeContext";
+import { platformBadgeLabel } from "../utils/platformIcons";
 
 const PLATFORM_COLORS = {
   nes: "#e60012",
@@ -62,8 +63,7 @@ export default function ImmersiveGameTile({
   const coverSrc = useMemo(() => getCoverSrc(game.cover_path), [game.cover_path]);
   const showCover = Boolean(coverSrc) && !imgError;
   const platformColor = PLATFORM_COLORS[game.platform_id] || colors.primary;
-  // Match desktop `GameCard`: badge uses platform id (e.g. GBA, NES), not full console names.
-  const platformSlug = (game.platform_id || "").toUpperCase().slice(0, 6);
+  const platformSlug = platformBadgeLabel(game.platform_id);
 
   return (
     <Box
