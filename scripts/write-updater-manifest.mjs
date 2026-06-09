@@ -50,12 +50,35 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const version = pkg.version;
 const signature = readFileSync(join(nsisDir, sigFile), "utf8").trim();
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetries(label, operation, { attempts = 3, delayMs = 5000 } = {}) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (attempt === attempts) break;
+      console.warn(`${label} failed on attempt ${attempt}/${attempts}; retrying in ${delayMs}ms`);
+      await sleep(delayMs);
+    }
+  }
+  throw lastError;
+}
+
 /** Resolve the installer URL GitHub actually published (avoids space vs dot filename mismatches). */
-function resolveGithubSetupAssetUrl() {
-  const raw = execFileSync(
-    "gh",
-    ["api", `repos/${repo}/releases/tags/${encodeURIComponent(tag)}`, "--jq", ".assets"],
-    { encoding: "utf8", env: { ...process.env, GH_TOKEN: token } }
+async function resolveGithubSetupAssetUrl() {
+  const raw = await withRetries(
+    "release asset lookup",
+    () =>
+      execFileSync(
+        "gh",
+        ["api", `repos/${repo}/releases/tags/${encodeURIComponent(tag)}`, "--jq", ".assets"],
+        { encoding: "utf8", env: { ...process.env, GH_TOKEN: token } }
+      )
   );
   const assets = JSON.parse(raw);
   const setup = assets.find(
@@ -77,9 +100,9 @@ function resolveGithubSetupAssetUrl() {
   return setup.browser_download_url;
 }
 
-const assetUrl = resolveGithubSetupAssetUrl();
+const assetUrl = await resolveGithubSetupAssetUrl();
 
-const head = await fetch(assetUrl, { method: "HEAD" });
+const head = await withRetries("installer HEAD", () => fetch(assetUrl, { method: "HEAD" }));
 if (!head.ok) {
   console.error(`write-updater-manifest: installer HEAD failed (${head.status}): ${assetUrl}`);
   process.exit(1);
@@ -102,12 +125,14 @@ writeFileSync(outPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
 console.log("Wrote", outPath);
 console.log("Installer URL:", assetUrl);
 
-execFileSync(
-  "gh",
-  ["release", "upload", tag, outPath, "--clobber", "--repo", repo],
-  {
-    stdio: "inherit",
-    env: { ...process.env, GH_TOKEN: token },
-  }
-);
+await withRetries("latest.json upload", () => {
+  execFileSync(
+    "gh",
+    ["release", "upload", tag, outPath, "--clobber", "--repo", repo],
+    {
+      stdio: "inherit",
+      env: { ...process.env, GH_TOKEN: token },
+    }
+  );
+});
 console.log(`Uploaded latest.json to release ${tag}`);
