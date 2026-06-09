@@ -104,6 +104,7 @@ jobs:
             - **Beta** channel: run the *Beta* workflow.
           prerelease: true
           releaseDraft: false
+          includeUpdaterJson: false
 
       - name: Upload latest.json (signed updater)
         if: success()
