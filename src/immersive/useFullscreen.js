@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-
-const appWindow = getCurrentWindow();
 import { setFullscreenReliable } from "../windowFullscreen";
+import { isTauri } from "../utils/isTauri";
+
+const appWindow = isTauri() ? getCurrentWindow() : null;
 
 export function useFullscreen({ enabled, onChange } = {}) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const sync = useCallback(async () => {
     try {
+      if (!appWindow) return;
       const v = await appWindow.isFullscreen();
       setIsFullscreen(Boolean(v));
     } catch {
@@ -25,6 +27,7 @@ export function useFullscreen({ enabled, onChange } = {}) {
         // ignore
       } finally {
         try {
+          if (!appWindow) throw new Error("Tauri window unavailable");
           const v = await appWindow.isFullscreen();
           setIsFullscreen(Boolean(v));
           if (onChange) onChange(Boolean(v));

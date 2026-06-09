@@ -117,3 +117,9 @@ export function platformInitials(platform) {
   }
   return raw.slice(0, 3).toUpperCase();
 }
+
+export function platformBadgeLabel(platformId) {
+  if (!platformId) return "";
+  if (PLATFORM_INITIALS[platformId]) return PLATFORM_INITIALS[platformId];
+  return platformId.toUpperCase().slice(0, 6);
+}

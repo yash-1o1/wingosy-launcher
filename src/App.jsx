@@ -13,13 +13,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-
-const appWindow = getCurrentWindow();
-const getCurrent = getCurrentWindow;
 import { setFullscreenReliable } from "./windowFullscreen";
 import WindowChrome from "./components/WindowChrome";
 import { isTauri, mousedownTargetElement } from "./utils/isTauri";
 import { UiSoundsProvider } from "./UiSoundsContext";
+
+const appWindow = isTauri() ? getCurrentWindow() : null;
+const getCurrent = getCurrentWindow;
 
 const DRAWER_WIDTH = 260;
 
@@ -245,6 +245,7 @@ function App() {
       e.preventDefault();
       (async () => {
         try {
+          if (!appWindow) return;
           const next = !(await appWindow.isFullscreen());
           await setFullscreenReliable(next);
         } catch {
