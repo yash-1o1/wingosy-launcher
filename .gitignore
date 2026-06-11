@@ -29,6 +29,9 @@ src-tauri/tauri-signing.key
 # Logs
 *.log
 
+# Generated updater manifest uploaded to GitHub releases
+latest.json
+
 # Debug
 *.pdb
 
