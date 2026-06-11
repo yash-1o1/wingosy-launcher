@@ -1,5 +1,5 @@
 //! Eden / yuzu-style Switch save paths and ZIP layout compatible with Argosy `SwitchSaveHandler`.
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use regex_lite::Regex;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -11,8 +11,11 @@ use zip::{CompressionMethod, ZipWriter};
 
 use crate::config::AppConfig;
 
-/// Default RomM slot name when none is specified (matches Argosy `SaveSyncApiClient.DEFAULT_SAVE_NAME`).
-pub const DEFAULT_SAVE_SLOT: &str = "argosy-latest";
+/// RomM autosync slot used by Argosy for the latest save.
+pub const DEFAULT_SAVE_SLOT: &str = "autosave";
+
+/// Legacy/latest file stem still recognized by Argosy and older Wingosy builds.
+pub const ARGOSY_LATEST_SAVE_NAME: &str = "argosy-latest";
 
 /// RomM `emulator` query value for Eden on desktop (Argosy uses emulator id `eden` for Switch).
 pub const EDEN_EMULATOR_ID: &str = "eden";
@@ -20,10 +23,7 @@ pub const EDEN_EMULATOR_ID: &str = "eden";
 static TITLE_ID_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
 
 fn title_id_re() -> &'static Regex {
-    TITLE_ID_RE.get_or_init(|| {
-        Regex::new(r"(?i)\b(0100[0-9A-F]{12})\b")
-            .expect("title id regex")
-    })
+    TITLE_ID_RE.get_or_init(|| Regex::new(r"(?i)\b(0100[0-9A-F]{12})\b").expect("title id regex"))
 }
 
 pub fn extract_title_id_from_path(path: &str) -> Option<String> {
@@ -134,7 +134,9 @@ pub fn find_active_profile_folder(save_base: &Path) -> PathBuf {
 
     for user_entry in entries.flatten() {
         let user_path = user_entry.path();
-        if !user_path.is_dir() || !is_valid_user_folder_id(&user_entry.file_name().to_string_lossy()) {
+        if !user_path.is_dir()
+            || !is_valid_user_folder_id(&user_entry.file_name().to_string_lossy())
+        {
             continue;
         }
         let Ok(profiles) = std::fs::read_dir(&user_path) else {
@@ -220,8 +222,9 @@ pub fn resolve_local_title_save_path(
     config: &AppConfig,
     rom_path: &str,
 ) -> Result<(PathBuf, String)> {
-    let title_id = extract_title_id_from_path(rom_path)
-        .context("Could not read Switch title ID from ROM filename (expected [0100XXXXXXXXXXXX])")?;
+    let title_id = extract_title_id_from_path(rom_path).context(
+        "Could not read Switch title ID from ROM filename (expected [0100XXXXXXXXXXXX])",
+    )?;
     if !is_valid_title_id(&title_id) {
         bail!("Invalid Switch title ID: {title_id}");
     }
@@ -290,7 +293,9 @@ pub fn unzip_into_title_folder(zip_path: &Path, target_title_dir: &Path) -> Resu
         let entry_name = entry.name().to_string();
         let relative = if let Some(ref root) = root_folder {
             if entry_name.starts_with(&format!("{root}/")) {
-                entry_name.strip_prefix(&format!("{root}/")).unwrap_or(&entry_name)
+                entry_name
+                    .strip_prefix(&format!("{root}/"))
+                    .unwrap_or(&entry_name)
             } else {
                 entry_name.as_str()
             }
