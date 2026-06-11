@@ -108,7 +108,7 @@ export default function GameDetails({
   const [savesLoaded, setSavesLoaded] = useState(false);
   const [savesLoading, setSavesLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
-  const [switchSlot, setSwitchSlot] = useState("argosy-latest");
+  const [switchSlot, setSwitchSlot] = useState("autosave");
   const [switchPathInfo, setSwitchPathInfo] = useState(null);
   const [switchSyncBusy, setSwitchSyncBusy] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -1014,7 +1014,7 @@ export default function GameDetails({
                 size="small"
                 value={switchSlot}
                 onChange={(e) => setSwitchSlot(e.target.value)}
-                helperText='Default "argosy-latest" matches Argosy Android'
+                helperText='Default "autosave" matches Argosy latest-save sync; older "argosy-latest" saves still restore.'
                 sx={{ mb: 2, maxWidth: 360 }}
                 fullWidth
               />
