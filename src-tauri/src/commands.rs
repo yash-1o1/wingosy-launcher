@@ -370,11 +370,26 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     
     tracing::info!("[Launch] Game: {} ({})", game.name, game.platform_id);
 
-    if let Err(e) = crate::sync::switch_romm::pre_launch_sync(&game, &mut config).await {
+    let launcher = EmulatorLauncher::new(config.clone(), db);
+    let launch_command = launcher.build_command(&game).ok();
+
+    if let Some(command) = launch_command.as_ref() {
+        if command.emulator_id == "retroarch" {
+            if let Err(e) = crate::sync::retroarch_romm::pre_launch_sync(
+                &game,
+                &mut config,
+                command.core_name.as_deref(),
+            )
+            .await
+            {
+                tracing::warn!("[SaveSync] RetroArch pre-launch: {e}");
+            }
+        } else if let Err(e) = crate::sync::switch_romm::pre_launch_sync(&game, &mut config).await {
+            tracing::warn!("[SaveSync] Pre-launch: {e}");
+        }
+    } else if let Err(e) = crate::sync::switch_romm::pre_launch_sync(&game, &mut config).await {
         tracing::warn!("[SaveSync] Pre-launch: {e}");
     }
-    
-    let launcher = EmulatorLauncher::new(config.clone(), db);
     
     let result = launcher.launch(&game).await
         .map_err(|e| {
@@ -384,7 +399,21 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     
     match result {
         LaunchResult::Success { duration_minutes, exit_code, .. } => {
-            if let Err(e) = crate::sync::switch_romm::post_launch_sync(&game, &mut config).await {
+            if let Some(command) = launch_command.as_ref() {
+                if command.emulator_id == "retroarch" {
+                    if let Err(e) = crate::sync::retroarch_romm::post_launch_sync(
+                        &game,
+                        &mut config,
+                        command.core_name.as_deref(),
+                    )
+                    .await
+                    {
+                        tracing::warn!("[SaveSync] RetroArch post-launch: {e}");
+                    }
+                } else if let Err(e) = crate::sync::switch_romm::post_launch_sync(&game, &mut config).await {
+                    tracing::warn!("[SaveSync] Post-launch: {e}");
+                }
+            } else if let Err(e) = crate::sync::switch_romm::post_launch_sync(&game, &mut config).await {
                 tracing::warn!("[SaveSync] Post-launch: {e}");
             }
             tracing::info!("[Launch] Game exited successfully (duration: {}min, exit_code: {:?})", duration_minutes, exit_code);
@@ -2408,7 +2437,9 @@ mod tests {
     fn test_launch_command_fields() {
         let cmd = LaunchCommand {
             executable: "C:\\RetroArch\\retroarch.exe".to_string(),
+            emulator_id: "retroarch".to_string(),
             emulator_name: "RetroArch".to_string(),
+            core_name: Some("mgba_libretro.dll".to_string()),
             game_name: "Super Mario".to_string(),
             rom_path: "C:\\ROMs\\mario.gba".to_string(),
             args: vec!["-L".to_string(), "core.dll".to_string(), "game.gba".to_string()],

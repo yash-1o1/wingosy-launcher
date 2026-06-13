@@ -355,7 +355,7 @@ impl RomMClient {
         overwrite: bool,
     ) -> Result<RomMSave> {
         let part = reqwest::multipart::Part::bytes(zip_bytes).file_name(filename.to_string());
-        let form = reqwest::multipart::Form::new().part("file", part);
+        let form = reqwest::multipart::Form::new().part("saveFile", part);
 
         let mut request = self
             .client

@@ -16,7 +16,9 @@ pub struct LaunchCommand {
     pub executable: String,
     pub args: Vec<String>,
     pub full_command: String,
+    pub emulator_id: String,
     pub emulator_name: String,
+    pub core_name: Option<String>,
     pub game_name: String,
     pub rom_path: String,
 }
@@ -58,7 +60,9 @@ impl EmulatorLauncher {
             executable: exe_str,
             args: args.clone(),
             full_command,
+            emulator_id: emulator.id.clone(),
             emulator_name: emulator.name.clone(),
+            core_name: emulator.core_name.clone(),
             game_name: game.name.clone(),
             rom_path: rom_path.clone(),
         })
