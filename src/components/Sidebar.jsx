@@ -8,6 +8,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
+import { lighten, useTheme } from "@mui/material/styles";
 import LauncherIcon from "./LauncherIcon";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -40,9 +41,26 @@ const ICON_BOX = (size) => ({
       : "rgba(0,0,0,0.04)",
 });
 
+const INITIAL_ICON_PLATFORMS = new Set([
+  "nes",
+  "snes",
+  "n64",
+  "wii",
+  "wiiu",
+  "gb",
+  "gbc",
+  "gba",
+  "nds",
+]);
+
 function PlatformIcon({ platform, size = 24 }) {
-  const color = PLATFORM_COLORS[platform.id] || PLATFORM_COLORS.default;
-  const bundledId = packIconId(platform.id);
+  const theme = useTheme();
+  const baseColor = PLATFORM_COLORS[platform.id] || PLATFORM_COLORS.default;
+  const color =
+    theme.palette.mode === "dark" ? lighten(baseColor, 0.38) : baseColor;
+  const bundledId = INITIAL_ICON_PLATFORMS.has(platform.id)
+    ? null
+    : packIconId(platform.id);
   const rommUrl = platform.logo_path || null;
   const innerPx = Math.max(18, Math.round(size * 0.92));
 
