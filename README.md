@@ -26,6 +26,36 @@ A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](htt
 - Windows 10/11
 - [RomM](https://github.com/rommapp/romm) v4.x (for sync features)
 
+## Run from source
+
+Development requires Node.js 20+, npm 11, a current Rust toolchain, and the
+Visual Studio C++ Build Tools. Make sure `node`, `npm`, and `cargo` are all
+available in the same PowerShell window:
+
+```powershell
+node -v
+npm -v
+cargo -v
+```
+
+Clone, install, and launch the native desktop app:
+
+```powershell
+git clone https://github.com/yash-1o1/wingosy-launcher.git
+cd wingosy-launcher
+npm install
+npm run dev
+```
+
+The first Rust debug build can take a few minutes. Leave the command running
+until the **Wingosy Launcher** window opens. `npm run dev:web` starts only the
+browser frontend; use `npm run dev` (or `npm run tauri dev`) for the Windows
+desktop application.
+
+If PowerShell reports that `npm` or `cargo` is not recognized, install the
+missing tool or reopen the terminal after updating `Path`. See
+[CONTRIBUTING.md](CONTRIBUTING.md#setup) for detailed setup and troubleshooting.
+
 ## Supported Emulators
 
 | Emulator | Platform(s) | Download | Launch Intent | Save Sync (Wingosy) | Save Sync ([Argosy](https://github.com/rommapp/argosy-launcher)) |
@@ -63,4 +93,4 @@ A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](htt
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidelines
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidelines.

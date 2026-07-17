@@ -383,6 +383,7 @@ function App() {
         onNavigate={handleNavigate}
         currentView={view}
         drawerWidth={DRAWER_WIDTH}
+        rommUrl={rommUrl}
       />
       <Box
         component="main"

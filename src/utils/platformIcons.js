@@ -1,7 +1,7 @@
 /**
- * Sidebar: bundled console icon pack (`src/data/consoleIconSet.json`, Simple Icons-derived, CC0).
+ * Sidebar: RomM platform artwork with a bundled console icon fallback
+ * (`src/data/consoleIconSet.json`, Simple Icons-derived, CC0).
  * Regenerate: `npm i -D @iconify-json/simple-icons` then `node scripts/extract-console-icons.mjs`.
- * RomM logos are only used when a platform has no entry here.
  */
 
 export const PLATFORM_COLORS = {
@@ -65,21 +65,16 @@ export const PLATFORM_INITIALS = {
 };
 
 /**
- * Icon slug in `consoleIconSet.json` (Simple Icons names). Same glyph can repeat
- * (e.g. `nintendo` for NES/SNES); tint comes from `PLATFORM_COLORS`.
+ * Icon slug in `consoleIconSet.json` (Simple Icons names).
+ *
+ * Only use glyphs that identify one platform. Manufacturer marks such as
+ * Nintendo, Sega, and Xbox are deliberately not shared across several systems:
+ * a compact platform mark is less misleading than showing the same logo for
+ * NES, SNES, N64, Game Boy, and DS.
  */
 export const PLATFORM_PACK_SLUG = {
-  nes: "nintendo",
-  snes: "nintendo",
-  n64: "nintendo",
   gc: "nintendogamecube",
-  wii: "nintendo",
-  wiiu: "nintendo",
   switch: "nintendoswitch",
-  gb: "nintendo",
-  gbc: "nintendo",
-  gba: "nintendo",
-  nds: "nintendo",
   "3ds": "nintendo3ds",
   psx: "playstation",
   ps2: "playstation2",
@@ -88,16 +83,40 @@ export const PLATFORM_PACK_SLUG = {
   ps5: "playstation5",
   psp: "playstationportable",
   psvita: "playstationvita",
-  genesis: "sega",
-  saturn: "sega",
-  dreamcast: "sega",
   xbox: "xbox",
-  xbox360: "xbox",
   arcade: "retroarch",
   pc: "windows",
 };
 
 const PACK_PREFIX = "wingosy-console";
+
+/** Wingosy ids that differ from RomM's platform asset filenames. */
+export const ROMM_PLATFORM_ASSET_SLUG = {
+  gc: "ngc",
+  dreamcast: "dc",
+};
+
+/**
+ * RomM's platform component tries SVG first and then ICO. Return the same
+ * candidates so Wingosy displays the console/device artwork from RomM rather
+ * than the wide `logo_path` wordmarks returned by older API responses.
+ */
+export function rommPlatformIconCandidates(platformId, serverUrl) {
+  const id =
+    typeof platformId === "string" ? platformId.trim().toLowerCase() : "";
+  const base =
+    typeof serverUrl === "string"
+      ? serverUrl.trim().replace(/\/+$/, "")
+      : "";
+  if (!id || !base) return [];
+
+  const slug = ROMM_PLATFORM_ASSET_SLUG[id] || id;
+  const encodedSlug = encodeURIComponent(slug);
+  return [
+    `${base}/assets/platforms/${encodedSlug}.svg`,
+    `${base}/assets/platforms/${encodedSlug}.ico`,
+  ];
+}
 
 /** Iconify id for the bundled pack, or null if unknown. */
 export function packIconId(platformId) {
@@ -116,6 +135,26 @@ export function platformInitials(platform) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
   return raw.slice(0, 3).toUpperCase();
+}
+
+/**
+ * Select a legible sidebar icon for a platform.
+ *
+ * This is the local fallback after RomM's square platform assets are exhausted.
+ * Do not use `logo_path`: older RomM versions often return a wide, dark wordmark
+ * there rather than the console/device artwork used by RomM's own platform list.
+ */
+export function platformIconSource(platform) {
+  const bundledId = packIconId(platform?.id);
+  if (bundledId) {
+    return { kind: "bundled", value: bundledId };
+  }
+
+  if (PLATFORM_INITIALS[platform?.id]) {
+    return { kind: "initials", value: PLATFORM_INITIALS[platform.id] };
+  }
+
+  return { kind: "initials", value: platformInitials(platform) };
 }
 
 export function platformBadgeLabel(platformId) {

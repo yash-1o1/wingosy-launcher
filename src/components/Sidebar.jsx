@@ -20,8 +20,8 @@ import { useRomDownloads } from "../RomDownloadsContext";
 import { tauriDragRegionProps, tauriDragRegionSx } from "../utils/isTauri";
 import {
   PLATFORM_COLORS,
-  packIconId,
-  platformInitials,
+  platformIconSource,
+  rommPlatformIconCandidates,
 } from "../utils/platformIcons";
 
 /** Integer px sizes avoid blurry subpixel scaling; square corners avoid clipping SVG edges. */
@@ -35,65 +35,36 @@ const ICON_BOX = (size) => ({
   justifyContent: "center",
   flexShrink: 0,
   overflow: "visible",
-  bgcolor: (theme) =>
-    theme.palette.mode === "dark"
-      ? "rgba(255,255,255,0.06)"
-      : "rgba(0,0,0,0.04)",
+  bgcolor: "transparent",
 });
 
-const INITIAL_ICON_PLATFORMS = new Set([
-  "nes",
-  "snes",
-  "n64",
-  "wii",
-  "wiiu",
-  "gb",
-  "gbc",
-  "gba",
-  "nds",
-]);
-
-function PlatformIcon({ platform, size = 24 }) {
+function PlatformIcon({ platform, rommUrl, size = 28 }) {
   const theme = useTheme();
   const baseColor = PLATFORM_COLORS[platform.id] || PLATFORM_COLORS.default;
   const color =
     theme.palette.mode === "dark" ? lighten(baseColor, 0.38) : baseColor;
-  const bundledId = INITIAL_ICON_PLATFORMS.has(platform.id)
-    ? null
-    : packIconId(platform.id);
-  const rommUrl = platform.logo_path || null;
   const innerPx = Math.max(18, Math.round(size * 0.92));
+  const rommCandidates = rommPlatformIconCandidates(platform.id, rommUrl);
 
-  const [rommFailed, setRommFailed] = useState(false);
+  const [rommStep, setRommStep] = useState(0);
   useEffect(() => {
-    setRommFailed(false);
+    setRommStep(0);
   }, [platform.id, rommUrl]);
 
-  if (bundledId) {
-    return (
-      <Box sx={ICON_BOX(size)} title={platform.name}>
-        <Icon
-          icon={bundledId}
-          width={innerPx}
-          height={innerPx}
-          inline={false}
-          style={{ color, display: "block", flexShrink: 0 }}
-        />
-      </Box>
-    );
-  }
+  const rommSrc = rommCandidates[rommStep] || null;
+  const iconSource = platformIconSource(platform);
 
-  if (rommUrl && !rommFailed) {
+  if (rommSrc) {
     return (
       <Box sx={ICON_BOX(size)} title={platform.name}>
         <Box
           component="img"
-          src={rommUrl}
+          src={rommSrc}
           alt=""
           loading="lazy"
           decoding="async"
           draggable={false}
-          onError={() => setRommFailed(true)}
+          onError={() => setRommStep((step) => step + 1)}
           sx={{
             width: innerPx,
             height: innerPx,
@@ -108,7 +79,21 @@ function PlatformIcon({ platform, size = 24 }) {
     );
   }
 
-  const label = platformInitials(platform);
+  if (iconSource.kind === "bundled") {
+    return (
+      <Box sx={ICON_BOX(size)} title={platform.name}>
+        <Icon
+          icon={iconSource.value}
+          width={innerPx}
+          height={innerPx}
+          inline={false}
+          style={{ color, display: "block", flexShrink: 0 }}
+        />
+      </Box>
+    );
+  }
+
+  const label = iconSource.value;
   return (
     <Box sx={ICON_BOX(size)} title={platform.name}>
       <Typography
@@ -136,6 +121,7 @@ export default function Sidebar({
   onNavigate,
   currentView,
   drawerWidth,
+  rommUrl,
 }) {
   const { colors } = useAppTheme();
   const { activeCount } = useRomDownloads();
@@ -272,7 +258,7 @@ export default function Sidebar({
                 color: "inherit",
               }}
             >
-              <PlatformIcon platform={platform} size={24} />
+              <PlatformIcon platform={platform} rommUrl={rommUrl} size={28} />
             </ListItemIcon>
             <ListItemText
               primary={platform.short_name || platform.name}

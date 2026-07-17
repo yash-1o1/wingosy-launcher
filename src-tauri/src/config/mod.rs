@@ -188,6 +188,14 @@ impl AppConfig {
                 .unwrap_or_else(|_| PathBuf::from("roms"))
         })
     }
+
+    pub fn bios_dir(&self) -> PathBuf {
+        self.library.bios_directory.clone().unwrap_or_else(|| {
+            Self::data_dir()
+                .map(|d| d.join("bios"))
+                .unwrap_or_else(|_| PathBuf::from("bios"))
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -206,6 +214,9 @@ pub struct RomMConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LibraryConfig {
     pub roms_directory: Option<PathBuf>,
+    /// BIOS files downloaded from RomM. Defaults to the Wingosy data directory.
+    #[serde(default)]
+    pub bios_directory: Option<PathBuf>,
     pub scan_subdirectories: bool,
     pub auto_extract_archives: bool,
     pub show_hidden_games: bool,
@@ -215,6 +226,7 @@ impl Default for LibraryConfig {
     fn default() -> Self {
         Self {
             roms_directory: None,
+            bios_directory: None,
             scan_subdirectories: true,
             auto_extract_archives: true,
             show_hidden_games: false,
