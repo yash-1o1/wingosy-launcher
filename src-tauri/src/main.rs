@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 mod api;
+mod bios;
 mod commands;
 mod config;
 mod database;
@@ -93,6 +94,12 @@ fn main() {
             commands::connect_romm_with_token,
             commands::sync_romm_library,
             commands::download_rom,
+            bios::get_bios_directory,
+            bios::set_bios_directory,
+            bios::list_bios_firmware,
+            bios::download_bios_firmware,
+            bios::download_all_bios_firmware,
+            bios::distribute_bios_firmware,
             commands::get_game_saves,
             commands::download_game_save,
             commands::upload_game_save,

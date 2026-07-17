@@ -39,7 +39,7 @@ impl RomMClient {
                 ("username", username),
                 ("password", password),
                 ("grant_type", "password"),
-                ("scope", "me.read me.write roms.read platforms.read roms.user.read roms.user.write"),
+                ("scope", "me.read me.write roms.read platforms.read firmware.read roms.user.read roms.user.write"),
             ])
             .send()
             .await
@@ -91,6 +91,27 @@ impl RomMClient {
         
         tracing::info!("[RomM] Found {} platforms", platforms.len());
         Ok(platforms)
+    }
+
+    pub async fn download_firmware(
+        &self,
+        firmware_id: i64,
+        file_name: &str,
+    ) -> Result<reqwest::Response> {
+        let encoded_name = urlencoding::encode(file_name);
+        let mut request = self.client.get(format!(
+            "{}/api/firmware/{}/content/{}",
+            self.base_url, firmware_id, encoded_name
+        ));
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+        let response = request.send().await.context("Failed to download firmware")?;
+        let status = response.status();
+        if !status.is_success() {
+            anyhow::bail!("Firmware download returned HTTP {}", status);
+        }
+        Ok(response)
     }
 
     pub async fn get_roms(
@@ -458,6 +479,27 @@ pub struct RomMPlatform {
     pub url_logo: Option<String>,
     #[serde(default)]
     pub display_name: Option<String>,
+    #[serde(default)]
+    pub firmware: Option<Vec<RomMFirmware>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RomMFirmware {
+    pub id: i64,
+    #[serde(default)]
+    pub file_name: String,
+    #[serde(default)]
+    pub file_path: String,
+    #[serde(default)]
+    pub full_path: String,
+    #[serde(default)]
+    pub file_size_bytes: u64,
+    #[serde(default)]
+    pub md5_hash: Option<String>,
+    #[serde(default)]
+    pub sha1_hash: Option<String>,
+    #[serde(default)]
+    pub missing_from_fs: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
