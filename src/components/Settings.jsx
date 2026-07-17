@@ -65,7 +65,6 @@ import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { useAppTheme } from "../ThemeContext";
 import { useUiSounds } from "../UiSoundsContext";
 import AccentHueSlider from "./AccentHueSlider";
-import BiosSettings from "./BiosSettings";
 import { open } from "@tauri-apps/plugin-dialog";
 import normalizeUrl from "../utils/normalizeUrl";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
@@ -97,7 +96,6 @@ const SETTINGS_SECTIONS = [
   { id: "sound", label: "Sound", Icon: VolumeUpIcon },
   { id: "romm", label: "RomM", Icon: CloudIcon },
   { id: "library", label: "Library", Icon: FolderIcon },
-  { id: "bios", label: "BIOS", Icon: MemoryIcon },
   { id: "emulators", label: "Emulators", Icon: SportsEsportsIcon },
   { id: "integrations", label: "Integrations", Icon: EmojiEventsIcon },
   { id: "updates", label: "Updates", Icon: SystemUpdateIcon },
@@ -1313,8 +1311,6 @@ export default function Settings({
       </Paper>
       </>
       )}
-
-      {settingsSection === "bios" && <BiosSettings />}
 
       {settingsSection === "emulators" && (
       <Box
