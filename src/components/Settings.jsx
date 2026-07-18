@@ -14,6 +14,7 @@ import LinearProgress from "@mui/material/LinearProgress";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Collapse from "@mui/material/Collapse";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -53,7 +54,6 @@ import TuneIcon from "@mui/icons-material/Tune";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
-import LockIcon from "@mui/icons-material/Lock";
 import PaletteIcon from "@mui/icons-material/Palette";
 import DesktopWindowsIcon from "@mui/icons-material/DesktopWindows";
 import SystemUpdateIcon from "@mui/icons-material/SystemUpdate";
@@ -113,6 +113,7 @@ export default function Settings({
   rommToken,
   rommUrl: rommUrlProp,
   onRommConnect,
+  onRommDisconnect,
   onLibraryChange,
   onImmersiveModeChange,
   onFullscreenChange,
@@ -120,10 +121,15 @@ export default function Settings({
 }) {
   const [config, setConfig] = useState(null);
   const [rommUrl, setRommUrl] = useState(rommUrlProp || "");
-  const [rommUsername, setRommUsername] = useState("");
-  const [rommPassword, setRommPassword] = useState("");
   const [rommDirectToken, setRommDirectToken] = useState("");
-  const [rommAuthMode, setRommAuthMode] = useState("password"); // "password" or "token"
+  const [rommDeviceName, setRommDeviceName] = useState("");
+  const [rommAuthMode, setRommAuthMode] = useState("pairing");
+  const [rommPairing, setRommPairing] = useState(null);
+  const pairingAttemptRef = useRef(0);
+  const [rommSessionSaved, setRommSessionSaved] = useState(false);
+  const [rommConnectionStatus, setRommConnectionStatus] = useState(
+    rommUrlProp && rommToken ? "checking" : "not-configured"
+  );
   const [rommStatus, setRommStatus] = useState(null);
   const [scanMessage, setScanMessage] = useState(null);
   const [emulators, setEmulators] = useState([]);
@@ -300,12 +306,66 @@ export default function Settings({
       .catch(() => setAppVersion(""));
   }, []);
 
+  useEffect(() => {
+    invoke("get_default_romm_device_name")
+      .then((name) => setRommDeviceName(String(name || "Windows PC")))
+      .catch(() => setRommDeviceName("Windows PC"));
+  }, []);
+
+  useEffect(() => () => {
+    pairingAttemptRef.current += 1;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkConnection = async () => {
+      if (!rommUrl || !rommToken) {
+        if (!cancelled) setRommConnectionStatus("not-configured");
+        return;
+      }
+      if (!cancelled) setRommConnectionStatus("checking");
+      try {
+        const status = await invoke("check_romm_connection", { serverUrl: rommUrl, token: rommToken });
+        if (cancelled) return;
+        if (status === "unauthorized") {
+          await invoke("disconnect_romm");
+          if (cancelled) return;
+          setRommSessionSaved(false);
+          setRommConnectionStatus("not-configured");
+          setRommDirectToken("");
+          onRommDisconnect?.();
+          setRommStatus({
+            type: "info",
+            message: "RomM no longer accepts this session, so Wingosy disconnected automatically.",
+          });
+          return;
+        }
+        setRommConnectionStatus(status === "online" ? "online" : status === "not-configured" ? "not-configured" : "offline");
+      } catch {
+        if (!cancelled) setRommConnectionStatus("offline");
+      }
+    };
+
+    checkConnection();
+    const timer = window.setInterval(checkConnection, 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [rommUrl, rommToken]);
+
   async function loadConfig() {
     try {
       const cfg = await invoke("get_config");
       setConfig(cfg);
       setRommUrl(cfg.romm?.server_url || rommUrlProp || "");
-      setRommUsername(cfg.romm?.username || "");
+      if (cfg.romm?.auth_method === "token" || cfg.romm?.auth_method === "pairing") {
+        setRommAuthMode(cfg.romm.auth_method);
+      }
+      invoke("has_saved_romm_session")
+        .then((saved) => setRommSessionSaved(Boolean(saved)))
+        .catch(() => setRommSessionSaved(false));
       setRomsDirectory(cfg.library?.roms_directory || "");
       setImmersiveModeEnabled(Boolean(cfg.display?.big_picture));
       setFullscreenEnabled(Boolean(cfg.display?.fullscreen));
@@ -592,31 +652,113 @@ export default function Settings({
   }
 
   async function handleConnectRomM() {
+    if (rommSessionSaved) {
+      setRommStatus({ type: "info", message: "Disconnect the current RomM session before changing authentication methods." });
+      return;
+    }
+    if (rommAuthMode === "pairing") {
+      await handleDevicePairing();
+      return;
+    }
     try {
       setRommStatus(null);
       const normalizedUrl = normalizeUrl(rommUrl);
       setRommUrl(normalizedUrl);
       
-      let token;
-      if (rommAuthMode === "token") {
-        // Connect using direct token (API key / access token)
-        token = await invoke("connect_romm_with_token", {
-          serverUrl: normalizedUrl,
-          token: rommDirectToken.trim(),
-        });
-      } else {
-        // Connect using username/password
-        token = await invoke("connect_romm", {
-          serverUrl: normalizedUrl,
-          username: rommUsername,
-          password: rommPassword,
-        });
+      if (rommAuthMode !== "token") {
+        throw new Error("Use secure device pairing or a RomM client access token.");
       }
+      const token = await invoke("connect_romm_with_token", {
+        serverUrl: normalizedUrl,
+        token: rommDirectToken.trim(),
+        deviceName: rommDeviceName.trim() || null,
+      });
       onRommConnect(normalizedUrl, token);
+      setRommSessionSaved(true);
+      setRommConnectionStatus("online");
+      setRommDirectToken("");
       setRommStatus({ type: "success", message: "Connected! Click 'Sync Library' to pull your games." });
     } catch (err) {
       setRommStatus({ type: "error", message: err.message || String(err) });
     }
+  }
+
+  async function handleDisconnectRomM() {
+    try {
+      cancelDevicePairing();
+      setRommStatus(null);
+      await invoke("disconnect_romm");
+      setRommSessionSaved(false);
+      setRommConnectionStatus("not-configured");
+      setRommDirectToken("");
+      onRommDisconnect?.();
+      setRommStatus({ type: "success", message: "Disconnected from RomM and removed the saved credential." });
+    } catch (err) {
+      setRommStatus({ type: "error", message: err?.message || String(err) });
+    }
+  }
+
+  async function handleDevicePairing() {
+    const attempt = pairingAttemptRef.current + 1;
+    pairingAttemptRef.current = attempt;
+    try {
+      setRommPairing(null);
+      setRommStatus({ type: "info", message: "Starting secure RomM pairing..." });
+      const normalizedUrl = normalizeUrl(rommUrl);
+      setRommUrl(normalizedUrl);
+      const pairing = await invoke("begin_romm_device_auth", { serverUrl: normalizedUrl });
+      if (pairingAttemptRef.current !== attempt) return;
+      setRommPairing(pairing);
+      setRommStatus({
+        type: "info",
+        message: `Approve Wingosy in RomM. Pairing code: ${pairing.user_code}`,
+      });
+
+      await shellOpen(pairing.verification_path_complete || pairing.verification_path);
+      const deadline = Date.now() + Number(pairing.expires_in || 600) * 1000;
+      let intervalMs = Math.max(2, Number(pairing.interval || 5)) * 1000;
+
+      while (pairingAttemptRef.current === attempt && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        if (pairingAttemptRef.current !== attempt) return;
+        const result = await invoke("poll_romm_device_auth", {
+          serverUrl: normalizedUrl,
+          deviceCode: pairing.device_code,
+        });
+        if (result.status === "authorization_pending") continue;
+        if (result.status === "slow_down") {
+          intervalMs += 5000;
+          continue;
+        }
+        if (result.status === "approved" && result.access_token) {
+          onRommConnect(normalizedUrl, result.access_token);
+          setRommSessionSaved(true);
+          setRommConnectionStatus("online");
+          setRommPairing(null);
+          setRommStatus({
+            type: "success",
+            message: "Wingosy is paired with RomM. Click 'Sync Library' to pull your games.",
+          });
+          return;
+        }
+        if (result.status === "access_denied") throw new Error("RomM pairing was denied.");
+        if (result.status === "expired_token") throw new Error("RomM pairing expired. Try again.");
+        throw new Error(`RomM pairing failed: ${result.status}`);
+      }
+      if (pairingAttemptRef.current === attempt) {
+        throw new Error("RomM pairing expired. Try again.");
+      }
+    } catch (err) {
+      if (pairingAttemptRef.current !== attempt) return;
+      setRommPairing(null);
+      setRommStatus({ type: "error", message: err.message || String(err) });
+    }
+  }
+
+  function cancelDevicePairing() {
+    pairingAttemptRef.current += 1;
+    setRommPairing(null);
+    setRommStatus(null);
   }
 
   async function handleSyncRomM() {
@@ -628,17 +770,14 @@ export default function Settings({
       setRommStatus({ type: "info", message: "Syncing library..." });
       const normalizedUrl = normalizeUrl(rommUrl);
       if (!rommToken) {
-        if (!rommUsername || !rommPassword) {
-          setRommStatus({ type: "error", message: "Enter credentials and click Connect first." });
-          return;
-        }
-        const token = await invoke("connect_romm", {
-          serverUrl: normalizedUrl, username: rommUsername, password: rommPassword,
+        setRommStatus({
+          type: "error",
+          message: "Pair Wingosy with RomM or connect with a client access token first.",
         });
-        onRommConnect(normalizedUrl, token);
+        return;
       }
       const games = await invoke("sync_romm_library", {
-        serverUrl: normalizedUrl, token: rommToken || "re-auth",
+        serverUrl: normalizedUrl, token: rommToken,
       });
       setRommStatus({ type: "success", message: `Synced ${games.length} games from RomM!` });
       // Refresh sidebar platform counts
@@ -900,6 +1039,38 @@ export default function Settings({
             Settings
           </Typography>
         </Box>
+        <Tooltip
+          title={{
+            online: `Connected to RomM${rommUrl ? ` (${rommUrl})` : ""}`,
+            offline: `RomM is offline or rejected the session${rommUrl ? ` (${rommUrl})` : ""}`,
+            checking: "Checking RomM connection...",
+            "not-configured": "RomM is not configured",
+          }[rommConnectionStatus]}
+        >
+          <Box
+            role="status"
+            aria-label={`RomM connection: ${rommConnectionStatus}`}
+            sx={{
+              ...tauriNoDragSx,
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              display: "grid",
+              placeItems: "center",
+              borderRadius: "50%",
+              bgcolor: "action.hover",
+            }}
+          >
+            {rommConnectionStatus === "checking" ? (
+              <CircularProgress size={20} thickness={5} />
+            ) : (
+              <CloudIcon
+                fontSize="small"
+                color={rommConnectionStatus === "online" ? "success" : "disabled"}
+              />
+            )}
+          </Box>
+        </Tooltip>
       </Box>
 
       <Box
@@ -1182,7 +1353,14 @@ export default function Settings({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
           <CloudIcon color="primary" />
           <Typography variant="h6">RomM Server</Typography>
-          {rommToken && <CheckCircleIcon color="success" fontSize="small" />}
+          {rommSessionSaved && (
+            <Chip
+              size="small"
+              color="success"
+              icon={<CheckCircleIcon />}
+              label="Session saved"
+            />
+          )}
         </Box>
         <TextField fullWidth label="Server URL" placeholder="romm.example.com or 192.168.1.2:3000"
           value={rommUrl} onChange={(e) => setRommUrl(e.target.value)} sx={{ mb: 2 }} size="small" />
@@ -1194,14 +1372,19 @@ export default function Settings({
           </Typography>
           <ToggleButtonGroup
             value={rommAuthMode}
+            disabled={rommSessionSaved}
             exclusive
-            onChange={(e, newMode) => newMode && setRommAuthMode(newMode)}
+            onChange={(e, newMode) => {
+              if (!newMode) return;
+              cancelDevicePairing();
+              setRommAuthMode(newMode);
+            }}
             size="small"
             sx={{ mb: 2 }}
           >
-            <ToggleButton value="password" sx={{ px: 2 }}>
-              <LockIcon sx={{ mr: 1, fontSize: 18 }} />
-              Username / Password
+            <ToggleButton value="pairing" sx={{ px: 2 }}>
+              <OpenInNewIcon sx={{ mr: 1, fontSize: 18 }} />
+              Device Pairing
             </ToggleButton>
             <ToggleButton value="token" sx={{ px: 2 }}>
               <VpnKeyIcon sx={{ mr: 1, fontSize: 18 }} />
@@ -1210,13 +1393,17 @@ export default function Settings({
           </ToggleButtonGroup>
         </Box>
         
-        {rommAuthMode === "password" ? (
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <TextField label="Username" value={rommUsername} onChange={(e) => setRommUsername(e.target.value)} size="small" sx={{ flex: 1 }} />
-            <TextField label="Password" type="password" value={rommPassword} onChange={(e) => setRommPassword(e.target.value)} size="small" sx={{ flex: 1 }} />
-          </Box>
-        ) : (
+        {rommAuthMode === "token" && (
           <Box sx={{ mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Device Name"
+              value={rommDeviceName}
+              onChange={(e) => setRommDeviceName(e.target.value)}
+              size="small"
+              sx={{ mb: 2 }}
+              helperText={`Registered as wingosy-${(rommDeviceName.trim() || "windows-pc").toLowerCase().replace(/\s+/g, "-").replace(/^wingosy-/, "")}`}
+            />
             <TextField 
               fullWidth 
               label="Access Token" 
@@ -1225,14 +1412,39 @@ export default function Settings({
               onChange={(e) => setRommDirectToken(e.target.value)} 
               size="small"
               type="password"
-              helperText="Get your token from RomM web UI → Settings → Access Tokens, or from your OAuth provider"
             />
           </Box>
         )}
         
         <Box sx={{ display: "flex", gap: 2 }}>
-          <Button variant="contained" onClick={handleConnectRomM}>Connect</Button>
+          <Button
+            variant="contained"
+            onClick={handleConnectRomM}
+            disabled={
+              rommSessionSaved ||
+              !rommUrl ||
+              (rommAuthMode === "token"
+                ? !rommDirectToken.trim()
+                : Boolean(rommPairing))
+            }
+          >
+            {rommPairing
+              ? "Waiting for approval..."
+              : rommSessionSaved
+                ? "Connected"
+                : rommAuthMode === "pairing"
+                ? "Pair with RomM"
+                : "Connect"}
+          </Button>
+          {rommPairing && (
+            <Button variant="text" onClick={cancelDevicePairing}>Cancel</Button>
+          )}
           <Button variant="outlined" onClick={handleSyncRomM} disabled={!rommUrl}>Sync Library</Button>
+          {rommSessionSaved && (
+            <Button color="error" variant="text" onClick={handleDisconnectRomM}>
+              Disconnect
+            </Button>
+          )}
         </Box>
         {rommStatus && <Alert severity={rommStatus.type} sx={{ mt: 2 }}>{rommStatus.message}</Alert>}
       </Paper>

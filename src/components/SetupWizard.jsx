@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -22,6 +22,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import normalizeUrl from "../utils/normalizeUrl";
 
 const STEPS = ["RomM Server", "ROM Folder", "Scan Games"];
@@ -29,8 +30,8 @@ const STEPS = ["RomM Server", "ROM Folder", "Scan Games"];
 export default function SetupWizard({ onComplete, onRommConnect }) {
   const [activeStep, setActiveStep] = useState(-1);
   const [rommUrl, setRommUrl] = useState("");
-  const [rommUsername, setRommUsername] = useState("");
-  const [rommPassword, setRommPassword] = useState("");
+  const [rommPairing, setRommPairing] = useState(null);
+  const pairingAttemptRef = useRef(0);
   const [rommStatus, setRommStatus] = useState(null);
   const [rommConnected, setRommConnected] = useState(false);
   const [rommToken, setRommToken] = useState(null);
@@ -41,24 +42,57 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => () => {
+    pairingAttemptRef.current += 1;
+  }, []);
+
   async function handleConnectRomM() {
+    const attempt = pairingAttemptRef.current + 1;
+    pairingAttemptRef.current = attempt;
     try {
-      setRommStatus(null);
       setError(null);
       const normalizedUrl = normalizeUrl(rommUrl);
       setRommUrl(normalizedUrl);
-      const token = await invoke("connect_romm", {
-        serverUrl: normalizedUrl,
-        username: rommUsername,
-        password: rommPassword,
+      setRommStatus({ type: "info", message: "Starting secure RomM pairing..." });
+      const pairing = await invoke("begin_romm_device_auth", { serverUrl: normalizedUrl });
+      if (pairingAttemptRef.current !== attempt) return;
+      setRommPairing(pairing);
+      setRommStatus({
+        type: "info",
+        message: `Approve Wingosy in RomM. Pairing code: ${pairing.user_code}`,
       });
-      setRommConnected(true);
-      setRommToken(token);
-      if (onRommConnect) {
-        onRommConnect(normalizedUrl, token);
+      await shellOpen(pairing.verification_path_complete || pairing.verification_path);
+
+      const deadline = Date.now() + Number(pairing.expires_in || 600) * 1000;
+      let intervalMs = Math.max(2, Number(pairing.interval || 5)) * 1000;
+      while (pairingAttemptRef.current === attempt && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        if (pairingAttemptRef.current !== attempt) return;
+        const result = await invoke("poll_romm_device_auth", {
+          serverUrl: normalizedUrl,
+          deviceCode: pairing.device_code,
+        });
+        if (result.status === "authorization_pending") continue;
+        if (result.status === "slow_down") {
+          intervalMs += 5000;
+          continue;
+        }
+        if (result.status !== "approved" || !result.access_token) {
+          throw new Error(result.status === "access_denied"
+            ? "RomM pairing was denied."
+            : "RomM pairing expired. Try again.");
+        }
+        setRommConnected(true);
+        setRommToken(result.access_token);
+        setRommPairing(null);
+        if (onRommConnect) onRommConnect(normalizedUrl, result.access_token);
+        setRommStatus({ type: "success", message: "Paired successfully!" });
+        return;
       }
-      setRommStatus({ type: "success", message: "Connected successfully!" });
+      throw new Error("RomM pairing expired. Try again.");
     } catch (err) {
+      if (pairingAttemptRef.current !== attempt) return;
+      setRommPairing(null);
       setRommStatus({
         type: "error",
         message: err.message || String(err),
@@ -74,20 +108,14 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
       setError(null);
       const normalizedUrl = normalizeUrl(rommUrl);
 
+      let syncToken = rommToken;
       if (!rommConnected) {
-        const token = await invoke("connect_romm", {
-          serverUrl: normalizedUrl,
-          username: rommUsername,
-          password: rommPassword,
-        });
-        setRommConnected(true);
-        setRommToken(token);
-        if (onRommConnect) onRommConnect(normalizedUrl, token);
+        throw new Error("Pair Wingosy with RomM before syncing.");
       }
 
       const games = await invoke("sync_romm_library", {
         serverUrl: normalizedUrl,
-        token: rommToken || "re-auth",
+        token: syncToken,
       });
       setSyncResult({ total: games.length });
     } catch (err) {
@@ -137,7 +165,7 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
     try {
       await invoke("complete_setup", {
         rommUrl: rommConnected ? rommUrl : null,
-        rommUsername: rommConnected ? rommUsername : null,
+        rommUsername: null,
         romsDirectory: romsDir || null,
       });
       onComplete();
@@ -235,21 +263,9 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
                     onChange={(e) => setRommUrl(e.target.value)}
                     sx={{ mb: 2 }}
                   />
-                  <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                    <TextField
-                      label="Username"
-                      value={rommUsername}
-                      onChange={(e) => setRommUsername(e.target.value)}
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      label="Password"
-                      type="password"
-                      value={rommPassword}
-                      onChange={(e) => setRommPassword(e.target.value)}
-                      sx={{ flex: 1 }}
-                    />
-                  </Box>
+                  <Alert severity="success" sx={{ mb: 2 }}>
+                    Secure device pairing opens RomM in your browser. Wingosy never receives or stores your password.
+                  </Alert>
                   {rommStatus && (
                     <Alert severity={rommStatus.type} sx={{ mb: 2 }}>
                       {rommStatus.message}
@@ -258,11 +274,20 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
                   <Button
                     variant="contained"
                     onClick={handleConnectRomM}
-                    disabled={!rommUrl}
+                    disabled={!rommUrl || Boolean(rommPairing)}
                     sx={{ mr: 2 }}
                   >
-                    Connect
+                    {rommPairing ? "Waiting for approval..." : "Pair with RomM"}
                   </Button>
+                  {rommPairing && (
+                    <Button onClick={() => {
+                      pairingAttemptRef.current += 1;
+                      setRommPairing(null);
+                      setRommStatus(null);
+                    }}>
+                      Cancel
+                    </Button>
+                  )}
                 </>
               ) : (
                 <Alert severity="success" icon={<CheckCircleIcon />}>

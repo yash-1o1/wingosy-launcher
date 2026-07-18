@@ -528,30 +528,248 @@ pub fn list_ambient_audio_files(dir: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub async fn connect_romm(
+pub async fn begin_romm_device_auth(
     server_url: String,
-    username: String,
-    password: String,
-) -> Result<String, String> {
-    tracing::info!("[RomM] Connecting to server: {}", server_url);
-    
-    let mut client = RomMClient::new(&server_url);
-    let token_response = client.authenticate(&username, &password).await
-        .map_err(|e| {
-            tracing::error!("[RomM] Connection failed: {}", e);
-            e.to_string()
-        })?;
-    
-    tracing::info!("[RomM] Authentication successful, saving credentials");
-    
+) -> Result<crate::api::DeviceAuthInitResponse, String> {
     let mut config = AppConfig::load().unwrap_or_default();
-    config.romm.server_url = Some(server_url.clone());
-    config.romm.username = Some(username);
-    config.romm.auth_token = Some(token_response.access_token.clone());
-    config.save().map_err(|e| e.to_string())?;
-    
-    tracing::info!("[RomM] Connected to {}", server_url);
-    Ok(token_response.access_token)
+    let client_identifier = crate::sync::switch_romm::ensure_device_id(&mut config);
+    let device_name = std::env::var("COMPUTERNAME")
+        .or_else(|_| std::env::var("HOSTNAME"))
+        .unwrap_or_else(|_| "Windows PC".to_string());
+    let client = RomMClient::new(&server_url);
+    let mut pairing = client
+        .begin_device_auth(&client_identifier, &device_name)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let base = server_url.trim_end_matches('/');
+    if pairing.verification_path.starts_with('/') {
+        pairing.verification_path = format!("{base}{}", pairing.verification_path);
+    }
+    if pairing.verification_path_complete.starts_with('/') {
+        pairing.verification_path_complete =
+            format!("{base}{}", pairing.verification_path_complete);
+    }
+    Ok(pairing)
+}
+
+#[tauri::command]
+pub async fn poll_romm_device_auth(
+    server_url: String,
+    device_code: String,
+) -> Result<crate::api::DeviceAuthPollResponse, String> {
+    let client = RomMClient::new(&server_url);
+    let result = client
+        .poll_device_auth(&device_code)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if result.status == "approved" {
+        let token = result
+            .access_token
+            .as_deref()
+            .ok_or("RomM approved pairing without returning a token")?;
+        RomMClient::new(&server_url)
+            .with_token(token.to_string())
+            .get_platforms()
+            .await
+            .map_err(|e| format!("RomM paired the device, but token verification failed: {e}"))?;
+
+        let mut config = AppConfig::load().unwrap_or_default();
+        if let (Some(previous_server), Some(previous_username)) =
+            (config.romm.server_url.as_deref(), config.romm.username.as_deref())
+        {
+            crate::romm_credentials::delete_refresh_token(previous_server, previous_username)
+                .map_err(|e| e.to_string())?;
+        }
+        config.romm.server_url = Some(server_url.clone());
+        config.romm.auth_method = Some("pairing".to_string());
+        config.romm.username = None;
+        config.romm.password = None;
+        crate::romm_credentials::store_device_token(&server_url, token)
+            .map_err(|e| e.to_string())?;
+        config.romm.auth_token = None;
+        if let Some(device_id) = result.device_id.as_ref() {
+            config.romm.device_id = Some(device_id.clone());
+        }
+        config.save().map_err(|e| e.to_string())?;
+    }
+
+    Ok(result)
+}
+
+#[derive(Debug, Serialize)]
+pub struct RomMAuthSession {
+    pub server_url: String,
+    pub access_token: String,
+    pub refreshed: bool,
+}
+
+#[tauri::command]
+pub fn has_saved_romm_session() -> bool {
+    let Ok(config) = AppConfig::load() else {
+        return false;
+    };
+    let Some(server_url) = config.romm.server_url.as_deref() else {
+        return false;
+    };
+    let Some(username) = config.romm.username.as_deref() else {
+        return crate::romm_credentials::load_device_token(server_url)
+            .ok()
+            .flatten()
+            .is_some()
+            || config.romm.auth_token.is_some();
+    };
+    crate::romm_credentials::load_refresh_token(server_url, username)
+        .ok()
+        .flatten()
+        .is_some()
+}
+
+/// Verify that the configured RomM server is reachable and that the current
+/// token is still accepted. Kept separate from `has_saved_romm_session`, which
+/// only reports whether credentials exist locally.
+#[tauri::command]
+pub async fn check_romm_connection(server_url: String, token: String) -> String {
+    if server_url.trim().is_empty() || token.trim().is_empty() {
+        return "not-configured".to_string();
+    }
+
+    let client = RomMClient::new(&server_url).with_token(token);
+    match tokio::time::timeout(std::time::Duration::from_secs(10), client.get_platforms()).await {
+        Ok(Ok(_)) => "online".to_string(),
+        Ok(Err(error)) => {
+            let message = error.to_string();
+            if message.contains("401") || message.contains("403") {
+                "unauthorized".to_string()
+            } else {
+                "offline".to_string()
+            }
+        }
+        Err(_) => "offline".to_string(),
+    }
+}
+
+fn default_windows_device_name() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        use winreg::enums::HKEY_LOCAL_MACHINE;
+        use winreg::RegKey;
+
+        if let Ok(key) = RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey(
+            r"SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName",
+        ) {
+            if let Ok(name) = key.get_value::<String, _>("ComputerName") {
+                if !name.trim().is_empty() {
+                    return name;
+                }
+            }
+        }
+    }
+
+    std::env::var("COMPUTERNAME")
+        .or_else(|_| std::env::var("HOSTNAME"))
+        .ok()
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| "Windows PC".to_string())
+}
+
+#[tauri::command]
+pub fn get_default_romm_device_name() -> String {
+    default_windows_device_name()
+}
+
+/// Remove all locally stored RomM credentials and session metadata. This does
+/// not delete the device record from the RomM server; it only signs Wingosy out.
+#[tauri::command]
+pub fn disconnect_romm() -> Result<(), String> {
+    let mut config = AppConfig::load().unwrap_or_default();
+
+    if let Some(server_url) = config.romm.server_url.as_deref() {
+        crate::romm_credentials::delete_device_token(server_url)
+            .map_err(|error| error.to_string())?;
+        if let Some(username) = config.romm.username.as_deref() {
+            crate::romm_credentials::delete_refresh_token(server_url, username)
+                .map_err(|error| error.to_string())?;
+        }
+    }
+
+    config.romm.username = None;
+    config.romm.auth_method = None;
+    config.romm.password = None;
+    config.romm.auth_token = None;
+    config.save().map_err(|error| error.to_string())
+}
+
+/// Restore the saved RomM session on startup. Password-based connections are
+/// silently renewed using a refresh token in Windows Credential Manager. Device tokens are loaded
+/// from Credential Manager, while manually supplied access tokens are returned unchanged.
+#[tauri::command]
+pub async fn restore_romm_session() -> Result<Option<RomMAuthSession>, String> {
+    let mut config = AppConfig::load().unwrap_or_default();
+    let Some(server_url) = config.romm.server_url.clone() else {
+        return Ok(None);
+    };
+    let existing_token = config.romm.auth_token.clone();
+    let Some(username) = config.romm.username.clone() else {
+        let access_token = crate::romm_credentials::load_device_token(&server_url)
+            .map_err(|e| e.to_string())?
+            .or(existing_token);
+        return Ok(access_token.map(|access_token| RomMAuthSession {
+            server_url,
+            access_token,
+            refreshed: false,
+        }));
+    };
+
+    let refresh_token = match crate::romm_credentials::load_refresh_token(&server_url, &username) {
+        Ok(Some(refresh_token)) => Some(refresh_token),
+        Ok(None) => None,
+        Err(error) => {
+            tracing::warn!("[RomM] Could not access Windows Credential Manager: {}", error);
+            None
+        }
+    };
+    let Some(refresh_token) = refresh_token else {
+        return Ok(existing_token.map(|access_token| RomMAuthSession {
+            server_url,
+            access_token,
+            refreshed: false,
+        }));
+    };
+
+    let mut client = RomMClient::new(&server_url);
+    match client.refresh_authentication(&refresh_token).await {
+        Ok(token_response) => {
+            config.romm.password = None;
+            config.romm.auth_token = Some(token_response.access_token.clone());
+            config.save().map_err(|e| e.to_string())?;
+            if let Some(next_refresh_token) = token_response.refresh_token.as_deref() {
+                crate::romm_credentials::store_refresh_token(
+                    &server_url,
+                    &username,
+                    next_refresh_token,
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            Ok(Some(RomMAuthSession {
+                server_url,
+                access_token: token_response.access_token,
+                refreshed: true,
+            }))
+        }
+        Err(error) => {
+            tracing::warn!("[RomM] Automatic session renewal failed: {}", error);
+            existing_token
+                .map(|access_token| RomMAuthSession {
+                    server_url,
+                    access_token,
+                    refreshed: false,
+                })
+                .map(Some)
+                .ok_or_else(|| error.to_string())
+        }
+    }
 }
 
 /// Connect to RomM using a direct access token (for users with SSO/OIDC or API tokens)
@@ -559,10 +777,13 @@ pub async fn connect_romm(
 pub async fn connect_romm_with_token(
     server_url: String,
     token: String,
+    device_name: Option<String>,
 ) -> Result<String, String> {
     tracing::info!("[RomM] Connecting to server with token: {}", server_url);
     
-    // Verify the token works by making a test request
+    // Verify the token works by making a test request, then mirror Argosy by
+    // registering this install as an API-mode device. Device pairing performs
+    // this registration server-side and therefore does not need this step.
     let client = RomMClient::new(&server_url).with_token(token.clone());
     
     // Try to fetch platforms as a connection test
@@ -571,12 +792,74 @@ pub async fn connect_romm_with_token(
             tracing::error!("[RomM] Token verification failed: {}", e);
             format!("Token verification failed: {}", e)
         })?;
+
+    let hostname = default_windows_device_name();
+    let raw_device_name = device_name
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| hostname.clone());
+    let normalized_device_name = raw_device_name
+        .trim()
+        .to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("-");
+    let device_name = if normalized_device_name.starts_with("wingosy-") {
+        normalized_device_name
+    } else {
+        format!("wingosy-{normalized_device_name}")
+    };
+    let existing_config = AppConfig::load().unwrap_or_default();
+    let same_server = existing_config
+        .romm
+        .server_url
+        .as_deref()
+        .map(|url| url.trim_end_matches('/') == server_url.trim_end_matches('/'))
+        .unwrap_or(false);
+    let existing_device_id = same_server
+        .then(|| existing_config.romm.device_id.clone())
+        .flatten();
+
+    let device_id = if let Some(existing_id) = existing_device_id {
+        if client
+            .update_wingosy_device(&existing_id, &device_name, &hostname)
+            .await
+            .map_err(|e| format!("Token verified, but the existing device could not be updated: {e}"))?
+        {
+            existing_id
+        } else {
+            client
+                .register_wingosy_device(&device_name, &hostname)
+                .await
+                .map_err(|e| format!("Token verified, but device registration failed: {e}"))?
+        }
+    } else {
+        client
+            .register_wingosy_device(&device_name, &hostname)
+            .await
+            .map_err(|e| format!("Token verified, but device registration failed: {e}"))?
+    };
     
     tracing::info!("[RomM] Token verified, saving credentials");
     
     let mut config = AppConfig::load().unwrap_or_default();
+    if let (Some(previous_server), Some(previous_username)) =
+        (config.romm.server_url.as_deref(), config.romm.username.as_deref())
+    {
+        crate::romm_credentials::delete_refresh_token(previous_server, previous_username)
+            .map_err(|e| e.to_string())?;
+    }
+    if let Some(previous_server) = config.romm.server_url.as_deref() {
+        crate::romm_credentials::delete_device_token(previous_server)
+            .map_err(|e| e.to_string())?;
+    }
+    crate::romm_credentials::store_device_token(&server_url, &token)
+        .map_err(|e| e.to_string())?;
     config.romm.server_url = Some(server_url.clone());
-    config.romm.auth_token = Some(token.clone());
+    config.romm.auth_method = Some("token".to_string());
+    config.romm.username = None;
+    config.romm.password = None;
+    config.romm.auth_token = None;
+    config.romm.device_id = Some(device_id);
     config.save().map_err(|e| e.to_string())?;
     
     tracing::info!("[RomM] Connected to {} with token", server_url);
@@ -2451,4 +2734,3 @@ mod tests {
         assert_eq!(cmd.game_name, "Super Mario");
     }
 }
-

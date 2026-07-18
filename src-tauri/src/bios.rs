@@ -59,10 +59,8 @@ fn configured_client(config: &AppConfig) -> Result<RomMClient> {
         .server_url
         .clone()
         .context("RomM server is not configured")?;
-    let token = config
-        .romm
-        .auth_token
-        .clone()
+    let token = crate::romm_credentials::load_device_token(&server_url)?
+        .or_else(|| config.romm.auth_token.clone())
         .context("RomM access token is not configured; reconnect in Settings")?;
     Ok(RomMClient::new(server_url).with_token(token))
 }

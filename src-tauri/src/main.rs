@@ -11,6 +11,7 @@ mod config;
 mod database;
 mod emulators;
 mod models;
+mod romm_credentials;
 mod scanner;
 mod sync;
 
@@ -90,8 +91,14 @@ fn main() {
             commands::get_config,
             commands::save_config,
             commands::list_ambient_audio_files,
-            commands::connect_romm,
             commands::connect_romm_with_token,
+            commands::get_default_romm_device_name,
+            commands::begin_romm_device_auth,
+            commands::poll_romm_device_auth,
+            commands::has_saved_romm_session,
+            commands::check_romm_connection,
+            commands::disconnect_romm,
+            commands::restore_romm_session,
             commands::sync_romm_library,
             commands::download_rom,
             bios::get_bios_directory,

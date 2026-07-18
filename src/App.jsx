@@ -92,6 +92,7 @@ function App() {
   /** Which Settings sidebar section to show when opening Settings (desktop shell). */
   const [settingsInitialSection, setSettingsInitialSection] = useState("general");
   const startupUpdateCheckDone = useRef(false);
+  const rommSessionRestoreStarted = useRef(false);
 
   useEffect(() => {
     checkFirstRun();
@@ -143,6 +144,18 @@ function App() {
         }
         if (cfg.romm?.auth_token) {
           setRommToken(cfg.romm.auth_token);
+        }
+        if (cfg.romm?.server_url && !rommSessionRestoreStarted.current) {
+          rommSessionRestoreStarted.current = true;
+          invoke("restore_romm_session")
+            .then((session) => {
+              if (!session?.access_token) return;
+              setRommUrl(session.server_url);
+              setRommToken(session.access_token);
+            })
+            .catch((err) => {
+              console.warn("[Wingosy] Could not restore RomM session:", err);
+            });
         }
         setImmersiveModeEnabled(Boolean(cfg.display?.big_picture));
         setImmersiveModeFullscreen(Boolean(cfg.display?.fullscreen));
@@ -236,6 +249,10 @@ function App() {
   function handleRommConnect(url, token) {
     setRommUrl(url);
     setRommToken(token);
+  }
+
+  function handleRommDisconnect() {
+    setRommToken(null);
   }
 
   useEffect(() => {
@@ -487,6 +504,7 @@ function App() {
             rommToken={rommToken}
             rommUrl={rommUrl}
             onRommConnect={handleRommConnect}
+            onRommDisconnect={handleRommDisconnect}
             onLibraryChange={loadData}
           />
           </Box>

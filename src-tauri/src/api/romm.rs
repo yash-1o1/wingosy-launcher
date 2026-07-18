@@ -2,6 +2,9 @@ use anyhow::{Context, Result};
 use chrono::Datelike;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+
+const WINGOSY_CLIENT: &str = "wingosy-launcher";
+
 #[derive(Debug, Clone)]
 pub struct RomMClient {
     client: Client,
@@ -46,19 +49,203 @@ impl RomMClient {
             .context("Failed to connect to RomM server")?;
 
         let status = response.status();
+        let text = response
+            .text()
+            .await
+            .context("Failed to read authentication response")?;
         if !status.is_success() {
             tracing::error!("[RomM] Authentication failed: HTTP {}", status);
-            anyhow::bail!("Authentication failed: HTTP {}", status);
+            let detail = serde_json::from_str::<serde_json::Value>(&text)
+                .ok()
+                .and_then(|body| body.get("detail")?.as_str().map(str::to_owned))
+                .unwrap_or_else(|| format!("HTTP {}", status));
+            anyhow::bail!("Authentication failed: {}", detail);
         }
 
-        let token: TokenResponse = response
-            .json()
-            .await
+        let token: TokenResponse = serde_json::from_str(&text)
             .context("Failed to parse authentication response")?;
 
         self.token = Some(token.access_token.clone());
         tracing::info!("[RomM] Authentication successful for '{}'", username);
         Ok(token)
+    }
+
+    pub async fn refresh_authentication(
+        &mut self,
+        refresh_token: &str,
+    ) -> Result<TokenResponse> {
+        let response = self
+            .client
+            .post(format!("{}/api/token", self.base_url))
+            .form(&[
+                ("grant_type", "refresh_token"),
+                ("refresh_token", refresh_token),
+            ])
+            .send()
+            .await
+            .context("Failed to connect to RomM server")?;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .context("Failed to read token refresh response")?;
+        if !status.is_success() {
+            let detail = serde_json::from_str::<serde_json::Value>(&text)
+                .ok()
+                .and_then(|body| body.get("detail")?.as_str().map(str::to_owned))
+                .unwrap_or_else(|| format!("HTTP {}", status));
+            anyhow::bail!("RomM session renewal failed: {}", detail);
+        }
+
+        let token: TokenResponse =
+            serde_json::from_str(&text).context("Failed to parse token refresh response")?;
+        self.token = Some(token.access_token.clone());
+        Ok(token)
+    }
+
+    pub async fn begin_device_auth(
+        &self,
+        client_device_identifier: &str,
+        device_name: &str,
+    ) -> Result<DeviceAuthInitResponse> {
+        let response = self
+            .client
+            .post(format!("{}/api/auth/device/init", self.base_url))
+            .json(&serde_json::json!({
+                "client_device_identifier": client_device_identifier,
+                "name": device_name,
+                "client": WINGOSY_CLIENT,
+                "platform": "Windows",
+                "client_version": env!("CARGO_PKG_VERSION"),
+                "requested_scopes": [
+                    "me.read", "me.write",
+                    "platforms.read", "platforms.write",
+                    "roms.read", "roms.write",
+                    "roms.user.read", "roms.user.write",
+                    "assets.read", "assets.write",
+                    "firmware.read", "firmware.write",
+                    "collections.read", "collections.write",
+                    "devices.read", "devices.write"
+                ]
+            }))
+            .send()
+            .await
+            .context("Failed to start RomM device pairing")?;
+
+        parse_json_response(response, "Device pairing could not be started").await
+    }
+
+    pub async fn poll_device_auth(&self, device_code: &str) -> Result<DeviceAuthPollResponse> {
+        let response = self
+            .client
+            .post(format!("{}/api/auth/device/token", self.base_url))
+            .json(&serde_json::json!({ "device_code": device_code }))
+            .send()
+            .await
+            .context("Failed to check RomM device pairing")?;
+
+        if response.status().is_success() {
+            let token: DeviceAuthTokenResponse = response
+                .json()
+                .await
+                .context("Failed to parse RomM device token")?;
+            return Ok(DeviceAuthPollResponse {
+                status: "approved".to_string(),
+                access_token: Some(token.access_token),
+                device_id: Some(token.device_id),
+            });
+        }
+
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        let detail = serde_json::from_str::<serde_json::Value>(&text)
+            .ok()
+            .and_then(|body| body.get("detail")?.as_str().map(str::to_owned))
+            .unwrap_or_else(|| format!("HTTP {status}"));
+        match detail.as_str() {
+            "authorization_pending" | "slow_down" | "access_denied" | "expired_token" => {
+                Ok(DeviceAuthPollResponse {
+                    status: detail,
+                    access_token: None,
+                    device_id: None,
+                })
+            }
+            _ => anyhow::bail!("Device pairing failed: {detail}"),
+        }
+    }
+
+    /// Register a Wingosy install as an API-mode sync device when the user supplies
+    /// an existing RomM client/access token instead of using device pairing.
+    pub async fn register_wingosy_device(
+        &self,
+        device_name: &str,
+        hostname: &str,
+    ) -> Result<String> {
+        let mut request = self
+            .client
+            .post(format!("{}/api/devices", self.base_url))
+            .json(&serde_json::json!({
+                "name": device_name,
+                "platform": "Windows",
+                "client": WINGOSY_CLIENT,
+                "client_version": env!("CARGO_PKG_VERSION"),
+                "hostname": hostname,
+                "sync_mode": "api"
+            }));
+
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+
+        let response: DeviceRegistrationResponse = parse_json_response(
+            request
+                .send()
+                .await
+                .context("Failed to register Wingosy as a RomM device")?,
+            "Device registration failed",
+        )
+        .await?;
+        Ok(response.device_id)
+    }
+
+    /// Update the exact RomM device previously returned to this Wingosy
+    /// installation. Returns `false` when that device no longer exists so the
+    /// caller can fall back to registering a new one.
+    pub async fn update_wingosy_device(
+        &self,
+        device_id: &str,
+        device_name: &str,
+        hostname: &str,
+    ) -> Result<bool> {
+        let mut request = self
+            .client
+            .put(format!("{}/api/devices/{}", self.base_url, device_id))
+            .json(&serde_json::json!({
+                "name": device_name,
+                "platform": "Windows",
+                "client": WINGOSY_CLIENT,
+                "client_version": env!("CARGO_PKG_VERSION"),
+                "hostname": hostname,
+                "sync_mode": "api"
+            }));
+
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+
+        let response = request
+            .send()
+            .await
+            .context("Failed to update the existing Wingosy device")?;
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(false);
+        }
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Device update failed (HTTP {status}): {body}");
+        }
+        Ok(true)
     }
 
     fn auth_header(&self) -> Option<String> {
@@ -456,10 +643,60 @@ impl RomMClient {
     }
 }
 
+async fn parse_json_response<T: serde::de::DeserializeOwned>(
+    response: reqwest::Response,
+    context: &str,
+) -> Result<T> {
+    let status = response.status();
+    let text = response.text().await.context("Failed to read RomM response")?;
+    if !status.is_success() {
+        let detail = serde_json::from_str::<serde_json::Value>(&text)
+            .ok()
+            .and_then(|body| body.get("detail")?.as_str().map(str::to_owned))
+            .unwrap_or_else(|| format!("HTTP {status}"));
+        anyhow::bail!("{context}: {detail}");
+    }
+    serde_json::from_str(&text).with_context(|| format!("Failed to parse RomM response for {context}"))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
     pub token_type: String,
+    #[serde(default)]
+    pub refresh_token: Option<String>,
+    #[serde(default)]
+    pub expires: Option<i64>,
+    #[serde(default)]
+    pub refresh_expires: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceAuthInitResponse {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_path: String,
+    pub verification_path_complete: String,
+    pub expires_in: u64,
+    pub interval: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DeviceAuthTokenResponse {
+    access_token: String,
+    device_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DeviceRegistrationResponse {
+    device_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceAuthPollResponse {
+    pub status: String,
+    pub access_token: Option<String>,
+    pub device_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

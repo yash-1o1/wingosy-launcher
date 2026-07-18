@@ -201,6 +201,9 @@ impl AppConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RomMConfig {
     pub server_url: Option<String>,
+    /// Authentication path used for the saved session (`pairing` or `token`).
+    #[serde(default)]
+    pub auth_method: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>,
     pub auth_token: Option<String>,

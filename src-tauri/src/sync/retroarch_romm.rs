@@ -28,12 +28,10 @@ fn romm_client(config: &AppConfig) -> Result<RomMClient> {
         .server_url
         .as_deref()
         .context("RomM server URL not configured")?;
-    let token = config
-        .romm
-        .auth_token
-        .as_deref()
+    let token = crate::romm_credentials::load_device_token(url)?
+        .or_else(|| config.romm.auth_token.clone())
         .context("RomM not connected")?;
-    Ok(RomMClient::new(url).with_token(token.to_string()))
+    Ok(RomMClient::new(url).with_token(token))
 }
 
 fn slot_name(slot: Option<&str>) -> &str {
