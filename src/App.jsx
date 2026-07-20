@@ -296,6 +296,8 @@ function App() {
       
       if (!result.success && result.error) {
         setError(result.error);
+      } else if (result.save_sync_warnings?.length) {
+        setError(result.save_sync_warnings.join("\n"));
       }
       
       if (!result.dry_run) {

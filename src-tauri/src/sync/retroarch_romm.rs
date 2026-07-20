@@ -230,7 +230,7 @@ pub async fn upload_retroarch_save(
             Some(&slot_s),
             bytes,
             &upload_name,
-            true,
+            false,
         )
         .await?;
 
@@ -288,16 +288,29 @@ pub async fn download_retroarch_save(
         std::fs::create_dir_all(parent)?;
     }
 
-    if target.exists() {
-        let backup = target.with_extension(format!(
-            "{}.bak-{}",
-            target.extension().and_then(|s| s.to_str()).unwrap_or("srm"),
-            chrono::Utc::now().timestamp()
-        ));
-        let _ = std::fs::copy(&target, backup);
+    let nonce = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+    let temp = target.with_extension(format!("wingosy-download-{nonce}.tmp"));
+    {
+        let mut file = std::fs::File::create(&temp)?;
+        std::io::Write::write_all(&mut file, &bytes)?;
+        file.sync_all()?;
     }
-
-    std::fs::write(&target, bytes)?;
+    let backup = target.with_extension(format!(
+        "{}.bak-{}",
+        target.extension().and_then(|s| s.to_str()).unwrap_or("srm"),
+        chrono::Utc::now().timestamp()
+    ));
+    if target.exists() {
+        std::fs::rename(&target, &backup)?;
+    }
+    if let Err(error) = std::fs::rename(&temp, &target) {
+        if backup.exists() {
+            let _ = std::fs::rename(&backup, &target);
+        }
+        let _ = std::fs::remove_file(&temp);
+        return Err(error.into());
+    }
+    client.confirm_save_downloaded(save.id, &device_id).await?;
 
     Ok(RetroArchSaveSyncResult {
         success: true,
@@ -324,10 +337,13 @@ pub async fn pre_launch_sync(
     let Some(core_name) = core_name else {
         return Ok(());
     };
-    let result = download_retroarch_save(game, config, core_name, None, None).await;
+    let result = negotiated_launch_sync(game, config, core_name, true).await;
     match result {
         Ok(r) => tracing::info!("[SaveSync] RetroArch pre-launch: {}", r.message),
-        Err(e) => tracing::warn!("[SaveSync] RetroArch pre-launch download skipped: {e}"),
+        Err(e) => {
+            tracing::warn!("[SaveSync] RetroArch pre-launch sync skipped: {e}");
+            return Err(e);
+        }
     }
     Ok(())
 }
@@ -343,12 +359,91 @@ pub async fn post_launch_sync(
     let Some(core_name) = core_name else {
         return Ok(());
     };
-    let result = upload_retroarch_save(game, config, core_name, None).await;
+    let result = negotiated_launch_sync(game, config, core_name, false).await;
     match result {
         Ok(r) => tracing::info!("[SaveSync] RetroArch post-launch: {}", r.message),
-        Err(e) => tracing::warn!("[SaveSync] RetroArch post-launch upload failed: {e}"),
+        Err(e) => {
+            tracing::warn!("[SaveSync] RetroArch post-launch sync failed: {e}");
+            return Err(e);
+        }
     }
     Ok(())
+}
+
+async fn negotiated_launch_sync(
+    game: &Game,
+    config: &mut AppConfig,
+    core_name: &str,
+    allow_download: bool,
+) -> Result<RetroArchSaveSyncResult> {
+    let romm_id = game.romm_id.context("Game is not linked to RomM")?;
+    let rom_base = rom_base_name(game);
+    let slot = slot_name(None).to_string();
+    let client = romm_client(config)?;
+    let device_id = ensure_device_id(config);
+
+    let client_saves = newest_existing(local_save_candidates(config, core_name, &rom_base)?)
+        .map(|path| -> Result<_> {
+            let bytes = std::fs::read(&path)?;
+            let modified = std::fs::metadata(&path)?
+                .modified()
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            let file_name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("save.srm")
+                .to_string();
+            Ok(crate::sync::negotiation::client_save_state(
+                romm_id,
+                file_name,
+                slot.clone(),
+                RETROARCH_EMULATOR_ID,
+                &bytes,
+                modified,
+            ))
+        })
+        .transpose()?
+        .into_iter()
+        .collect();
+
+    let plan = client.negotiate_sync(&device_id, client_saves).await?;
+    let operation = crate::sync::negotiation::operation_for(&plan, romm_id, &slot).cloned();
+    let result = match operation.as_ref().map(|operation| operation.action.as_str()) {
+        Some("upload") => upload_retroarch_save(game, config, core_name, Some(slot.clone())).await,
+        Some("download") if allow_download => {
+            let save_id = operation.as_ref().and_then(|operation| operation.save_id);
+            download_retroarch_save(game, config, core_name, Some(slot.clone()), save_id).await
+        }
+        Some("download") => Err(anyhow::anyhow!(
+            "RomM has a newer save after this play session; local upload was blocked"
+        )),
+        Some("conflict") => Err(anyhow::anyhow!(
+            "Save conflict: {}",
+            operation.as_ref().map(|op| op.reason.as_str()).unwrap_or("both saves changed")
+        )),
+        Some("no_op") | None => Ok(RetroArchSaveSyncResult {
+            success: true,
+            message: "RetroArch save is already synchronized".to_string(),
+            local_path: None,
+            romm_save_id: operation.as_ref().and_then(|operation| operation.save_id),
+            slot: Some(slot),
+        }),
+        Some(other) => Err(anyhow::anyhow!("Unsupported sync action: {other}")),
+    };
+
+    let operation_was_planned = matches!(
+        operation.as_ref().map(|operation| operation.action.as_str()),
+        Some("upload" | "download" | "conflict")
+    );
+    let (completed, failed) = match (operation_was_planned, result.is_ok()) {
+        (false, _) => (0, 0),
+        (true, true) => (1, 0),
+        (true, false) => (0, 1),
+    };
+    client
+        .complete_sync_session(plan.session_id, completed, failed)
+        .await?;
+    result
 }
 
 #[cfg(test)]

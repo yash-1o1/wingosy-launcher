@@ -127,6 +127,7 @@ export default function ImmersiveModeApp({
     try {
       const result = await invoke("launch_game", { gameId });
       if (!result.success && result.error) setError(result.error);
+      else if (result.save_sync_warnings?.length) setError(result.save_sync_warnings.join("\n"));
       await loadData();
     } catch (err) {
       setError(err?.message || String(err));

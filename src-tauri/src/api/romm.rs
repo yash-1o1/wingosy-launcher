@@ -618,7 +618,7 @@ impl RomMClient {
             "{}/api/saves/{}/content/{}",
             self.base_url, save.id, file_name
         ))
-        .query(&[("device_id", device_id), ("optimistic", "true")]);
+        .query(&[("device_id", device_id), ("optimistic", "false")]);
 
         if let Some(auth) = self.auth_header() {
             request = request.header("Authorization", auth);
@@ -632,6 +632,85 @@ impl RomMClient {
         }
 
         self.download_save(save.rom_id, save.id).await
+    }
+
+    /// Confirm a device-aware download only after the caller has successfully
+    /// validated and installed the save locally.
+    pub async fn confirm_save_downloaded(&self, save_id: i32, device_id: &str) -> Result<()> {
+        let mut request = self
+            .client
+            .post(format!("{}/api/saves/{}/downloaded", self.base_url, save_id))
+            .json(&serde_json::json!({ "device_id": device_id }));
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+        let response = request
+            .send()
+            .await
+            .context("Failed to confirm save download")?;
+        // Older RomM releases do not expose the confirmation route. The save
+        // is already installed locally at this point, so retain legacy
+        // compatibility without pretending a modern confirmation succeeded.
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            tracing::warn!("RomM does not support confirmed save downloads");
+            return Ok(());
+        }
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Save download confirmation returned {status}: {body}");
+        }
+        Ok(())
+    }
+
+    pub async fn negotiate_sync(
+        &self,
+        device_id: &str,
+        saves: Vec<ClientSaveState>,
+    ) -> Result<SyncNegotiateResponse> {
+        let mut request = self
+            .client
+            .post(format!("{}/api/sync/negotiate", self.base_url))
+            .json(&serde_json::json!({ "device_id": device_id, "saves": saves }));
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+        parse_json_response(
+            request.send().await.context("Failed to negotiate save sync")?,
+            "Save sync negotiation failed",
+        )
+        .await
+    }
+
+    pub async fn complete_sync_session(
+        &self,
+        session_id: i64,
+        completed: u32,
+        failed: u32,
+    ) -> Result<()> {
+        let mut request = self
+            .client
+            .post(format!(
+                "{}/api/sync/sessions/{}/complete",
+                self.base_url, session_id
+            ))
+            .json(&serde_json::json!({
+                "operations_completed": completed,
+                "operations_failed": failed
+            }));
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+        let response = request
+            .send()
+            .await
+            .context("Failed to complete save sync session")?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Save sync session completion returned {status}: {body}");
+        }
+        Ok(())
     }
 
     pub fn token(&self) -> Option<&str> {
@@ -690,6 +769,40 @@ struct DeviceAuthTokenResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DeviceRegistrationResponse {
     device_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ClientSaveState {
+    pub rom_id: i32,
+    pub file_name: String,
+    pub slot: Option<String>,
+    pub emulator: Option<String>,
+    pub content_hash: Option<String>,
+    pub updated_at: String,
+    pub file_size_bytes: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SyncOperation {
+    pub action: String,
+    pub rom_id: i32,
+    pub save_id: Option<i32>,
+    pub file_name: String,
+    pub slot: Option<String>,
+    pub emulator: Option<String>,
+    pub reason: String,
+    pub server_updated_at: Option<String>,
+    pub server_content_hash: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SyncNegotiateResponse {
+    pub session_id: i64,
+    pub operations: Vec<SyncOperation>,
+    pub total_upload: u32,
+    pub total_download: u32,
+    pub total_conflict: u32,
+    pub total_no_op: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

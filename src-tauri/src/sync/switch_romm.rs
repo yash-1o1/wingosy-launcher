@@ -170,7 +170,7 @@ pub async fn upload_switch_save_from_eden(
             Some(&slot_s),
             zip_bytes,
             &upload_filename(&slot_s, &rom_base),
-            true,
+            false,
         )
         .await?;
 
@@ -242,6 +242,7 @@ pub async fn download_switch_save_to_eden(
     }
 
     unzip_into_title_folder(&zip_path, &title_dir)?;
+    client.confirm_save_downloaded(save.id, &device_id).await?;
     let _ = std::fs::remove_file(&zip_path);
 
     Ok(SwitchSaveSyncResult {
@@ -264,10 +265,13 @@ pub async fn pre_launch_sync(game: &Game, config: &mut AppConfig) -> Result<()> 
     if game.platform_id != "switch" {
         return Ok(());
     }
-    let result = download_switch_save_to_eden(game, config, None, None).await;
+    let result = negotiated_launch_sync(game, config, true).await;
     match result {
         Ok(r) => tracing::info!("[SaveSync] Pre-launch: {}", r.message),
-        Err(e) => tracing::warn!("[SaveSync] Pre-launch download skipped: {e}"),
+        Err(e) => {
+            tracing::warn!("[SaveSync] Pre-launch sync skipped: {e}");
+            return Err(e);
+        }
     }
     Ok(())
 }
@@ -279,12 +283,98 @@ pub async fn post_launch_sync(game: &Game, config: &mut AppConfig) -> Result<()>
     if game.platform_id != "switch" {
         return Ok(());
     }
-    let result = upload_switch_save_from_eden(game, config, None).await;
+    let result = negotiated_launch_sync(game, config, false).await;
     match result {
         Ok(r) => tracing::info!("[SaveSync] Post-launch: {}", r.message),
-        Err(e) => tracing::warn!("[SaveSync] Post-launch upload failed: {e}"),
+        Err(e) => {
+            tracing::warn!("[SaveSync] Post-launch sync failed: {e}");
+            return Err(e);
+        }
     }
     Ok(())
+}
+
+async fn negotiated_launch_sync(
+    game: &Game,
+    config: &mut AppConfig,
+    allow_download: bool,
+) -> Result<SwitchSaveSyncResult> {
+    let romm_id = game.romm_id.context("Game is not linked to RomM")?;
+    let rom_path = game
+        .local_file_path
+        .as_deref()
+        .unwrap_or(game.file_path.as_str());
+    let slot = slot_name(None).to_string();
+    let rom_base = rom_base_name(game);
+    let client = romm_client(config)?;
+    let device_id = ensure_device_id(config);
+
+    let client_saves = match resolve_local_title_save_path(config, rom_path) {
+        Ok((title_dir, title_id)) if title_dir.exists() => {
+            let cache_dir = AppConfig::data_dir()
+                .map(|dir| dir.join("save_sync_cache"))
+                .unwrap_or_else(|_| PathBuf::from("save_sync_cache"));
+            std::fs::create_dir_all(&cache_dir)?;
+            let snapshot = cache_dir.join(format!("negotiate_{romm_id}.zip"));
+            zip_title_folder(&title_dir, &title_id, &snapshot)?;
+            let bytes = std::fs::read(&snapshot)?;
+            let _ = std::fs::remove_file(&snapshot);
+            let modified = walkdir::WalkDir::new(&title_dir)
+                .into_iter()
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| entry.metadata().ok()?.modified().ok())
+                .max()
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            vec![crate::sync::negotiation::client_save_state(
+                romm_id,
+                upload_filename(&slot, &rom_base),
+                slot.clone(),
+                EDEN_EMULATOR_ID,
+                &bytes,
+                modified,
+            )]
+        }
+        _ => vec![],
+    };
+
+    let plan = client.negotiate_sync(&device_id, client_saves).await?;
+    let operation = crate::sync::negotiation::operation_for(&plan, romm_id, &slot).cloned();
+    let result = match operation.as_ref().map(|operation| operation.action.as_str()) {
+        Some("upload") => upload_switch_save_from_eden(game, config, Some(slot.clone())).await,
+        Some("download") if allow_download => {
+            let save_id = operation.as_ref().and_then(|operation| operation.save_id);
+            download_switch_save_to_eden(game, config, Some(slot.clone()), save_id).await
+        }
+        Some("download") => Err(anyhow::anyhow!(
+            "RomM has a newer save after this play session; local upload was blocked"
+        )),
+        Some("conflict") => Err(anyhow::anyhow!(
+            "Save conflict: {}",
+            operation.as_ref().map(|op| op.reason.as_str()).unwrap_or("both saves changed")
+        )),
+        Some("no_op") | None => Ok(SwitchSaveSyncResult {
+            success: true,
+            message: "Switch save is already synchronized".to_string(),
+            local_path: None,
+            romm_save_id: operation.as_ref().and_then(|operation| operation.save_id),
+            slot: Some(slot),
+        }),
+        Some(other) => Err(anyhow::anyhow!("Unsupported sync action: {other}")),
+    };
+
+    let operation_was_planned = matches!(
+        operation.as_ref().map(|operation| operation.action.as_str()),
+        Some("upload" | "download" | "conflict")
+    );
+    let (completed, failed) = match (operation_was_planned, result.is_ok()) {
+        (false, _) => (0, 0),
+        (true, true) => (1, 0),
+        (true, false) => (0, 1),
+    };
+    client
+        .complete_sync_session(plan.session_id, completed, failed)
+        .await?;
+    result
 }
 
 #[cfg(test)]

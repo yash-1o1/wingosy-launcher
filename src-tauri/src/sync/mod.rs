@@ -1,5 +1,6 @@
 //! RomM save sync helpers (Argosy-compatible layouts where noted).
 pub mod retroarch_romm;
+pub mod negotiation;
 pub mod switch_romm;
 pub mod switch_save;
 

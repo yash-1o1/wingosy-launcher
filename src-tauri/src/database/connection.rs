@@ -129,6 +129,16 @@ impl Database {
                 FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS pending_save_sync (
+                game_id INTEGER PRIMARY KEY,
+                phase TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 1,
+                last_error TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+            );
+
             CREATE INDEX IF NOT EXISTS idx_games_platform ON games(platform_id);
             CREATE INDEX IF NOT EXISTS idx_games_name ON games(name);
             CREATE INDEX IF NOT EXISTS idx_games_favorite ON games(is_favorite);
@@ -197,6 +207,29 @@ impl Database {
     pub fn connection(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }
+
+    pub fn record_save_sync_failure(&self, game_id: i64, phase: &str, error: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"
+            INSERT INTO pending_save_sync (game_id, phase, attempts, last_error)
+            VALUES (?1, ?2, 1, ?3)
+            ON CONFLICT(game_id) DO UPDATE SET
+                phase = excluded.phase,
+                attempts = pending_save_sync.attempts + 1,
+                last_error = excluded.last_error,
+                updated_at = CURRENT_TIMESTAMP
+            "#,
+            rusqlite::params![game_id, phase, error],
+        )?;
+        Ok(())
+    }
+
+    pub fn clear_save_sync_failure(&self, game_id: i64) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM pending_save_sync WHERE game_id = ?1", [game_id])?;
+        Ok(())
+    }
 }
 
 impl Clone for Database {
@@ -204,5 +237,48 @@ impl Clone for Database {
         Self {
             conn: Arc::clone(&self.conn),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn save_sync_failure_is_persistent_and_counted() {
+        let db = Database::open_in_memory().unwrap();
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO platforms (id, name, extensions) VALUES ('test', 'Test', 'sav')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO games (id, platform_id, name, file_path) VALUES (42, 'test', 'Game', 'game.rom')",
+                [],
+            )
+            .unwrap();
+        }
+        db.record_save_sync_failure(42, "post_launch", "offline")
+            .unwrap();
+        db.record_save_sync_failure(42, "pre_launch", "still offline")
+            .unwrap();
+        let conn = db.conn.lock().unwrap();
+        let row: (String, i64, String) = conn
+            .query_row(
+                "SELECT phase, attempts, last_error FROM pending_save_sync WHERE game_id = 42",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(row, ("pre_launch".to_string(), 2, "still offline".to_string()));
+        drop(conn);
+        db.clear_save_sync_failure(42).unwrap();
+        let conn = db.conn.lock().unwrap();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM pending_save_sync", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
     }
 }

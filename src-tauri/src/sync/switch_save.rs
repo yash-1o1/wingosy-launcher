@@ -275,49 +275,73 @@ pub fn zip_title_folder(title_dir: &Path, title_id: &str, dest_zip: &Path) -> Re
 pub fn unzip_into_title_folder(zip_path: &Path, target_title_dir: &Path) -> Result<()> {
     let file = File::open(zip_path)?;
     let mut archive = ZipArchive::new(file)?;
-    std::fs::create_dir_all(target_title_dir)?;
+    let parent = target_title_dir
+        .parent()
+        .context("Save folder has no parent directory")?;
+    std::fs::create_dir_all(parent)?;
+    let nonce = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+    let temp_dir = parent.join(format!(".wingosy-restore-{nonce}"));
+    let old_dir = parent.join(format!(".wingosy-previous-{nonce}"));
+    std::fs::create_dir_all(&temp_dir)?;
 
     let mut root_folder: Option<String> = None;
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
-        let name = entry.name().to_string();
-        if let Some(seg) = name.split('/').next() {
-            if !seg.is_empty() && name.contains('/') {
-                root_folder.get_or_insert_with(|| seg.to_string());
+        let safe_path = entry
+            .enclosed_name()
+            .context("Save archive contains an unsafe path")?;
+        if let Some(seg) = safe_path.components().next() {
+            if safe_path.components().count() > 1 {
+                root_folder.get_or_insert_with(|| seg.as_os_str().to_string_lossy().into_owned());
             }
         }
     }
 
-    for i in 0..archive.len() {
-        let mut entry = archive.by_index(i)?;
-        let entry_name = entry.name().to_string();
-        let relative = if let Some(ref root) = root_folder {
-            if entry_name.starts_with(&format!("{root}/")) {
-                entry_name
-                    .strip_prefix(&format!("{root}/"))
-                    .unwrap_or(&entry_name)
+    let extraction = (|| -> Result<()> {
+        for i in 0..archive.len() {
+            let mut entry = archive.by_index(i)?;
+            let safe_path = entry
+                .enclosed_name()
+                .context("Save archive contains an unsafe path")?
+                .to_path_buf();
+            let relative = if let Some(ref root) = root_folder {
+                safe_path.strip_prefix(root).unwrap_or(&safe_path)
             } else {
-                entry_name.as_str()
+                safe_path.as_path()
+            };
+            if relative.as_os_str().is_empty() {
+                continue;
             }
-        } else {
-            entry_name.as_str()
-        };
 
-        if relative.is_empty() {
-            continue;
-        }
-
-        let out_path = target_title_dir.join(relative);
-        if entry.is_dir() {
-            std::fs::create_dir_all(&out_path)?;
-        } else {
-            if let Some(parent) = out_path.parent() {
-                std::fs::create_dir_all(parent)?;
+            let out_path = temp_dir.join(relative);
+            if entry.is_dir() {
+                std::fs::create_dir_all(&out_path)?;
+            } else {
+                if let Some(parent) = out_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut out = File::create(&out_path)?;
+                std::io::copy(&mut entry, &mut out)?;
             }
-            let mut out = File::create(&out_path)?;
-            std::io::copy(&mut entry, &mut out)?;
         }
+        Ok(())
+    })();
+    if let Err(error) = extraction {
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        return Err(error);
     }
+
+    if target_title_dir.exists() {
+        std::fs::rename(target_title_dir, &old_dir)?;
+    }
+    if let Err(error) = std::fs::rename(&temp_dir, target_title_dir) {
+        if old_dir.exists() {
+            let _ = std::fs::rename(&old_dir, target_title_dir);
+        }
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        return Err(error.into());
+    }
+    let _ = std::fs::remove_dir_all(&old_dir);
 
     Ok(())
 }
@@ -338,5 +362,22 @@ mod tests {
     #[test]
     fn rejects_invalid_title_id() {
         assert!(!is_valid_title_id("0200F2C0115B6000"));
+    }
+
+    #[test]
+    fn rejects_archive_paths_outside_the_save_folder() {
+        let temp = tempfile::tempdir().unwrap();
+        let archive_path = temp.path().join("unsafe.zip");
+        let file = File::create(&archive_path).unwrap();
+        let mut archive = ZipWriter::new(file);
+        archive
+            .start_file("../escaped.dat", SimpleFileOptions::default())
+            .unwrap();
+        archive.write_all(b"unsafe").unwrap();
+        archive.finish().unwrap();
+
+        let target = temp.path().join("save");
+        assert!(unzip_into_title_folder(&archive_path, &target).is_err());
+        assert!(!temp.path().join("escaped.dat").exists());
     }
 }

@@ -353,6 +353,7 @@ pub async fn toggle_favorite(game_id: i64) -> Result<bool, String> {
 pub struct LaunchGameResult {
     pub success: bool,
     pub error: Option<String>,
+    pub save_sync_warnings: Vec<String>,
     pub dry_run: bool,
     pub duration_minutes: Option<i32>,
     pub exit_code: Option<i32>,
@@ -370,25 +371,32 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     
     tracing::info!("[Launch] Game: {} ({})", game.name, game.platform_id);
 
-    let launcher = EmulatorLauncher::new(config.clone(), db);
+    let launcher = EmulatorLauncher::new(config.clone(), db.clone());
     let launch_command = launcher.build_command(&game).ok();
+    let mut save_sync_warnings = Vec::new();
 
-    if let Some(command) = launch_command.as_ref() {
+    let pre_sync_result = if let Some(command) = launch_command.as_ref() {
         if command.emulator_id == "retroarch" {
-            if let Err(e) = crate::sync::retroarch_romm::pre_launch_sync(
+            crate::sync::retroarch_romm::pre_launch_sync(
                 &game,
                 &mut config,
                 command.core_name.as_deref(),
             )
             .await
-            {
-                tracing::warn!("[SaveSync] RetroArch pre-launch: {e}");
-            }
-        } else if let Err(e) = crate::sync::switch_romm::pre_launch_sync(&game, &mut config).await {
-            tracing::warn!("[SaveSync] Pre-launch: {e}");
+        } else {
+            crate::sync::switch_romm::pre_launch_sync(&game, &mut config).await
         }
-    } else if let Err(e) = crate::sync::switch_romm::pre_launch_sync(&game, &mut config).await {
-        tracing::warn!("[SaveSync] Pre-launch: {e}");
+    } else {
+        crate::sync::switch_romm::pre_launch_sync(&game, &mut config).await
+    };
+    if config.romm.sync_saves {
+        if let Err(e) = &pre_sync_result {
+            tracing::warn!("[SaveSync] Pre-launch: {e}");
+            save_sync_warnings.push(format!("Pre-launch save sync: {e}"));
+            let _ = db.record_save_sync_failure(game.id, "pre_launch", &e.to_string());
+        } else {
+            let _ = db.clear_save_sync_failure(game.id);
+        }
     }
     
     let result = launcher.launch(&game).await
@@ -399,27 +407,34 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     
     match result {
         LaunchResult::Success { duration_minutes, exit_code, .. } => {
-            if let Some(command) = launch_command.as_ref() {
+            let post_sync_result = if let Some(command) = launch_command.as_ref() {
                 if command.emulator_id == "retroarch" {
-                    if let Err(e) = crate::sync::retroarch_romm::post_launch_sync(
+                    crate::sync::retroarch_romm::post_launch_sync(
                         &game,
                         &mut config,
                         command.core_name.as_deref(),
                     )
                     .await
-                    {
-                        tracing::warn!("[SaveSync] RetroArch post-launch: {e}");
-                    }
-                } else if let Err(e) = crate::sync::switch_romm::post_launch_sync(&game, &mut config).await {
-                    tracing::warn!("[SaveSync] Post-launch: {e}");
+                } else {
+                    crate::sync::switch_romm::post_launch_sync(&game, &mut config).await
                 }
-            } else if let Err(e) = crate::sync::switch_romm::post_launch_sync(&game, &mut config).await {
-                tracing::warn!("[SaveSync] Post-launch: {e}");
+            } else {
+                crate::sync::switch_romm::post_launch_sync(&game, &mut config).await
+            };
+            if config.romm.sync_saves {
+                if let Err(e) = &post_sync_result {
+                    tracing::warn!("[SaveSync] Post-launch: {e}");
+                    save_sync_warnings.push(format!("Post-launch save sync: {e}"));
+                    let _ = db.record_save_sync_failure(game.id, "post_launch", &e.to_string());
+                } else {
+                    let _ = db.clear_save_sync_failure(game.id);
+                }
             }
             tracing::info!("[Launch] Game exited successfully (duration: {}min, exit_code: {:?})", duration_minutes, exit_code);
             Ok(LaunchGameResult {
                 success: true,
                 error: None,
+                save_sync_warnings,
                 dry_run: false,
                 duration_minutes: Some(duration_minutes),
                 exit_code,
@@ -430,6 +445,7 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
             Ok(LaunchGameResult {
                 success: true,
                 error: None,
+                save_sync_warnings,
                 dry_run: true,
                 duration_minutes: None,
                 exit_code: None,
@@ -441,6 +457,7 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
             Ok(LaunchGameResult {
                 success: false,
                 error: error_msg,
+                save_sync_warnings,
                 dry_run: false,
                 duration_minutes: None,
                 exit_code: None,
@@ -2643,6 +2660,7 @@ mod tests {
         let result = LaunchGameResult {
             success: true,
             error: None,
+            save_sync_warnings: vec![],
             dry_run: false,
             duration_minutes: Some(60),
             exit_code: Some(0),
@@ -2659,6 +2677,7 @@ mod tests {
         let result = LaunchGameResult {
             success: false,
             error: Some("Emulator not found".to_string()),
+            save_sync_warnings: vec![],
             dry_run: false,
             duration_minutes: None,
             exit_code: None,
@@ -2672,6 +2691,7 @@ mod tests {
         let result = LaunchGameResult {
             success: true,
             error: None,
+            save_sync_warnings: vec![],
             dry_run: true,
             duration_minutes: None,
             exit_code: None,
