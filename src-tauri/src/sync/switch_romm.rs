@@ -337,7 +337,13 @@ async fn negotiated_launch_sync(
         _ => vec![],
     };
 
-    let plan = client.negotiate_sync(&device_id, client_saves).await?;
+    let Some(plan) = client.negotiate_sync(&device_id, client_saves).await? else {
+        return if allow_download {
+            download_switch_save_to_eden(game, config, Some(slot), None).await
+        } else {
+            upload_switch_save_from_eden(game, config, Some(slot)).await
+        };
+    };
     let operation = crate::sync::negotiation::operation_for(&plan, romm_id, &slot).cloned();
     let result = match operation.as_ref().map(|operation| operation.action.as_str()) {
         Some("upload") => upload_switch_save_from_eden(game, config, Some(slot.clone())).await,

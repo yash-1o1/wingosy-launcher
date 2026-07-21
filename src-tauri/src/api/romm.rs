@@ -667,7 +667,7 @@ impl RomMClient {
         &self,
         device_id: &str,
         saves: Vec<ClientSaveState>,
-    ) -> Result<SyncNegotiateResponse> {
+    ) -> Result<Option<SyncNegotiateResponse>> {
         let mut request = self
             .client
             .post(format!("{}/api/sync/negotiate", self.base_url))
@@ -675,11 +675,16 @@ impl RomMClient {
         if let Some(auth) = self.auth_header() {
             request = request.header("Authorization", auth);
         }
-        parse_json_response(
-            request.send().await.context("Failed to negotiate save sync")?,
-            "Save sync negotiation failed",
-        )
-        .await
+        let response = request.send().await.context("Failed to negotiate save sync")?;
+        if sync_negotiate_is_unsupported(response.status()) {
+            tracing::info!(
+                "RomM does not expose the negotiated sync engine; using legacy save sync"
+            );
+            return Ok(None);
+        }
+        parse_json_response(response, "Save sync negotiation failed")
+            .await
+            .map(Some)
     }
 
     pub async fn complete_sync_session(
@@ -720,6 +725,15 @@ impl RomMClient {
     pub fn is_authenticated(&self) -> bool {
         self.token.is_some()
     }
+}
+
+fn sync_negotiate_is_unsupported(status: reqwest::StatusCode) -> bool {
+    matches!(
+        status,
+        reqwest::StatusCode::NOT_FOUND
+            | reqwest::StatusCode::METHOD_NOT_ALLOWED
+            | reqwest::StatusCode::NOT_IMPLEMENTED
+    )
 }
 
 async fn parse_json_response<T: serde::de::DeserializeOwned>(
@@ -1128,6 +1142,21 @@ fn parse_save_value(v: &serde_json::Value, rom_id: i32) -> Option<RomMSave> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unavailable_negotiate_routes_use_legacy_sync() {
+        assert!(sync_negotiate_is_unsupported(reqwest::StatusCode::NOT_FOUND));
+        assert!(sync_negotiate_is_unsupported(
+            reqwest::StatusCode::METHOD_NOT_ALLOWED
+        ));
+        assert!(sync_negotiate_is_unsupported(
+            reqwest::StatusCode::NOT_IMPLEMENTED
+        ));
+        assert!(!sync_negotiate_is_unsupported(reqwest::StatusCode::UNAUTHORIZED));
+        assert!(!sync_negotiate_is_unsupported(
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR
+        ));
+    }
 
     #[test]
     fn client_new_trims_trailing_slash() {

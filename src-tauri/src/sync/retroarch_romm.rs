@@ -406,7 +406,13 @@ async fn negotiated_launch_sync(
         .into_iter()
         .collect();
 
-    let plan = client.negotiate_sync(&device_id, client_saves).await?;
+    let Some(plan) = client.negotiate_sync(&device_id, client_saves).await? else {
+        return if allow_download {
+            download_retroarch_save(game, config, core_name, Some(slot), None).await
+        } else {
+            upload_retroarch_save(game, config, core_name, Some(slot)).await
+        };
+    };
     let operation = crate::sync::negotiation::operation_for(&plan, romm_id, &slot).cloned();
     let result = match operation.as_ref().map(|operation| operation.action.as_str()) {
         Some("upload") => upload_retroarch_save(game, config, core_name, Some(slot.clone())).await,
