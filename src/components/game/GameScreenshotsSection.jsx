@@ -76,7 +76,7 @@ export default function GameScreenshotsSection({ urls, getMediaSrc, isRommGame =
                 setLightboxOpen(true);
               }}
               onError={(e) => {
-                e.target.style.display = "none";
+                e.currentTarget.style.display = "none";
               }}
             />
           );

@@ -237,8 +237,8 @@ function createAppTheme(mode, accentHue) {
 const ThemeContext = createContext({
   themeMode: "dark",
   accentHue: null,
-  setThemeMode: () => {},
-  setAccentHue: () => {},
+  setThemeMode: (_mode) => {},
+  setAccentHue: (_hue) => {},
   colors: baseColors,
 });
 

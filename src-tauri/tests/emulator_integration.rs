@@ -1,11 +1,11 @@
-/// Integration tests for emulator auto-download infrastructure.
-/// 
-/// Run all tests:
-///   cargo test --test emulator_integration -- --ignored --nocapture
-/// 
-/// Run specific test:
-///   cargo test --test emulator_integration test_retroarch_direct_download -- --ignored --nocapture
-///   cargo test --test emulator_integration test_github_release_download -- --ignored --nocapture
+//! Integration tests for emulator auto-download infrastructure.
+//!
+//! Run all tests:
+//!   cargo test --test emulator_integration -- --ignored --nocapture
+//!
+//! Run specific test:
+//!   cargo test --test emulator_integration test_retroarch_direct_download -- --ignored --nocapture
+//!   cargo test --test emulator_integration test_github_release_download -- --ignored --nocapture
 
 use std::path::PathBuf;
 use tempfile::TempDir;

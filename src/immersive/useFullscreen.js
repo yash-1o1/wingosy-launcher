@@ -5,7 +5,11 @@ import { isTauri } from "../utils/isTauri";
 
 const appWindow = isTauri() ? getCurrentWindow() : null;
 
-export function useFullscreen({ enabled, onChange } = {}) {
+/**
+ * @param {{ enabled?: boolean, onChange?: (enabled: boolean) => void }} [options]
+ */
+export function useFullscreen(options = {}) {
+  const { enabled, onChange } = options;
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const sync = useCallback(async () => {
@@ -25,17 +29,19 @@ export function useFullscreen({ enabled, onChange } = {}) {
         await setFullscreenReliable(value);
       } catch {
         // ignore
-      } finally {
-        try {
-          if (!appWindow) throw new Error("Tauri window unavailable");
+      }
+      try {
+        if (appWindow) {
           const v = await appWindow.isFullscreen();
           setIsFullscreen(Boolean(v));
           if (onChange) onChange(Boolean(v));
-        } catch {
-          setIsFullscreen(value);
-          if (onChange) onChange(value);
+          return;
         }
+      } catch {
+        // Fall back to the requested state if the native window cannot be queried.
       }
+      setIsFullscreen(value);
+      if (onChange) onChange(value);
     },
     [onChange]
   );

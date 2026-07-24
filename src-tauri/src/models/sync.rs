@@ -12,7 +12,7 @@ pub enum SyncState {
 }
 
 impl SyncState {
-    pub fn to_db_str(&self) -> &'static str {
+    pub fn to_db_str(self) -> &'static str {
         match self {
             SyncState::LocalOnly => "local_only",
             SyncState::Synced => "synced",
@@ -57,25 +57,13 @@ impl SyncState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SyncStatus {
     pub last_sync: Option<chrono::DateTime<chrono::Utc>>,
     pub pending_uploads: i32,
     pub pending_downloads: i32,
     pub conflicts: i32,
     pub is_syncing: bool,
-}
-
-impl Default for SyncStatus {
-    fn default() -> Self {
-        Self {
-            last_sync: None,
-            pending_uploads: 0,
-            pending_downloads: 0,
-            conflicts: 0,
-            is_syncing: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

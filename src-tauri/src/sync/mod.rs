@@ -4,7 +4,6 @@ pub mod negotiation;
 pub mod switch_romm;
 pub mod switch_save;
 
-pub use retroarch_romm::{download_retroarch_save, upload_retroarch_save, RetroArchSaveSyncResult};
 pub use switch_romm::{
     download_switch_save_to_eden, upload_switch_save_from_eden, SwitchSaveSyncResult,
 };

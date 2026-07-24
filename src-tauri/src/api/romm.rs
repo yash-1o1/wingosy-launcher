@@ -560,6 +560,7 @@ impl RomMClient {
     }
 
     /// Upload a Switch save ZIP using Argosy-compatible query parameters.
+    #[allow(clippy::too_many_arguments)]
     pub async fn upload_save_device(
         &self,
         rom_id: i32,

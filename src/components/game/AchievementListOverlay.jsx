@@ -58,7 +58,7 @@ export default function AchievementListOverlay({
               Achievements
             </Typography>
           </Box>
-          <Typography variant="titleMedium" color="primary">
+          <Typography variant="subtitle1" color="primary">
             {uCount}/{total} ({pct}%)
           </Typography>
           <IconButton onClick={onClose} aria-label="Close">

@@ -41,7 +41,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import Select from "@mui/material/Select";
 import Slider from "@mui/material/Slider";
@@ -113,10 +112,10 @@ export default function Settings({
   rommToken,
   rommUrl: rommUrlProp,
   onRommConnect,
-  onRommDisconnect,
+  onRommDisconnect = null,
   onLibraryChange,
-  onImmersiveModeChange,
-  onFullscreenChange,
+  onImmersiveModeChange = null,
+  onFullscreenChange = null,
   initialSection = "general",
 }) {
   const [config, setConfig] = useState(null);
@@ -925,7 +924,6 @@ export default function Settings({
     }
     
     try {
-      setDownloadingEmu(selectedEmu.id); // Reuse for loading state
       setEmuMessage({ type: "info", message: `Uninstalling ${selectedEmu.name}...` });
       await invoke("uninstall_emulator", { emulatorId: selectedEmu.id });
       setEmuMessage({ type: "success", message: `Successfully uninstalled ${selectedEmu.name}` });
@@ -934,7 +932,6 @@ export default function Settings({
     } catch (err) {
       setEmuMessage({ type: "error", message: `Failed to uninstall: ${err}` });
     } finally {
-      setDownloadingEmu(null);
       handleEmuMenuClose();
     }
   }
@@ -1140,7 +1137,7 @@ export default function Settings({
             <FormControlLabel
               control={
                 <Switch
-                  inputProps={{ "data-testid": "immersive-mode-switch" }}
+                  inputProps={/** @type {any} */ ({ "data-testid": "immersive-mode-switch" })}
                   checked={immersiveModeEnabled}
                   onChange={async (e) => {
                     const next = e.target.checked;
@@ -1164,7 +1161,7 @@ export default function Settings({
           <FormControlLabel
             control={
               <Switch
-                inputProps={{ "data-testid": "immersive-fullscreen-switch" }}
+                inputProps={/** @type {any} */ ({ "data-testid": "immersive-fullscreen-switch" })}
                 checked={fullscreenEnabled}
                 disabled={!immersiveModeEnabled}
                 onChange={async (e) => {
@@ -1339,10 +1336,15 @@ export default function Settings({
             min={0}
             max={100}
             valueLabelDisplay="auto"
-            onChange={(_, v) => setAmbientVolume(v)}
-            onChangeCommitted={(_, v) =>
-              persistAmbient({ ambient_volume: Math.min(100, Math.max(0, Math.round(v))) })
+            onChange={(_, v) =>
+              setAmbientVolume(Array.isArray(v) ? v[0] : v)
             }
+            onChangeCommitted={(_, v) => {
+              const value = Array.isArray(v) ? v[0] : v;
+              persistAmbient({
+                ambient_volume: Math.min(100, Math.max(0, Math.round(value))),
+              });
+            }}
           />
         </Box>
       </Paper>

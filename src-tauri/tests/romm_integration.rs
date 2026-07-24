@@ -1,5 +1,5 @@
-/// Integration tests against a live RomM server.
-/// Run with: cargo test --test romm_integration -- --ignored --nocapture
+//! Integration tests against a live RomM server.
+//! Run with: cargo test --test romm_integration -- --ignored --nocapture
 
 #[cfg(test)]
 mod romm_live_tests {
@@ -237,7 +237,7 @@ mod romm_live_tests {
         println!("  With covers: {}", total_covers);
         println!("  With IGDB metadata: {}", total_with_metadata);
 
-        assert!(all_rom_ids.len() > 0, "No ROMs synced");
+        assert!(!all_rom_ids.is_empty(), "No ROMs synced");
         assert!(elapsed.as_secs() < 60,
             "Sync took {}s, should complete within 60s (no cover downloads)", elapsed.as_secs());
         println!("Performance OK: {:.1}s < 60s limit", elapsed.as_secs_f64());

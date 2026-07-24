@@ -226,8 +226,7 @@ mod tests {
     #[test]
     fn test_download_manager_default() {
         let _dm = DownloadManager::default();
-        // Should create without panicking
-        assert!(true);
+        // Construction without a panic is the behavior under test.
     }
 
     #[test]

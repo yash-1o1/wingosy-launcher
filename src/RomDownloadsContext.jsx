@@ -14,7 +14,7 @@ const RomDownloadsContext = createContext({
   activeByGameId: {},
   activeDownloads: [],
   recentDownloads: [],
-  getProgress: () => null,
+  getProgress: (_gameId) => null,
   activeCount: 0,
 });
 

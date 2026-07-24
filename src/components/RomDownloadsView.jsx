@@ -14,7 +14,7 @@ import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import { useRomDownloads, formatDownloadLabel } from "../RomDownloadsContext";
 import { tauriDragRegionProps, tauriDragRegionSx } from "../utils/isTauri";
 
-export default function RomDownloadsView({ onBack, immersive = false }) {
+export default function RomDownloadsView({ onBack = null, immersive = false }) {
   const { activeDownloads, recentDownloads } = useRomDownloads();
 
   return (

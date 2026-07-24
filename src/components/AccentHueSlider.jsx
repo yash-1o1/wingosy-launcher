@@ -122,7 +122,6 @@ function AccentHueSlider({ accentHue, setAccentHue, defaultHue = 235 }) {
         onChangeCommitted={handleChangeCommitted}
         slotProps={{
           thumb: {
-            disableRipple: true,
             style: {
               width: 20,
               height: 20,

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[cfg(windows)]
 use std::env;
@@ -333,7 +333,7 @@ fn detect_from_filesystem() -> Vec<DetectedEmulator> {
                 let potential_paths = [
                     base_path.join(exe),
                     base_path.join(name).join(exe),
-                    base_path.join(&name.to_lowercase()).join(exe),
+                    base_path.join(name.to_lowercase()).join(exe),
                     base_path.join(format!("{}-Win64", name)).join(exe),
                     base_path.join(format!("{}_Windows", name)).join(exe),
                 ];
@@ -499,7 +499,7 @@ pub struct RetroArchCore {
 
 /// Open file explorer to the emulator's directory
 #[cfg(windows)]
-pub fn open_emulator_location(path: &PathBuf) -> Result<(), String> {
+pub fn open_emulator_location(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::process::Command::new("explorer")
             .arg(parent)
@@ -511,7 +511,7 @@ pub fn open_emulator_location(path: &PathBuf) -> Result<(), String> {
 
 /// Launch the emulator standalone (without a ROM)
 #[cfg(windows)]
-pub fn launch_emulator(path: &PathBuf) -> Result<(), String> {
+pub fn launch_emulator(path: &Path) -> Result<(), String> {
     std::process::Command::new(path)
         .spawn()
         .map_err(|e| format!("Failed to launch emulator: {}", e))?;

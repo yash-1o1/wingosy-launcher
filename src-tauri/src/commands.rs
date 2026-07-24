@@ -243,7 +243,7 @@ fn discover_rom_file(game: &Game, config: &AppConfig) -> Option<String> {
     let file_path_stem = std::path::Path::new(&game.file_path)
         .file_stem()
         .and_then(|s| s.to_str())
-        .map(|s| normalize_for_match(s));
+        .map(normalize_for_match);
     
     // Search for matching files
     if let Ok(entries) = std::fs::read_dir(&platform_dir) {
@@ -533,7 +533,7 @@ pub fn list_ambient_audio_files(dir: String) -> Result<Vec<String>, String> {
                 return None;
             }
             let ext = path.extension()?.to_str()?.to_lowercase();
-            if EXTS.iter().any(|&x| x == ext.as_str()) {
+            if EXTS.contains(&ext.as_str()) {
                 Some(path.to_string_lossy().into_owned())
             } else {
                 None
@@ -1742,13 +1742,21 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
                     report_err(e.to_string())
                 })?;
             
-            let filename = dolphin_url.split('/').last().unwrap_or("dolphin.7z").to_string();
+            let filename = dolphin_url
+                .split('/')
+                .next_back()
+                .unwrap_or("dolphin.7z")
+                .to_string();
             (dolphin_url, filename, "7z".to_string())
         } else {
             // Direct download URL (e.g., RetroArch buildbot)
             tracing::debug!("[Emulators] Using direct download URL: {}", direct_url);
             
-            let filename = direct_url.split('/').last().unwrap_or("emulator.zip").to_string();
+            let filename = direct_url
+                .split('/')
+                .next_back()
+                .unwrap_or("emulator.zip")
+                .to_string();
             let fmt = emu.archive_format.as_deref().unwrap_or(
                 if filename.ends_with(".7z") { "7z" } else { "zip" }
             );

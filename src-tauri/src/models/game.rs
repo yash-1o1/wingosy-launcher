@@ -93,7 +93,7 @@ pub enum GameSource {
 }
 
 impl GameSource {
-    pub fn to_db_str(&self) -> &'static str {
+    pub fn to_db_str(self) -> &'static str {
         match self {
             GameSource::Local => "local",
             GameSource::RomM => "romm",

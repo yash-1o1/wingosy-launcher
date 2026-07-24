@@ -36,13 +36,20 @@ jobs:
       - name: Frontend build
         run: npm run build
 
-      - name: Vitest (unit)
-        run: npm run test:unit
+      - name: Frontend lint
+        run: npm run lint:frontend
+
+      - name: Frontend typecheck
+        run: npm run typecheck
+
+      - name: Vitest with coverage
+        run: npm run test:coverage
 
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+          components: clippy, llvm-tools-preview
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -51,3 +58,21 @@ jobs:
 
       - name: Cargo tests (non-ignored)
         run: npm run test:rust
+
+      - name: Rust lint
+        run: npm run lint:rust
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Rust coverage
+        run: npm run test:coverage:rust
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage/frontend
+            coverage/rust/lcov.info
+          if-no-files-found: error

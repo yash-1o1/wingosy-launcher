@@ -6,6 +6,7 @@ use walkdir::WalkDir;
 use crate::models::{detect_platform_by_extension, Game, Platform};
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum ScanEvent {
     Started { total_files: usize },
     Progress { current: usize, total: usize },
@@ -131,7 +132,7 @@ impl RomScanner {
         let name = file_path
             .file_stem()
             .and_then(|n| n.to_str())
-            .map(|n| clean_rom_name(n))
+            .map(clean_rom_name)
             .unwrap_or_else(|| "Unknown".to_string());
 
         let file_path_str = file_path.to_string_lossy().to_string();

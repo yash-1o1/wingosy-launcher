@@ -3,7 +3,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AppConfig {
     pub romm: RomMConfig,
     pub library: LibraryConfig,
@@ -15,19 +15,6 @@ pub struct AppConfig {
     /// Auto-update preferences (GitHub release check).
     #[serde(default)]
     pub updater: UpdaterConfig,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            romm: RomMConfig::default(),
-            library: LibraryConfig::default(),
-            display: DisplayConfig::default(),
-            emulators: EmulatorPaths::default(),
-            audio: AudioConfig::default(),
-            updater: UpdaterConfig::default(),
-        }
-    }
 }
 
 /// Background music and UI sound levels for Immersive mode (see Argosy launcher sounds).

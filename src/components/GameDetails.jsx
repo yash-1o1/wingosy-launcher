@@ -116,7 +116,6 @@ export default function GameDetails({
   
   // Track if ROM was just downloaded (for immediate UI update)
   const [justDownloaded, setJustDownloaded] = useState(false);
-  const [downloadedPath, setDownloadedPath] = useState(null);
   
   // Game actions menu state
   const [menuAnchor, setMenuAnchor] = useState(null);
@@ -189,7 +188,7 @@ export default function GameDetails({
     try {
       setDownloading(true);
       setDownloadStatus(null);
-      const destPath = await invoke("download_rom", {
+      await invoke("download_rom", {
         gameId: game.id,
         serverUrl: rommUrl,
         token: rommToken,
@@ -197,7 +196,6 @@ export default function GameDetails({
       
       // Mark as downloaded for immediate UI update
       setJustDownloaded(true);
-      setDownloadedPath(destPath);
       setDownloadStatus({ type: "success", message: `Downloaded! Ready to play.` });
       
       // Notify parent to refresh game list if callback provided
@@ -325,7 +323,6 @@ export default function GameDetails({
       await invoke("delete_local_rom", { gameId: game.id });
       setActionStatus({ type: "success", message: "ROM deleted successfully" });
       setJustDownloaded(false);
-      setDownloadedPath(null);
       if (onGameUpdate) {
         onGameUpdate(game.id);
       }
