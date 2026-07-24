@@ -56,6 +56,143 @@ If PowerShell reports that `npm` or `cargo` is not recognized, install the
 missing tool or reopen the terminal after updating `Path`. See
 [CONTRIBUTING.md](CONTRIBUTING.md#setup) for detailed setup and troubleshooting.
 
+## Storage Locations
+
+Wingosy stores its managed files in the current Windows user's application-data
+folders. `%APPDATA%` normally expands to
+`C:\Users\<username>\AppData\Roaming`, while `%LOCALAPPDATA%` normally expands
+to `C:\Users\<username>\AppData\Local`.
+
+### Wingosy-managed folders
+
+| Content | Default location |
+| --- | --- |
+| Configuration | `%APPDATA%\wingosy\launcher\config\config.toml` |
+| Data root | `%APPDATA%\wingosy\launcher\data\` |
+| Database | `%APPDATA%\wingosy\launcher\data\wingosy.db` |
+| Emulators | `%APPDATA%\wingosy\launcher\data\emulators\<emulator-id>\` |
+| ROMs | `%APPDATA%\wingosy\launcher\data\roms\<platform-id>\` |
+| BIOS staging library | `%APPDATA%\wingosy\launcher\data\bios\<RomM-platform-slug>\` |
+| Manually downloaded saves | `%APPDATA%\wingosy\launcher\data\saves\` |
+| Save-sync cache and backups | `%APPDATA%\wingosy\launcher\data\save_sync_cache\` |
+| Logs | `%APPDATA%\wingosy\launcher\data\logs\` |
+| Covers | `%LOCALAPPDATA%\wingosy\launcher\cache\covers\` |
+| General downloads | `%APPDATA%\wingosy\launcher\data\downloads\` |
+
+The general downloads folder is reserved by Wingosy but is not currently used
+for emulator installation archives. Those archives are downloaded temporarily
+beside the managed emulator folders, extracted, and removed after installation.
+
+The ROM and BIOS roots can be changed in **Settings > Library** and
+**Settings > BIOS**, respectively. Downloaded ROMs are organized beneath the
+selected ROM root by Wingosy platform ID, such as `nes`, `snes`, `gba`, `gc`,
+`switch`, `psx`, or `ps2`.
+
+### Emulators and RetroArch cores
+
+An emulator downloaded by Wingosy is extracted to:
+
+```text
+%APPDATA%\wingosy\launcher\data\emulators\<emulator-id>\
+```
+
+Examples of emulator IDs include `retroarch`, `dolphin`, `pcsx2`, `rpcs3`,
+`ppsspp`, `duckstation`, `cemu`, `eden`, `citra`, `melonds`, `mgba`,
+`flycast`, `xemu`, `xenia`, and `mame`.
+
+RetroArch cores are installed in the `cores` folder of the detected RetroArch
+installation. For a Wingosy-managed RetroArch installation, that is normally:
+
+```text
+%APPDATA%\wingosy\launcher\data\emulators\retroarch\cores\
+```
+
+If Wingosy detects an emulator installed somewhere else, it records and uses
+that existing executable instead of moving it into the Wingosy data folder.
+
+### Game saves
+
+Most save files remain in the location selected by the emulator. Wingosy does
+not currently impose one common save directory on every emulator.
+
+For RetroArch, Wingosy's save-sync resolver checks these locations for `.srm`
+and `.sav` files:
+
+```text
+<RetroArch directory>\saves\<core-name>\<ROM-name>.srm
+<RetroArch directory>\saves\<ROM-name>.srm
+%APPDATA%\RetroArch\saves\<core-name>\<ROM-name>.srm
+%LOCALAPPDATA%\RetroArch\saves\<core-name>\<ROM-name>.srm
+```
+
+The same locations are checked with the `.sav` extension. RetroArch save states
+such as `.state` files are not currently included in automatic save sync.
+
+For Switch games, Wingosy checks Eden's portable save folders first and then
+its standard Windows location:
+
+```text
+<Eden directory>\user\nand\user\save\
+<Eden directory>\nand\user\save\
+%APPDATA%\Eden\nand\user\save\
+```
+
+The exact per-game directory below Eden's save root is resolved from the
+Switch title ID. A custom Eden save root can also be recorded in Wingosy's
+configuration.
+
+The **Download save** action for a generic/manual RomM save writes the file to:
+
+```text
+%APPDATA%\wingosy\launcher\data\saves\save_<romm-id>_<save-id>.sav
+```
+
+This manual download location is separate from an emulator's active save
+folder. Automatic path-aware RomM save sync currently has explicit local-path
+handling for RetroArch and Eden; other emulators continue to manage their own
+save locations.
+
+### BIOS and firmware
+
+Firmware downloaded from the connected RomM server is first stored in the BIOS
+staging library:
+
+```text
+<BIOS root>\<RomM-platform-slug>\<firmware-file>
+```
+
+With the default BIOS root, this becomes
+`%APPDATA%\wingosy\launcher\data\bios\<RomM-platform-slug>\<firmware-file>`.
+The **Distribute BIOS** action copies compatible files from that library to
+known folders for configured emulators:
+
+| Emulator | Distribution location |
+| --- | --- |
+| RetroArch | `<RetroArch directory>\system\` |
+| DuckStation | `<DuckStation directory>\bios\` |
+| PCSX2 | `<PCSX2 directory>\bios\` |
+| melonDS | Directory containing `melonDS.exe` |
+| Flycast | `<Flycast directory>\data\` |
+| mGBA | Directory containing `mGBA.exe` |
+
+Automatic BIOS distribution is not currently defined for the other supported
+emulators. Their firmware must be configured through the emulator when needed.
+
+### Shaders
+
+Wingosy does not currently download, select, distribute, or synchronize
+shaders. A managed RetroArch package normally keeps its shader libraries under
+the RetroArch installation, for example:
+
+```text
+<RetroArch directory>\shaders\
+<RetroArch directory>\shaders_glsl\
+<RetroArch directory>\shaders_slang\
+```
+
+Shader selection and shader preset storage remain controlled by RetroArch or
+the individual emulator.
+
 ## Supported Emulators
 
 | Emulator | Platform(s) | Download | Launch Intent | Save Sync (Wingosy) | Save Sync ([Argosy](https://github.com/rommapp/argosy-launcher)) |
