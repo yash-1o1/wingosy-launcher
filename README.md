@@ -174,9 +174,14 @@ known folders for configured emulators:
 | melonDS | Directory containing `melonDS.exe` |
 | Flycast | `<Flycast directory>\data\` |
 | mGBA | Directory containing `mGBA.exe` |
+| Eden | `prod.keys` in Eden's `keys\` directory and firmware `.nca` files in `nand\system\Contents\registered\` |
 
 Automatic BIOS distribution is not currently defined for the other supported
 emulators. Their firmware must be configured through the emulator when needed.
+For Eden, upload user-dumped `prod.keys` and `firmware.zip` to RomM under the
+`switch` platform. Wingosy validates the key file and archive structure before
+checking that the keys can decrypt the firmware, then installs them into Eden's
+portable data directory or `%APPDATA%\Eden`.
 
 ### Shaders
 

@@ -173,7 +173,7 @@ export default function BiosSettings() {
         </Box>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Download firmware from your RomM server, verify its checksum, then copy it into known emulator BIOS folders.
+          Download firmware from your RomM server, verify its checksum, then install it into known emulator BIOS folders. For Switch, Wingosy installs prod.keys and firmware.zip into configured Eden instances.
         </Typography>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, p: 1.5, mb: 2, bgcolor: "rgba(0,0,0,0.2)", borderRadius: 2 }}>

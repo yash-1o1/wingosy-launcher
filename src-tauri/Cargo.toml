@@ -36,6 +36,7 @@ sevenz-rust = "0.6"
 urlencoding = "2"
 url = "2"
 md5 = "0.8"
+aes = "0.8"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
