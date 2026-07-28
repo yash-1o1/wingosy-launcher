@@ -2167,29 +2167,36 @@ fn signed_updater_manifest_for_tag(tag: &str) -> String {
     )
 }
 
-/// True when `latest.json` exists and its Windows installer URL responds (avoids broken manifests).
-async fn signed_update_manifest_is_usable(client: &reqwest::Client, manifest_url: &str) -> bool {
+/// Returns the app version when `latest.json` exists and its Windows installer URL responds.
+async fn signed_update_manifest_version(
+    client: &reqwest::Client,
+    manifest_url: &str,
+) -> Option<String> {
     let Ok(resp) = client.get(manifest_url).send().await else {
-        return false;
+        return None;
     };
     if !resp.status().is_success() {
-        return false;
+        return None;
     }
     let Ok(body) = resp.json::<serde_json::Value>().await else {
-        return false;
+        return None;
+    };
+    let Some(version) = body.get("version").and_then(|v| v.as_str()) else {
+        return None;
     };
     let Some(installer_url) = body
         .pointer("/platforms/windows-x86_64/url")
         .and_then(|v| v.as_str())
     else {
-        return false;
+        return None;
     };
-    client
+    let installer_is_ready = client
         .head(installer_url)
         .send()
         .await
         .map(|r| r.status().is_success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    installer_is_ready.then(|| version.to_string())
 }
 
 async fn signed_manifest_url_if_ready(
@@ -2201,7 +2208,7 @@ async fn signed_manifest_url_if_ready(
         return None;
     }
     let url = signed_updater_manifest_for_tag(tag);
-    if signed_update_manifest_is_usable(client, &url).await {
+    if signed_update_manifest_version(client, &url).await.is_some() {
         Some(url)
     } else {
         tracing::warn!(
@@ -2260,8 +2267,16 @@ fn remote_version_is_newer(latest_tag: &str, current: &str) -> bool {
         parse_semver_triple(current),
     ) {
         (Some(l), Some(c)) => l > c,
-        _ => strip_version_prefix(latest_tag) != strip_version_prefix(current),
+        _ => false,
     }
+}
+
+fn release_version_is_newer(
+    manifest_version: Option<&str>,
+    latest_tag: &str,
+    current: &str,
+) -> bool {
+    remote_version_is_newer(manifest_version.unwrap_or(latest_tag), current)
 }
 
 fn parse_update_channel(s: &str) -> UpdateChannel {
@@ -2474,9 +2489,17 @@ pub async fn check_for_app_update(channel: String) -> UpdateCheckResult {
         };
     };
 
-    let latest = release.tag_name.clone();
-    let is_newer = remote_version_is_newer(&latest, &current_version);
-    let signed_url = signed_manifest_url_if_ready(&client, &release.tag_name, is_newer).await;
+    let manifest_url = signed_updater_manifest_for_tag(&release.tag_name);
+    let manifest_version = signed_update_manifest_version(&client, &manifest_url).await;
+    let latest = manifest_version
+        .clone()
+        .unwrap_or_else(|| release.tag_name.clone());
+    let is_newer = release_version_is_newer(
+        manifest_version.as_deref(),
+        &release.tag_name,
+        &current_version,
+    );
+    let signed_url = (is_newer && manifest_version.is_some()).then_some(manifest_url);
     UpdateCheckResult {
         current_version,
         latest_version: Some(latest.clone()),
@@ -2547,6 +2570,29 @@ mod tests {
         assert!(super::remote_version_is_newer("v0.0.2", "0.0.1"));
         assert!(!super::remote_version_is_newer("v0.0.1", "0.0.1"));
         assert!(super::remote_version_is_newer("1.0.0", "0.9.9"));
+        assert!(!super::remote_version_is_newer(
+            "nightly-30347498773",
+            "0.0.91"
+        ));
+    }
+
+    #[test]
+    fn test_prerelease_comparison_uses_manifest_version() {
+        assert!(!super::release_version_is_newer(
+            Some("0.0.91"),
+            "nightly-30347498773",
+            "0.0.91"
+        ));
+        assert!(super::release_version_is_newer(
+            Some("0.0.92"),
+            "nightly-30347498773",
+            "0.0.91"
+        ));
+        assert!(!super::release_version_is_newer(
+            None,
+            "nightly-30347498773",
+            "0.0.91"
+        ));
     }
 
     #[test]
