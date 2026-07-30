@@ -103,6 +103,7 @@ export default function GameDetails({
   const { getProgress } = useRomDownloads();
   const romDl = getProgress(game.id);
   const [downloading, setDownloading] = useState(false);
+  const downloadInFlightRef = useRef(false);
   const [downloadStatus, setDownloadStatus] = useState(null);
   const [saves, setSaves] = useState([]);
   const [savesLoaded, setSavesLoaded] = useState(false);
@@ -184,7 +185,8 @@ export default function GameDetails({
   const showCover = coverSrc && !imgError;
 
   async function handleDownloadRom() {
-    if (!rommToken || !rommUrl) return;
+    if (downloadInFlightRef.current || !rommToken || !rommUrl) return;
+    downloadInFlightRef.current = true;
     try {
       setDownloading(true);
       setDownloadStatus(null);
@@ -205,6 +207,7 @@ export default function GameDetails({
     } catch (err) {
       setDownloadStatus({ type: "error", message: err.message || String(err) });
     } finally {
+      downloadInFlightRef.current = false;
       setDownloading(false);
     }
   }

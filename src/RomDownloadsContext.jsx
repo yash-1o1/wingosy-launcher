@@ -81,7 +81,7 @@ export function RomDownloadsProvider({ children }) {
       });
 
       await safeListen("rom-download-progress", (event) => {
-        const { game_id, downloaded, total, percent } = event.payload;
+        const { game_id, game_name, downloaded, total, percent } = event.payload;
         setActiveByGameId((prev) => {
           const cur = prev[game_id];
           if (!cur) {
@@ -89,7 +89,7 @@ export function RomDownloadsProvider({ children }) {
               ...prev,
               [game_id]: {
                 gameId: game_id,
-                gameName: `Game #${game_id}`,
+                gameName: game_name || `Game #${game_id}`,
                 downloaded,
                 total,
                 percent,
@@ -104,9 +104,9 @@ export function RomDownloadsProvider({ children }) {
       });
 
       await safeListen("rom-download-complete", (event) => {
-        const { game_id, path } = event.payload;
+        const { game_id, game_name, path } = event.payload;
         const cur = activeRef.current[game_id];
-        const gameName = cur?.gameName ?? `Game #${game_id}`;
+        const gameName = game_name || cur?.gameName || `Game #${game_id}`;
         setActiveByGameId((prev) => {
           const next = { ...prev };
           delete next[game_id];
@@ -121,15 +121,22 @@ export function RomDownloadsProvider({ children }) {
               path,
               at: Date.now(),
             },
-            ...r,
+            ...r.filter(
+              (item) =>
+                !(
+                  item.kind === "complete" &&
+                  item.gameId === game_id &&
+                  item.path === path
+                )
+            ),
           ].slice(0, 25)
         );
       });
 
       await safeListen("rom-download-error", (event) => {
-        const { game_id, message } = event.payload;
+        const { game_id, game_name, message } = event.payload;
         const cur = activeRef.current[game_id];
-        const gameName = cur?.gameName ?? `Game #${game_id}`;
+        const gameName = game_name || cur?.gameName || `Game #${game_id}`;
         setActiveByGameId((prev) => {
           const next = { ...prev };
           delete next[game_id];
@@ -144,7 +151,14 @@ export function RomDownloadsProvider({ children }) {
               message,
               at: Date.now(),
             },
-            ...r,
+            ...r.filter(
+              (item) =>
+                !(
+                  item.kind === "error" &&
+                  item.gameId === game_id &&
+                  item.message === message
+                )
+            ),
           ].slice(0, 25)
         );
       });
