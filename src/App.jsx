@@ -16,6 +16,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { setFullscreenReliable } from "./windowFullscreen";
 import WindowChrome from "./components/WindowChrome";
 import { isTauri, mousedownTargetElement } from "./utils/isTauri";
+import { filterVisibleGames } from "./utils/gameFilters";
 import { UiSoundsProvider } from "./UiSoundsContext";
 
 const appWindow = isTauri() ? getCurrentWindow() : null;
@@ -93,6 +94,7 @@ function App() {
   const [settingsInitialSection, setSettingsInitialSection] = useState("general");
   const startupUpdateCheckDone = useRef(false);
   const rommSessionRestoreStarted = useRef(false);
+  const gamesRequestId = useRef(0);
 
   useEffect(() => {
     checkFirstRun();
@@ -102,12 +104,8 @@ function App() {
     try {
       const firstRun = await invoke("is_first_run");
       setShowSetup(firstRun);
-      if (!firstRun) {
-        loadData();
-      }
     } catch {
       setShowSetup(false);
-      loadData();
     }
   }
 
@@ -122,19 +120,22 @@ function App() {
   }, [showSetup]);
 
   useEffect(() => {
-    if (showSetup === false && !loading) {
-      refreshGames();
+    if (showSetup === false) {
+      refreshGames(selectedPlatform, searchQuery);
     }
-  }, [selectedPlatform, searchQuery]);
+  }, [selectedPlatform, searchQuery, showSetup]);
 
   async function loadData() {
+    const requestId = ++gamesRequestId.current;
     try {
       setLoading(true);
       const [gamesData, platformsData] = await Promise.all([
         invoke("get_all_games"),
         invoke("get_platforms_with_games"),
       ]);
-      setGames(gamesData);
+      if (requestId === gamesRequestId.current) {
+        setGames(gamesData);
+      }
       setPlatforms(platformsData);
 
       try {
@@ -203,15 +204,18 @@ function App() {
     }
   }
 
-  async function refreshGames() {
+  async function refreshGames(platformId = selectedPlatform, query = searchQuery) {
+    const requestId = ++gamesRequestId.current;
     try {
       const gamesData = await invoke("get_games_filtered", {
-        platformId: selectedPlatform,
-        searchQuery: searchQuery || null,
+        platformId,
+        searchQuery: query || null,
         favoritesOnly: false,
         sortBy: null,
       });
-      setGames(gamesData);
+      if (requestId === gamesRequestId.current) {
+        setGames(gamesData);
+      }
     } catch (err) {
       console.error("Failed to refresh games:", err);
     }
@@ -392,6 +396,8 @@ function App() {
     );
   }
 
+  const visibleGames = filterVisibleGames(games, selectedPlatform, searchQuery);
+
   return wrapUiSounds(
     <AppShell>
       <Box sx={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -440,7 +446,7 @@ function App() {
             }}
           >
           <Library
-            games={games}
+            games={visibleGames}
             loading={loading}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
