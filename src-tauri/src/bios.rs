@@ -475,7 +475,7 @@ fn transform_nca_header_xts(data: &mut [u8], key: &[u8; 32], decrypt: bool) -> R
     const SECTOR_SIZE: usize = 0x200;
     const BLOCK_SIZE: usize = 16;
 
-    if data.len() % BLOCK_SIZE != 0 {
+    if !data.len().is_multiple_of(BLOCK_SIZE) {
         anyhow::bail!("NCA header length is not AES block aligned");
     }
     let data_cipher = Aes128::new_from_slice(&key[..16]).context("Invalid NCA data-key length")?;

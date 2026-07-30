@@ -2185,15 +2185,10 @@ async fn signed_update_manifest_version(
     let Ok(body) = resp.json::<serde_json::Value>().await else {
         return None;
     };
-    let Some(version) = body.get("version").and_then(|v| v.as_str()) else {
-        return None;
-    };
-    let Some(installer_url) = body
+    let version = body.get("version").and_then(|v| v.as_str())?;
+    let installer_url = body
         .pointer("/platforms/windows-x86_64/url")
-        .and_then(|v| v.as_str())
-    else {
-        return None;
-    };
+        .and_then(|v| v.as_str())?;
     let installer_is_ready = client
         .head(installer_url)
         .send()
