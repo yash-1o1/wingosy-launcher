@@ -1078,11 +1078,12 @@ pub async fn download_rom(
         "rom-download-started",
         serde_json::json!({
             "game_id": gid,
-            "game_name": game.name,
+            "game_name": game.name.clone(),
         }),
     );
 
     let app_progress = app_handle.clone();
+    let progress_game_name = game.name.clone();
     let manager = DownloadManager::new();
     let download_result = manager
         .download_file(&download_url, &dest_path, Some(&token), move |p| {
@@ -1090,6 +1091,7 @@ pub async fn download_rom(
                 "rom-download-progress",
                 serde_json::json!({
                     "game_id": gid,
+                    "game_name": progress_game_name.clone(),
                     "downloaded": p.downloaded,
                     "total": p.total,
                     "percent": p.percent,
@@ -1104,6 +1106,7 @@ pub async fn download_rom(
             "rom-download-error",
             serde_json::json!({
                 "game_id": gid,
+                "game_name": game.name.clone(),
                 "message": msg,
             }),
         );
@@ -1121,6 +1124,7 @@ pub async fn download_rom(
         "rom-download-complete",
         serde_json::json!({
             "game_id": gid,
+            "game_name": game.name,
             "path": dest_str,
         }),
     );

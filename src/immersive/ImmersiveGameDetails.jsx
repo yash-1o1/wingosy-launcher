@@ -72,6 +72,7 @@ export default function ImmersiveGameDetails({
   const { getProgress } = useRomDownloads();
   const romDl = getProgress(game.id);
   const [downloading, setDownloading] = useState(false);
+  const downloadInFlightRef = useRef(false);
   const [downloadStatus, setDownloadStatus] = useState(null);
   const [justDownloaded, setJustDownloaded] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -94,7 +95,8 @@ export default function ImmersiveGameDetails({
   const screenshots = Array.isArray(game.screenshot_paths) ? game.screenshot_paths : [];
 
   async function handleDownloadRom() {
-    if (!rommToken || !rommUrl) return;
+    if (downloadInFlightRef.current || !rommToken || !rommUrl) return;
+    downloadInFlightRef.current = true;
     try {
       setDownloading(true);
       setDownloadStatus(null);
@@ -109,6 +111,7 @@ export default function ImmersiveGameDetails({
     } catch (err) {
       setDownloadStatus({ type: "error", message: err.message || String(err) });
     } finally {
+      downloadInFlightRef.current = false;
       setDownloading(false);
     }
   }
