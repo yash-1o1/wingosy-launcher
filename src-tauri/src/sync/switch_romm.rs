@@ -6,11 +6,13 @@ use std::path::PathBuf;
 use crate::api::RomMClient;
 use crate::api::RomMSave;
 use crate::config::AppConfig;
+use crate::database::Database;
 use crate::models::Game;
 
 use super::switch_save::{
-    resolve_local_title_save_path, unzip_into_title_folder, zip_title_folder,
-    ARGOSY_LATEST_SAVE_NAME, DEFAULT_SAVE_SLOT, EDEN_EMULATOR_ID,
+    resolve_local_title_save_path, resolve_local_title_save_path_with_archive,
+    unzip_into_title_folder, zip_title_folder, ARGOSY_LATEST_SAVE_NAME, DEFAULT_SAVE_SLOT,
+    EDEN_EMULATOR_ID,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -47,6 +49,61 @@ fn romm_client(config: &AppConfig) -> Result<RomMClient> {
         .or_else(|| config.romm.auth_token.clone())
         .context("RomM not connected")?;
     Ok(RomMClient::new(url).with_token(token))
+}
+
+fn game_rom_path(game: &Game) -> Result<&str> {
+    game.local_file_path
+        .as_deref()
+        .or(Some(game.file_path.as_str()))
+        .context("No local ROM path")
+}
+
+async fn resolve_game_title_save_path_with_client(
+    game: &Game,
+    config: &AppConfig,
+    client: &RomMClient,
+    device_id: &str,
+) -> Result<(PathBuf, String)> {
+    let rom_path = game_rom_path(game)?;
+    if let Ok(resolved) = resolve_local_title_save_path(config, rom_path) {
+        return Ok(resolved);
+    }
+
+    let romm_id = game.romm_id.context("Game is not linked to RomM")?;
+    let mut saves = client.get_saves_for_rom_device(romm_id, device_id).await?;
+    if saves.is_empty() {
+        anyhow::bail!(
+            "Could not determine the Switch title ID: the ROM filename has no title ID and RomM has no save archive for this game"
+        );
+    }
+    saves.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+
+    for save in &saves {
+        let Ok(bytes) = client
+            .download_save_content_device(save, device_id)
+            .await
+        else {
+            continue;
+        };
+        if let Ok(resolved) =
+            resolve_local_title_save_path_with_archive(config, rom_path, Some(&bytes))
+        {
+            return Ok(resolved);
+        }
+    }
+
+    anyhow::bail!(
+        "Could not read a Switch title ID from the ROM filename or any RomM save archive for this game"
+    )
+}
+
+pub async fn resolve_game_title_save_path(
+    game: &Game,
+    config: &mut AppConfig,
+) -> Result<(PathBuf, String)> {
+    let client = romm_client(config)?;
+    let device_id = ensure_device_id(config);
+    resolve_game_title_save_path_with_client(game, config, &client, &device_id).await
 }
 
 fn slot_name(slot: Option<&str>) -> &str {
@@ -142,15 +199,12 @@ pub async fn upload_switch_save_from_eden(
     slot: Option<String>,
 ) -> Result<SwitchSaveSyncResult> {
     let romm_id = game.romm_id.context("Game is not linked to RomM")?;
-    let rom_path = game
-        .local_file_path
-        .as_deref()
-        .or(Some(game.file_path.as_str()))
-        .context("No local ROM path")?;
-
-    let (title_dir, title_id) = resolve_local_title_save_path(config, rom_path)?;
     let slot_s = slot_name(slot.as_deref()).to_string();
     let rom_base = rom_base_name(game);
+    let client = romm_client(config)?;
+    let device_id = ensure_device_id(config);
+    let (title_dir, title_id) =
+        resolve_game_title_save_path_with_client(game, config, &client, &device_id).await?;
 
     let cache_dir = AppConfig::data_dir()
         .map(|d| d.join("save_sync_cache"))
@@ -160,8 +214,6 @@ pub async fn upload_switch_save_from_eden(
     zip_title_folder(&title_dir, &title_id, &zip_path)?;
 
     let zip_bytes = std::fs::read(&zip_path)?;
-    let client = romm_client(config)?;
-    let device_id = ensure_device_id(config);
     let uploaded = client
         .upload_save_device(
             romm_id,
@@ -192,13 +244,7 @@ pub async fn download_switch_save_to_eden(
     save_id: Option<i32>,
 ) -> Result<SwitchSaveSyncResult> {
     let romm_id = game.romm_id.context("Game is not linked to RomM")?;
-    let rom_path = game
-        .local_file_path
-        .as_deref()
-        .or(Some(game.file_path.as_str()))
-        .context("No local ROM path")?;
-
-    let (title_dir, title_id) = resolve_local_title_save_path(config, rom_path)?;
+    let rom_path = game_rom_path(game)?;
     let slot_s = slot_name(slot.as_deref()).to_string();
     let rom_base = rom_base_name(game);
 
@@ -224,6 +270,8 @@ pub async fn download_switch_save_to_eden(
     let bytes = client
         .download_save_content_device(&save, &device_id)
         .await?;
+    let (title_dir, title_id) =
+        resolve_local_title_save_path_with_archive(config, rom_path, Some(&bytes))?;
 
     let cache_dir = AppConfig::data_dir()
         .map(|d| d.join("save_sync_cache"))
@@ -265,6 +313,14 @@ pub async fn pre_launch_sync(game: &Game, config: &mut AppConfig) -> Result<()> 
     if game.platform_id != "switch" {
         return Ok(());
     }
+    let db = Database::open()?;
+    if db.has_user_selected_restore_point(game.id, DEFAULT_SAVE_SLOT)? {
+        tracing::info!(
+            "[SaveSync] Pre-launch skipped for {}: user-selected restore point is active",
+            game.name
+        );
+        return Ok(());
+    }
     let result = negotiated_launch_sync(game, config, true).await;
     match result {
         Ok(r) => tracing::info!("[SaveSync] Pre-launch: {}", r.message),
@@ -283,9 +339,25 @@ pub async fn post_launch_sync(game: &Game, config: &mut AppConfig) -> Result<()>
     if game.platform_id != "switch" {
         return Ok(());
     }
-    let result = negotiated_launch_sync(game, config, false).await;
+    let db = Database::open()?;
+    let selected_restore =
+        db.has_user_selected_restore_point(game.id, DEFAULT_SAVE_SLOT)?;
+    let result = if selected_restore {
+        tracing::info!(
+            "[SaveSync] Uploading user-selected restore point for {} as the next autosave",
+            game.name
+        );
+        upload_switch_save_from_eden(game, config, Some(DEFAULT_SAVE_SLOT.to_string())).await
+    } else {
+        negotiated_launch_sync(game, config, false).await
+    };
     match result {
-        Ok(r) => tracing::info!("[SaveSync] Post-launch: {}", r.message),
+        Ok(r) => {
+            if selected_restore {
+                db.clear_user_selected_restore_point(game.id, DEFAULT_SAVE_SLOT)?;
+            }
+            tracing::info!("[SaveSync] Post-launch: {}", r.message);
+        }
         Err(e) => {
             tracing::warn!("[SaveSync] Post-launch sync failed: {e}");
             return Err(e);
@@ -300,16 +372,14 @@ async fn negotiated_launch_sync(
     allow_download: bool,
 ) -> Result<SwitchSaveSyncResult> {
     let romm_id = game.romm_id.context("Game is not linked to RomM")?;
-    let rom_path = game
-        .local_file_path
-        .as_deref()
-        .unwrap_or(game.file_path.as_str());
     let slot = slot_name(None).to_string();
     let rom_base = rom_base_name(game);
     let client = romm_client(config)?;
     let device_id = ensure_device_id(config);
 
-    let client_saves = match resolve_local_title_save_path(config, rom_path) {
+    let resolved_title_path =
+        resolve_game_title_save_path_with_client(game, config, &client, &device_id).await;
+    let client_saves = match resolved_title_path {
         Ok((title_dir, title_id)) if title_dir.exists() => {
             let cache_dir = AppConfig::data_dir()
                 .map(|dir| dir.join("save_sync_cache"))

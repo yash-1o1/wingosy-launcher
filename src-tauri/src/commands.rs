@@ -789,6 +789,17 @@ pub async fn restore_romm_session() -> Result<Option<RomMAuthSession>, String> {
     }
 }
 
+/// Reconcile saves for every locally installed RomM-linked game after the
+/// saved RomM session reconnects. This runs independently of library refresh
+/// and returns a summary so the frontend can log non-fatal background errors.
+#[tauri::command]
+pub async fn reconcile_saves_on_startup(
+) -> Result<crate::sync::startup::StartupSaveReconcileSummary, String> {
+    crate::sync::startup::reconcile_all()
+        .await
+        .map_err(|error| error.to_string())
+}
+
 /// Connect to RomM using a direct access token (for users with SSO/OIDC or API tokens)
 #[tauri::command]
 pub async fn connect_romm_with_token(
@@ -1193,19 +1204,18 @@ pub struct SwitchSavePathInfo {
 
 #[tauri::command]
 pub async fn get_switch_save_path_info(game_id: i64) -> Result<SwitchSavePathInfo, String> {
-    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let mut config = AppConfig::load().map_err(|e| e.to_string())?;
     let db = Database::open().map_err(|e| e.to_string())?;
     let game = db
         .get_game(game_id)
         .map_err(|e| e.to_string())?
         .ok_or("Game not found")?;
-    let rom_path = game
-        .local_file_path
-        .as_deref()
-        .or(Some(game.file_path.as_str()))
-        .ok_or("No ROM path")?;
-    let (local, title_id) =
-        crate::sync::resolve_local_title_save_path(&config, rom_path).map_err(|e| e.to_string())?;
+    let (local, title_id) = crate::sync::switch_romm::resolve_game_title_save_path(
+        &game,
+        &mut config,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     let base = crate::sync::switch_save::resolve_eden_save_base(&config);
     Ok(SwitchSavePathInfo {
         title_id,
@@ -1226,9 +1236,16 @@ pub async fn upload_switch_save(
         .get_game(game_id)
         .map_err(|e| e.to_string())?
         .ok_or("Game not found")?;
-    crate::sync::upload_switch_save_from_eden(&game, &mut config, slot)
+    let result = crate::sync::upload_switch_save_from_eden(&game, &mut config, slot)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    let uploaded_slot = result
+        .slot
+        .as_deref()
+        .unwrap_or(crate::sync::switch_save::DEFAULT_SAVE_SLOT);
+    db.clear_user_selected_restore_point(game.id, uploaded_slot)
+        .map_err(|e| e.to_string())?;
+    Ok(result)
 }
 
 #[tauri::command]
@@ -1243,9 +1260,26 @@ pub async fn download_switch_save(
         .get_game(game_id)
         .map_err(|e| e.to_string())?
         .ok_or("Game not found")?;
-    crate::sync::download_switch_save_to_eden(&game, &mut config, slot, save_id)
+    let user_selected_restore = save_id.is_some();
+    let mut result =
+        crate::sync::download_switch_save_to_eden(&game, &mut config, slot, save_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if user_selected_restore {
+        // The restored archive becomes Eden's active save regardless of the
+        // server revision's original label. Protect the active autosave channel
+        // so startup/pre-launch reconciliation cannot immediately replace it.
+        db.mark_user_selected_restore_point(
+            game.id,
+            crate::sync::switch_save::DEFAULT_SAVE_SLOT,
+            result.romm_save_id,
+        )
+            .map_err(|e| e.to_string())?;
+        result.message.push_str(
+            ". This restore point is protected from automatic replacement until its next successful upload",
+        );
+    }
+    Ok(result)
 }
 
 // ========== Game Management Commands ==========

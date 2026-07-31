@@ -447,7 +447,8 @@ impl RomMClient {
         
         let mut request = self
             .client
-            .get(format!("{}/api/roms/{}/saves", self.base_url, rom_id));
+            .get(format!("{}/api/saves", self.base_url))
+            .query(&[("rom_id", rom_id.to_string())]);
 
         if let Some(auth) = self.auth_header() {
             request = request.header("Authorization", auth);
@@ -459,7 +460,7 @@ impl RomMClient {
         let text = response.text().await.context("Failed to read saves response")?;
         
         if !status.is_success() {
-            // 404 means saves feature might not be enabled or no saves exist
+            // Older RomM releases may not expose the current saves API.
             if status.as_u16() == 404 {
                 tracing::debug!("[RomM] Saves not available for ROM id={} (404)", rom_id);
                 return Ok(vec![]);
@@ -497,11 +498,12 @@ impl RomMClient {
     pub async fn upload_save(&self, rom_id: i32, save_data: Vec<u8>, filename: &str) -> Result<()> {
         let part = reqwest::multipart::Part::bytes(save_data).file_name(filename.to_string());
 
-        let form = reqwest::multipart::Form::new().part("file", part);
+        let form = reqwest::multipart::Form::new().part("saveFile", part);
 
         let mut request = self
             .client
-            .post(format!("{}/api/roms/{}/saves", self.base_url, rom_id))
+            .post(format!("{}/api/saves", self.base_url))
+            .query(&[("rom_id", rom_id.to_string())])
             .multipart(form);
 
         if let Some(auth) = self.auth_header() {
@@ -513,11 +515,10 @@ impl RomMClient {
         Ok(())
     }
 
-    pub async fn download_save(&self, rom_id: i32, save_id: i32) -> Result<Vec<u8>> {
-        let mut request = self.client.get(format!(
-            "{}/api/roms/{}/saves/{}/content",
-            self.base_url, rom_id, save_id
-        ));
+    pub async fn download_save(&self, _rom_id: i32, save_id: i32) -> Result<Vec<u8>> {
+        let mut request = self
+            .client
+            .get(format!("{}/api/saves/{}/content", self.base_url, save_id));
 
         if let Some(auth) = self.auth_header() {
             request = request.header("Authorization", auth);
@@ -608,18 +609,16 @@ impl RomMClient {
         serde_json::from_str(&text).context("parse upload save response")
     }
 
-    /// Download save bytes via device-aware content route (falls back to legacy ROM route).
+    /// Download save bytes through the modern device-aware content route.
     pub async fn download_save_content_device(
         &self,
         save: &RomMSave,
         device_id: &str,
     ) -> Result<Vec<u8>> {
-        let file_name = urlencoding::encode(&save.file_name);
-        let mut request = self.client.get(format!(
-            "{}/api/saves/{}/content/{}",
-            self.base_url, save.id, file_name
-        ))
-        .query(&[("device_id", device_id), ("optimistic", "false")]);
+        let mut request = self
+            .client
+            .get(format!("{}/api/saves/{}/content", self.base_url, save.id))
+            .query(&[("device_id", device_id), ("optimistic", "false")]);
 
         if let Some(auth) = self.auth_header() {
             request = request.header("Authorization", auth);

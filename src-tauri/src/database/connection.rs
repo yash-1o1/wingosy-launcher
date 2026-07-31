@@ -139,6 +139,15 @@ impl Database {
                 FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS user_selected_restore_points (
+                game_id INTEGER NOT NULL,
+                slot TEXT NOT NULL COLLATE NOCASE,
+                save_id INTEGER,
+                selected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (game_id, slot),
+                FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+            );
+
             CREATE INDEX IF NOT EXISTS idx_games_platform ON games(platform_id);
             CREATE INDEX IF NOT EXISTS idx_games_name ON games(name);
             CREATE INDEX IF NOT EXISTS idx_games_favorite ON games(is_favorite);
@@ -230,6 +239,45 @@ impl Database {
         conn.execute("DELETE FROM pending_save_sync WHERE game_id = ?1", [game_id])?;
         Ok(())
     }
+
+    pub fn mark_user_selected_restore_point(
+        &self,
+        game_id: i64,
+        slot: &str,
+        save_id: Option<i32>,
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"
+            INSERT INTO user_selected_restore_points (game_id, slot, save_id)
+            VALUES (?1, ?2, ?3)
+            ON CONFLICT(game_id, slot) DO UPDATE SET
+                save_id = excluded.save_id,
+                selected_at = CURRENT_TIMESTAMP
+            "#,
+            rusqlite::params![game_id, slot, save_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn has_user_selected_restore_point(&self, game_id: i64, slot: &str) -> Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM user_selected_restore_points WHERE game_id = ?1 AND slot = ?2",
+            rusqlite::params![game_id, slot],
+            |row| row.get(0),
+        )?;
+        Ok(count > 0)
+    }
+
+    pub fn clear_user_selected_restore_point(&self, game_id: i64, slot: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "DELETE FROM user_selected_restore_points WHERE game_id = ?1 AND slot = ?2",
+            rusqlite::params![game_id, slot],
+        )?;
+        Ok(())
+    }
 }
 
 impl Clone for Database {
@@ -280,5 +328,35 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM pending_save_sync", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn user_selected_restore_point_persists_until_cleared() {
+        let db = Database::open_in_memory().unwrap();
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO platforms (id, name, extensions) VALUES ('switch', 'Switch', 'nsp')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO games (id, platform_id, name, file_path) VALUES (7, 'switch', 'Game', 'game.nsp')",
+                [],
+            )
+            .unwrap();
+        }
+
+        db.mark_user_selected_restore_point(7, "autosave", Some(51))
+            .unwrap();
+        assert!(db
+            .has_user_selected_restore_point(7, "AUTOSAVE")
+            .unwrap());
+
+        db.clear_user_selected_restore_point(7, "autosave")
+            .unwrap();
+        assert!(!db
+            .has_user_selected_restore_point(7, "autosave")
+            .unwrap());
     }
 }

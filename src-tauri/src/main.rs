@@ -99,6 +99,7 @@ fn main() {
             commands::check_romm_connection,
             commands::disconnect_romm,
             commands::restore_romm_session,
+            commands::reconcile_saves_on_startup,
             commands::sync_romm_library,
             commands::download_rom,
             bios::get_bios_directory,

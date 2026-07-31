@@ -94,6 +94,7 @@ function App() {
   const [settingsInitialSection, setSettingsInitialSection] = useState("general");
   const startupUpdateCheckDone = useRef(false);
   const rommSessionRestoreStarted = useRef(false);
+  const saveReconcileInFlight = useRef(false);
   const gamesRequestId = useRef(0);
 
   useEffect(() => {
@@ -111,6 +112,26 @@ function App() {
 
   function handleSetupComplete() {
     setShowSetup(false);
+    runSaveReconciliation();
+  }
+
+  function runSaveReconciliation() {
+    if (!isTauri() || saveReconcileInFlight.current) return;
+    saveReconcileInFlight.current = true;
+    invoke("reconcile_saves_on_startup")
+      .then((summary) => {
+        if (!summary?.enabled) return;
+        console.info("[Wingosy] Startup save reconciliation:", summary);
+        if (summary.failed > 0) {
+          console.warn("[Wingosy] Some saves could not be reconciled:", summary.warnings);
+        }
+      })
+      .catch((err) => {
+        console.warn("[Wingosy] Startup save reconciliation could not run:", err);
+      })
+      .finally(() => {
+        saveReconcileInFlight.current = false;
+      });
   }
 
   useEffect(() => {
@@ -150,9 +171,11 @@ function App() {
           rommSessionRestoreStarted.current = true;
           invoke("restore_romm_session")
             .then((session) => {
-              if (!session?.access_token) return;
-              setRommUrl(session.server_url);
-              setRommToken(session.access_token);
+              if (session?.access_token) {
+                setRommUrl(session.server_url);
+                setRommToken(session.access_token);
+              }
+              runSaveReconciliation();
             })
             .catch((err) => {
               console.warn("[Wingosy] Could not restore RomM session:", err);
@@ -253,6 +276,11 @@ function App() {
   function handleRommConnect(url, token) {
     setRommUrl(url);
     setRommToken(token);
+    // During first-run setup the library import may not be finished yet.
+    // handleSetupComplete runs reconciliation once setup has populated it.
+    if (showSetup !== true) {
+      runSaveReconciliation();
+    }
   }
 
   function handleRommDisconnect() {
