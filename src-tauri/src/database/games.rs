@@ -181,6 +181,34 @@ impl Database {
         Ok(games)
     }
 
+    /// Games eligible for background save reconciliation.
+    ///
+    /// Hidden games are intentionally included: hiding a library entry should
+    /// not silently disable save protection for a locally installed game.
+    pub fn get_save_sync_candidates(&self) -> Result<Vec<Game>> {
+        let conn = self.conn.lock().unwrap();
+
+        let mut stmt = conn
+            .prepare(
+                r#"
+                SELECT * FROM games
+                WHERE romm_id IS NOT NULL
+                  AND local_file_path IS NOT NULL
+                  AND TRIM(local_file_path) <> ''
+                ORDER BY name
+                "#,
+            )
+            .context("Failed to prepare save sync candidates query")?;
+
+        let games = stmt
+            .query_map([], |row: &Row| Ok(Self::row_to_game(row)))
+            .context("Failed to query save sync candidates")?
+            .filter_map(|row| row.ok().and_then(|game| game.ok()))
+            .collect();
+
+        Ok(games)
+    }
+
     pub fn get_games_filtered(&self, filter: &GameFilter) -> Result<Vec<Game>> {
         let conn = self.conn.lock().unwrap();
 
@@ -630,6 +658,30 @@ mod tests {
         game.sync_state = SyncState::Synced;
         assert!(game.local_file_path.is_some());
         assert!(matches!(game.sync_state, SyncState::Synced));
+    }
+
+    #[test]
+    fn save_sync_candidates_require_romm_link_and_local_path_but_include_hidden_games() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"]))
+            .unwrap();
+
+        let mut candidate = create_romm_game("Installed hidden game", 101);
+        candidate.local_file_path = Some("C:\\ROMs\\installed.gba".to_string());
+        candidate.is_hidden = true;
+        db.insert_game(&candidate).unwrap();
+
+        let remote_only = create_romm_game("Remote-only game", 102);
+        db.insert_game(&remote_only).unwrap();
+
+        let mut unlinked = create_test_game("Unlinked local game");
+        unlinked.local_file_path = Some("C:\\ROMs\\unlinked.gba".to_string());
+        db.insert_game(&unlinked).unwrap();
+
+        let candidates = db.get_save_sync_candidates().unwrap();
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].name, "Installed hidden game");
+        assert!(candidates[0].is_hidden);
     }
 
     #[test]

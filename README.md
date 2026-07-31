@@ -8,7 +8,8 @@ A Windows game launcher with RomM integration. Inspired by [Argosy Launcher](htt
 
 ## Features
 
-- **RomM Integration** — Sync library, covers, saves from [RomM](https://github.com/rommapp/romm)
+- **RomM Integration** — Sync library, covers, BIOS files, and saves with [RomM](https://github.com/rommapp/romm)
+- **Automatic Save Sync** — Reconcile RetroArch and Eden saves when RomM reconnects and around game sessions
 - **20+ Platforms** — NES, SNES, N64, GameCube, Wii, PlayStation 1-3, PSP, and more
 - **Emulator Management** — Auto-detect, download, and configure emulators
 - **ROM Downloads** — Download ROMs directly from RomM
@@ -115,6 +116,13 @@ that existing executable instead of moving it into the Wingosy data folder.
 Most save files remain in the location selected by the emulator. Wingosy does
 not currently impose one common save directory on every emulator.
 
+When save sync is enabled, Wingosy reconciles every locally installed,
+RomM-linked RetroArch and Eden game after the saved RomM session reconnects.
+It also negotiates the active game's save immediately before launch and
+uploads changes after the emulator closes. Restoring a specific older Switch
+revision protects it from automatic replacement until Wingosy successfully
+uploads the resulting active save.
+
 For RetroArch, Wingosy's save-sync resolver checks these locations for `.srm`
 and `.sav` files:
 
@@ -200,38 +208,46 @@ the individual emulator.
 
 ## Supported Emulators
 
-| Emulator | Platform(s) | Download | Launch Intent | Save Sync (Wingosy) | Save Sync ([Argosy](https://github.com/rommapp/argosy-launcher)) |
+| Emulator | Platform(s) | Download | Launch | Save Sync (Wingosy) | Save Sync ([Argosy](https://github.com/rommapp/argosy-launcher)) |
 | --- | --- | :---: | :---: | :---: | :---: |
-| RetroArch (FCEUmm core) | NES | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (Snes9x core) | SNES | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (Mupen64Plus-Next core) | Nintendo 64 | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (Gambatte core) | Game Boy | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (Gambatte core) | Game Boy Color | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (mGBA core) | Game Boy Advance | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (melonDS core) | Nintendo DS | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (Genesis Plus GX core) | Genesis / Mega Drive | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (PCSX-ReARMed core) | PlayStation 1 | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (Flycast core) | Dreamcast | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (PPSSPP core) | PSP | ⬜ | ⬜ | ⬜ | ✅ |
-| RetroArch (MAME core) | Arcade | ⬜ | ⬜ | ⬜ | ✅ |
+| RetroArch (FCEUmm core) | NES | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (Snes9x core) | SNES | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (Mupen64Plus-Next core) | Nintendo 64 | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (Gambatte core) | Game Boy | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (Gambatte core) | Game Boy Color | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (mGBA core) | Game Boy Advance | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (melonDS core) | Nintendo DS | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (Genesis Plus GX core) | Genesis / Mega Drive | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (PCSX-ReARMed core) | PlayStation 1 | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (Flycast core) | Dreamcast | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (PPSSPP core) | PSP | ✅ | ✅ | ⬜ | ✅ |
+| RetroArch (MAME core) | Arcade | ✅ | ✅ | ⬜ | ✅ |
 | mGBA | Game Boy / GBC / GBA | ✅ | ✅ | ⬜ | ✅ |
-| Dolphin | GameCube / Wii | ⬜ | ⬜ | ⬜ | ✅ |
-| PCSX2 | PlayStation 2 | ⬜ | ⬜ | ⬜ | ✅ |
-| RPCS3 | PlayStation 3 | ⬜ | ⬜ | ⬜ | ⬜ |
-| PPSSPP | PSP | ⬜ | ⬜ | ⬜ | ✅ |
-| DuckStation | PlayStation 1 | ⬜ | ⬜ | ⬜ | ⬜ |
-| Cemu | Wii U | ⬜ | ⬜ | ⬜ | ✅ |
-| Eden | Switch | ⬜ | ⬜ | ⬜ | ✅ |
-| melonDS | Nintendo DS | ⬜ | ⬜ | ⬜ | ✅ |
-| Lime3DS | Nintendo 3DS | ⬜ | ⬜ | ⬜ | ✅ |
-| Flycast | Dreamcast | ⬜ | ⬜ | ⬜ | ⬜ |
-| xemu | Xbox | ⬜ | ⬜ | ⬜ | ⬜ |
-| Xenia | Xbox 360 | ⬜ | ⬜ | ⬜ | ⬜ |
-| MAME | Arcade | ⬜ | ⬜ | ⬜ | ⬜ |
+| Dolphin | GameCube / Wii | ✅ | ✅ | ⬜ | ✅ |
+| PCSX2 | PlayStation 2 | ✅ | ✅ | ⬜ | ✅ |
+| RPCS3 | PlayStation 3 | ✅ | ✅ | ⬜ | ⬜ |
+| PPSSPP | PSP | ✅ | ✅ | ⬜ | ✅ |
+| DuckStation | PlayStation 1 | ✅ | ✅ | ⬜ | ⬜ |
+| Cemu | Wii U | ✅ | ✅ | ⬜ | ✅ |
+| Eden | Switch | ✅ | ✅ | ✅ | ✅ |
+| melonDS | Nintendo DS | ✅ | ✅ | ⬜ | ✅ |
+| Lime3DS / Azahar | Nintendo 3DS | ⚠️ | ⚠️ | ⬜ | ✅ |
+| Flycast | Dreamcast | ✅ | ✅ | ⬜ | ⬜ |
+| xemu | Xbox | ⚠️ | ✅ | ⬜ | ⬜ |
+| Xenia | Xbox 360 | ✅ | ✅ | ⬜ | ⬜ |
+| MAME | Arcade | ✅ | ✅ | ⬜ | ⬜ |
 
-✅ = implemented · ⬜ = planned
+✅ = implemented and verified for the stated column · ⚠️ = partial or has a known packaging issue · ⬜ = not implemented or not yet verified
 
-**Save Sync (Argosy):** automatic bidirectional RomM save sync (negotiator API, pre/post-launch). Marked ✅ when [Argosy](https://github.com/rommapp/argosy-launcher) has save-path support for that emulator or RetroArch core on Android. **Save Sync (Wingosy):** manual list/upload/download in game details only (no automatic sync yet).
+The current Azahar package is found through the legacy Lime3DS integration,
+but Wingosy does not yet recognize `azahar.exe` after extraction. The xemu
+release matcher can select an ARM64 or debug-symbol archive before the normal
+Windows x86-64 package. Both therefore remain marked partial even though their
+download sources are reachable. Launch checks in this table mean Wingosy has
+an executable resolver and command-line launch path; they are not a guarantee
+that every ROM format or emulator version has been gameplay-tested.
+
+**Save Sync (Argosy):** automatic bidirectional RomM save sync (negotiator API, reconnect reconciliation, and pre/post-launch). Marked ✅ when [Argosy](https://github.com/rommapp/argosy-launcher) has save-path support for that emulator or RetroArch core on Android. **Save Sync (Wingosy):** only Eden/Switch is marked ✅ because it has been tested end to end. RetroArch synchronization code exists, but its cores remain unmarked until each path is verified with real saves.
 
 ## Contributing
 

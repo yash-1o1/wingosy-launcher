@@ -2,7 +2,7 @@
 use anyhow::{bail, Context, Result};
 use regex_lite::Regex;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use zip::read::ZipArchive;
@@ -29,6 +29,36 @@ fn title_id_re() -> &'static Regex {
 pub fn extract_title_id_from_path(path: &str) -> Option<String> {
     let caps = title_id_re().captures(path)?;
     Some(caps[1].to_ascii_uppercase())
+}
+
+/// Read the Switch title ID from the single title folder at the root of an
+/// Argosy/Eden save archive.
+pub fn extract_title_id_from_zip_bytes(bytes: &[u8]) -> Result<Option<String>> {
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).context("Invalid Switch save archive")?;
+    let mut title_id: Option<String> = None;
+
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index)?;
+        let safe_path = entry
+            .enclosed_name()
+            .context("Save archive contains an unsafe path")?;
+        let Some(root) = safe_path.components().next() else {
+            continue;
+        };
+        let candidate = root.as_os_str().to_string_lossy().to_ascii_uppercase();
+        if !is_valid_title_id(&candidate) {
+            continue;
+        }
+        if let Some(existing) = title_id.as_deref() {
+            if existing != candidate {
+                bail!("Save archive contains more than one Switch title ID");
+            }
+        } else {
+            title_id = Some(candidate);
+        }
+    }
+
+    Ok(title_id)
 }
 
 pub fn is_valid_title_id(title_id: &str) -> bool {
@@ -222,9 +252,27 @@ pub fn resolve_local_title_save_path(
     config: &AppConfig,
     rom_path: &str,
 ) -> Result<(PathBuf, String)> {
-    let title_id = extract_title_id_from_path(rom_path).context(
-        "Could not read Switch title ID from ROM filename (expected [0100XXXXXXXXXXXX])",
-    )?;
+    resolve_local_title_save_path_with_archive(config, rom_path, None)
+}
+
+/// Resolve an Eden save folder using the ROM filename when possible, falling
+/// back to the title folder embedded in a server-side save ZIP.
+pub fn resolve_local_title_save_path_with_archive(
+    config: &AppConfig,
+    rom_path: &str,
+    archive_bytes: Option<&[u8]>,
+) -> Result<(PathBuf, String)> {
+    let title_id = if let Some(title_id) = extract_title_id_from_path(rom_path) {
+        title_id
+    } else if let Some(bytes) = archive_bytes {
+        extract_title_id_from_zip_bytes(bytes)?.context(
+            "Could not read a Switch title ID from the ROM filename or save archive",
+        )?
+    } else {
+        bail!(
+            "Could not read Switch title ID from ROM filename; connect to a RomM account with an existing Eden save so Wingosy can detect it from the save archive"
+        );
+    };
     if !is_valid_title_id(&title_id) {
         bail!("Invalid Switch title ID: {title_id}");
     }
@@ -362,6 +410,48 @@ mod tests {
     #[test]
     fn rejects_invalid_title_id() {
         assert!(!is_valid_title_id("0200F2C0115B6000"));
+    }
+
+    #[test]
+    fn extracts_title_id_from_argosy_save_archive() {
+        let mut bytes = Vec::new();
+        {
+            let cursor = Cursor::new(&mut bytes);
+            let mut archive = ZipWriter::new(cursor);
+            archive
+                .start_file(
+                    "0100A3D008C5C000/main/backup",
+                    SimpleFileOptions::default(),
+                )
+                .unwrap();
+            archive.write_all(b"save").unwrap();
+            archive.finish().unwrap();
+        }
+
+        assert_eq!(
+            extract_title_id_from_zip_bytes(&bytes).unwrap().as_deref(),
+            Some("0100A3D008C5C000")
+        );
+    }
+
+    #[test]
+    fn rejects_save_archive_with_multiple_title_ids() {
+        let mut bytes = Vec::new();
+        {
+            let cursor = Cursor::new(&mut bytes);
+            let mut archive = ZipWriter::new(cursor);
+            archive
+                .start_file("0100A3D008C5C000/main", SimpleFileOptions::default())
+                .unwrap();
+            archive.write_all(b"scarlet").unwrap();
+            archive
+                .start_file("0100F2C0115B6000/main", SimpleFileOptions::default())
+                .unwrap();
+            archive.write_all(b"zelda").unwrap();
+            archive.finish().unwrap();
+        }
+
+        assert!(extract_title_id_from_zip_bytes(&bytes).is_err());
     }
 
     #[test]
