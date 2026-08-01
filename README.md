@@ -83,10 +83,17 @@ The general downloads folder is reserved by Wingosy but is not currently used
 for emulator installation archives. Those archives are downloaded temporarily
 beside the managed emulator folders, extracted, and removed after installation.
 
-The ROM and BIOS roots can be changed in **Settings > Library** and
+The ROM and BIOS roots can be changed in **Settings > Storage** and
 **Settings > BIOS**, respectively. Downloaded ROMs are organized beneath the
 selected ROM root by Wingosy platform ID, such as `nes`, `snes`, `gba`, `gc`,
 `switch`, `psx`, or `ps2`.
+
+When the ROM root changes, Wingosy asks whether to migrate tracked ROMs or use
+the new folder only for future downloads. Migration preserves the platform
+subfolders, updates each library path, and removes an old copy only after the
+new copy and database update succeed. Existing destination files are never
+overwritten. Folder changes are blocked while a ROM download is active, so a
+download cannot be split between the old and new roots.
 
 ### Emulators and RetroArch cores
 

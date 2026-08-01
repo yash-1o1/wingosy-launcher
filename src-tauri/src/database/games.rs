@@ -181,6 +181,22 @@ impl Database {
         Ok(games)
     }
 
+    /// Get all games, including hidden entries, for storage maintenance operations.
+    pub fn get_all_games_including_hidden(&self) -> Result<Vec<Game>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT * FROM games ORDER BY name")
+            .context("Failed to prepare statement")?;
+
+        let games = stmt
+            .query_map([], |row: &Row| Ok(Self::row_to_game(row)))
+            .context("Failed to query games")?
+            .filter_map(|result| result.ok().and_then(|game| game.ok()))
+            .collect();
+
+        Ok(games)
+    }
+
     pub fn get_games_filtered(&self, filter: &GameFilter) -> Result<Vec<Game>> {
         let conn = self.conn.lock().unwrap();
 
