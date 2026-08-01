@@ -13,6 +13,7 @@ mod emulators;
 mod models;
 mod romm_credentials;
 mod scanner;
+mod storage;
 mod sync;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -90,6 +91,8 @@ fn main() {
             commands::scan_directory,
             commands::get_config,
             commands::save_config,
+            storage::get_storage_overview,
+            storage::change_roms_directory,
             commands::list_ambient_audio_files,
             commands::connect_romm_with_token,
             commands::get_default_romm_device_name,

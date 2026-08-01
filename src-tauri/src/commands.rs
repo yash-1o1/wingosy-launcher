@@ -1048,6 +1048,7 @@ pub async fn download_rom(
     token: String,
 ) -> Result<String, String> {
     tracing::info!("[Download] Downloading ROM for game id={}", game_id);
+    let _download_activity = crate::storage::begin_rom_download()?;
     
     let db = Database::open().map_err(|e| e.to_string())?;
     let config = AppConfig::load().map_err(|e| e.to_string())?;

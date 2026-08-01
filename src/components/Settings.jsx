@@ -20,7 +20,6 @@ import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloudIcon from "@mui/icons-material/Cloud";
-import FolderIcon from "@mui/icons-material/Folder";
 import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -56,6 +55,8 @@ import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import PaletteIcon from "@mui/icons-material/Palette";
 import DesktopWindowsIcon from "@mui/icons-material/DesktopWindows";
 import SystemUpdateIcon from "@mui/icons-material/SystemUpdate";
+import StorageIcon from "@mui/icons-material/Storage";
+import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import { invoke } from "@tauri-apps/api/core";
@@ -68,7 +69,7 @@ import BiosSettings from "./BiosSettings";
 import { open } from "@tauri-apps/plugin-dialog";
 import normalizeUrl from "../utils/normalizeUrl";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
-import { formatDownloadLabel } from "../RomDownloadsContext";
+import { formatDownloadLabel, useRomDownloads } from "../RomDownloadsContext";
 
 /** Full-width cards in the scroll column (avoids uneven widths after flex/scroll changes). */
 const SETTINGS_CARD_SX = {
@@ -90,12 +91,20 @@ function formatLibretroDllLabel(dll) {
   return dll.replace(/_libretro\.dll$/i, "").replace(/_/g, " ");
 }
 
+function formatStorageBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  return `${(value / 1024 ** 3).toFixed(2)} GB`;
+}
+
 const SETTINGS_SECTIONS = [
   { id: "general", label: "General", Icon: DesktopWindowsIcon },
   { id: "appearance", label: "Appearance", Icon: PaletteIcon },
   { id: "sound", label: "Sound", Icon: VolumeUpIcon },
   { id: "romm", label: "RomM", Icon: CloudIcon },
-  { id: "library", label: "Library", Icon: FolderIcon },
+  { id: "library", label: "Storage", Icon: StorageIcon },
   { id: "bios", label: "BIOS", Icon: MemoryIcon },
   { id: "emulators", label: "Emulators", Icon: SportsEsportsIcon },
   { id: "integrations", label: "Integrations", Icon: EmojiEventsIcon },
@@ -118,6 +127,7 @@ export default function Settings({
   onFullscreenChange = null,
   initialSection = "general",
 }) {
+  const { activeCount: activeRomDownloadCount } = useRomDownloads();
   const [config, setConfig] = useState(null);
   const [rommUrl, setRommUrl] = useState(rommUrlProp || "");
   const [rommDirectToken, setRommDirectToken] = useState("");
@@ -153,6 +163,11 @@ export default function Settings({
   
   // Library directory state
   const [romsDirectory, setRomsDirectory] = useState("");
+  const [storageOverview, setStorageOverview] = useState(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [storageChangeBusy, setStorageChangeBusy] = useState(false);
+  const [pendingRomsDirectory, setPendingRomsDirectory] = useState("");
+  const [storageMigrationDialogOpen, setStorageMigrationDialogOpen] = useState(false);
   
   // Platform default emulators
   const [platformDefaults, setPlatformDefaults] = useState({});
@@ -382,7 +397,21 @@ export default function Settings({
       setAmbientIsFolder(Boolean(a.ambient_is_folder));
       setAmbientShuffle(Boolean(a.ambient_shuffle));
       refreshUiSoundsFromConfig(cfg);
+      loadStorageOverview();
     } catch {}
+  }
+
+  async function loadStorageOverview() {
+    setStorageLoading(true);
+    try {
+      const overview = await invoke("get_storage_overview");
+      setStorageOverview(overview);
+      setRomsDirectory(overview.roms_directory || "");
+    } catch (err) {
+      console.error("Failed to load storage overview:", err);
+    } finally {
+      setStorageLoading(false);
+    }
   }
 
   async function applyUpdateChannel(nextChannel) {
@@ -824,17 +853,57 @@ export default function Settings({
   async function handleChangeRomsDirectory() {
     try {
       const selected = await open({ directory: true, multiple: false });
-      if (selected) {
-        // Update config with new directory
-        const cfg = await invoke("get_config");
-        cfg.library = cfg.library || {};
-        cfg.library.roms_directory = selected;
-        await invoke("save_config", { config: cfg });
-        setRomsDirectory(selected);
-        setScanMessage({ type: "success", message: `ROM directory set to: ${selected}` });
+      if (!selected || selected === romsDirectory) return;
+
+      const overview = await invoke("get_storage_overview");
+      setStorageOverview(overview);
+      setPendingRomsDirectory(selected);
+      if ((overview.migratable_rom_count || 0) > 0) {
+        setStorageMigrationDialogOpen(true);
+        return;
       }
+      await applyRomsDirectoryChange(selected, false);
     } catch (err) {
       setScanMessage({ type: "error", message: err.message || String(err) });
+    }
+  }
+
+  async function applyRomsDirectoryChange(directory, migrateExisting) {
+    setStorageChangeBusy(true);
+    try {
+      const result = await invoke("change_roms_directory", {
+        newDirectory: directory,
+        migrateExisting,
+      });
+      const cfg = await invoke("get_config");
+      setConfig(cfg);
+      setRomsDirectory(result.new_directory);
+      setStorageMigrationDialogOpen(false);
+      setPendingRomsDirectory("");
+      await loadStorageOverview();
+      onLibraryChange?.();
+
+      if (!migrateExisting) {
+        setScanMessage({
+          type: "success",
+          message: "New downloads will use the new folder. Existing games remain at their current paths.",
+        });
+        return;
+      }
+
+      const warnings = result.missing + result.conflicts + result.failed + result.source_cleanup_failed;
+      setScanMessage({
+        type: warnings > 0 ? "warning" : "success",
+        message: `Moved ${result.moved} game${result.moved === 1 ? "" : "s"}. ${
+          warnings > 0
+            ? `${result.missing} missing, ${result.conflicts} conflicts, ${result.failed} failed, and ${result.source_cleanup_failed} old copies could not be removed. Existing destination files were not overwritten.`
+            : "The new folder is now used for downloads."
+        }`,
+      });
+    } catch (err) {
+      setScanMessage({ type: "error", message: err.message || String(err) });
+    } finally {
+      setStorageChangeBusy(false);
     }
   }
 
@@ -1455,12 +1524,39 @@ export default function Settings({
       {settingsSection === "library" && (
       <>
       <Paper sx={SETTINGS_CARD_SX}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-          <FolderIcon color="primary" />
-          <Typography variant="h6">Library</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+          <StorageIcon color="primary" />
+          <Typography variant="h6">Storage</Typography>
         </Box>
-        
-        {/* Current ROM Directory */}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Review Wingosy file locations and choose where ROM downloads are stored.
+        </Typography>
+
+        {storageLoading && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
+        {storageOverview && (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+              gap: 1.5,
+              mb: 3,
+            }}
+          >
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: "action.hover" }}>
+              <Typography variant="caption" color="text.secondary">Tracked ROMs</Typography>
+              <Typography variant="h6">{storageOverview.tracked_rom_count}</Typography>
+            </Paper>
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: "action.hover" }}>
+              <Typography variant="caption" color="text.secondary">Tracked size</Typography>
+              <Typography variant="h6">{formatStorageBytes(storageOverview.tracked_rom_bytes)}</Typography>
+            </Paper>
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: "action.hover" }}>
+              <Typography variant="caption" color="text.secondary">Active downloads</Typography>
+              <Typography variant="h6">{storageOverview.active_rom_downloads}</Typography>
+            </Paper>
+          </Box>
+        )}
+
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           ROM Storage Directory
         </Typography>
@@ -1479,17 +1575,48 @@ export default function Settings({
             sx={{ 
               flex: 1, 
               fontFamily: "monospace",
-              color: romsDirectory ? "text.primary" : "text.secondary",
-              fontStyle: romsDirectory ? "normal" : "italic",
+              color: "text.primary",
+              overflowWrap: "anywhere",
             }}
           >
-            {romsDirectory || "Not set (using default location)"}
+            {romsDirectory || "Loading..."}
           </Typography>
-          <Button size="small" variant="outlined" onClick={handleChangeRomsDirectory}>
+          {storageOverview?.using_default_roms_directory && <Chip size="small" label="Default" />}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleChangeRomsDirectory}
+            disabled={storageChangeBusy || activeRomDownloadCount > 0}
+            title={activeRomDownloadCount > 0 ? "Wait for ROM downloads to finish before changing storage" : undefined}
+          >
             Change
           </Button>
         </Box>
-        
+
+        <Alert severity="info" sx={{ mb: 2 }}>
+          A folder change never silently moves files. Wingosy will offer to migrate tracked ROMs or use the new folder only for future downloads. Folder changes are blocked while a ROM is downloading.
+        </Alert>
+
+        {storageOverview?.locations?.length > 0 && (
+          <List disablePadding sx={{ mb: 2 }}>
+            {storageOverview.locations.map((location) => (
+              <ListItem
+                key={location.key}
+                divider
+                disableGutters
+                secondaryAction={<Typography variant="caption">{formatStorageBytes(location.bytes)}</Typography>}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}><FolderOpenIcon fontSize="small" /></ListItemIcon>
+                <ListItemText
+                  primary={location.label}
+                  secondary={location.path}
+                  secondaryTypographyProps={{ sx: { fontFamily: "monospace", overflowWrap: "anywhere", pr: 8 } }}
+                />
+              </ListItem>
+            ))}
+          </List>
+        )}
+
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Scan for ROMs to add them to your library.
         </Typography>
@@ -2208,6 +2335,70 @@ export default function Settings({
 
         </Box>
       </Box>
+
+      <Dialog
+        open={storageMigrationDialogOpen}
+        onClose={() => !storageChangeBusy && setStorageMigrationDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <DriveFileMoveIcon />
+            Move existing ROMs?
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" paragraph>
+            Wingosy found <strong>{storageOverview?.migratable_rom_count || 0}</strong> tracked game
+            {(storageOverview?.migratable_rom_count || 0) === 1 ? "" : "s"} ({formatStorageBytes(storageOverview?.migratable_rom_bytes)}) in the current ROM folder.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            <strong>Migrate ROMs</strong> copies each game into the new folder, updates its library path, and removes the old copy only after the database update succeeds. Existing destination files are never overwritten.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            <strong>Don&apos;t migrate</strong> leaves existing games where they are and sends future downloads to the new folder. Those existing games remain launchable from their saved paths.
+          </Typography>
+          <Box sx={{ p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
+            <Typography variant="caption" color="text.secondary">New ROM folder</Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", overflowWrap: "anywhere" }}>
+              {pendingRomsDirectory}
+            </Typography>
+          </Box>
+          {storageChangeBusy && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
+          {activeRomDownloadCount > 0 && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Wait for {activeRomDownloadCount} active ROM download{activeRomDownloadCount === 1 ? "" : "s"} to finish before changing storage.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ flexWrap: "wrap" }}>
+          <Button
+            onClick={() => {
+              setStorageMigrationDialogOpen(false);
+              setPendingRomsDirectory("");
+            }}
+            disabled={storageChangeBusy}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => applyRomsDirectoryChange(pendingRomsDirectory, false)}
+            disabled={storageChangeBusy || activeRomDownloadCount > 0}
+          >
+            Don&apos;t migrate
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<DriveFileMoveIcon />}
+            onClick={() => applyRomsDirectoryChange(pendingRomsDirectory, true)}
+            disabled={storageChangeBusy || activeRomDownloadCount > 0}
+          >
+            Migrate ROMs
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={prereleaseLeaveDialogOpen} onClose={cancelPrereleaseLeave} maxWidth="sm" fullWidth>
         <DialogTitle>
