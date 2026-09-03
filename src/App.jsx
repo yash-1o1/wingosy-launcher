@@ -75,6 +75,7 @@ function App() {
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [selectedGame, setSelectedGame] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rommToken, setRommToken] = useState(null);
@@ -121,9 +122,9 @@ function App() {
 
   useEffect(() => {
     if (showSetup === false) {
-      refreshGames(selectedPlatform, searchQuery);
+      refreshGames(selectedPlatform, searchQuery, favoritesOnly);
     }
-  }, [selectedPlatform, searchQuery, showSetup]);
+  }, [selectedPlatform, searchQuery, favoritesOnly, showSetup]);
 
   async function loadData() {
     const requestId = ++gamesRequestId.current;
@@ -204,13 +205,17 @@ function App() {
     }
   }
 
-  async function refreshGames(platformId = selectedPlatform, query = searchQuery) {
+  async function refreshGames(
+    platformId = selectedPlatform,
+    query = searchQuery,
+    onlyFavorites = favoritesOnly
+  ) {
     const requestId = ++gamesRequestId.current;
     try {
       const gamesData = await invoke("get_games_filtered", {
         platformId,
         searchQuery: query || null,
-        favoritesOnly: false,
+        favoritesOnly: onlyFavorites,
         sortBy: null,
       });
       if (requestId === gamesRequestId.current) {
@@ -319,6 +324,14 @@ function App() {
 
   function handleSelectPlatform(platformId) {
     setSelectedPlatform(platformId);
+    setFavoritesOnly(false);
+    setView("library");
+    setSelectedGame(null);
+  }
+
+  function handleShowFavorites() {
+    setSelectedPlatform(null);
+    setFavoritesOnly(true);
     setView("library");
     setSelectedGame(null);
   }
@@ -396,7 +409,7 @@ function App() {
     );
   }
 
-  const visibleGames = filterVisibleGames(games, selectedPlatform, searchQuery);
+  const visibleGames = filterVisibleGames(games, selectedPlatform, searchQuery, favoritesOnly);
 
   return wrapUiSounds(
     <AppShell>
@@ -404,7 +417,9 @@ function App() {
       <Sidebar
         platforms={platforms}
         selectedPlatform={selectedPlatform}
+        favoritesOnly={favoritesOnly}
         onSelectPlatform={handleSelectPlatform}
+        onShowFavorites={handleShowFavorites}
         onNavigate={handleNavigate}
         currentView={view}
         drawerWidth={DRAWER_WIDTH}
@@ -449,6 +464,7 @@ function App() {
             games={visibleGames}
             loading={loading}
             searchQuery={searchQuery}
+            favoritesOnly={favoritesOnly}
             onSearchChange={setSearchQuery}
             onSelectGame={handleSelectGame}
             onToggleFavorite={handleToggleFavorite}

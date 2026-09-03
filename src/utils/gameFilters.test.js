@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { filterVisibleGames } from "./gameFilters";
 
 const games = [
-  { id: 1, name: "Super Mario Odyssey", platform_id: "switch" },
+  { id: 1, name: "Super Mario Odyssey", platform_id: "switch", is_favorite: true },
   { id: 2, name: "Pokémon Scarlet", platform_id: "switch" },
   { id: 3, name: "Pokémon Pinball", platform_id: "gba" },
   { id: 4, name: "Pokémon White", platform_id: "nds" },
@@ -19,5 +19,9 @@ describe("filterVisibleGames", () => {
 
   it("returns every game when no filters are active", () => {
     expect(filterVisibleGames(games, null, "")).toEqual(games);
+  });
+
+  it("shows only favorited games when the favorites filter is active", () => {
+    expect(filterVisibleGames(games, null, "", true)).toEqual([games[0]]);
   });
 });

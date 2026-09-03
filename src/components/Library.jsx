@@ -17,6 +17,7 @@ export default function Library({
   games,
   loading,
   searchQuery,
+  favoritesOnly,
   onSearchChange,
   onSelectGame,
   onToggleFavorite,
@@ -49,7 +50,7 @@ export default function Library({
           {...tauriDragRegionProps()}
           sx={{ flexShrink: 0, lineHeight: 1.2, ...tauriDragRegionSx }}
         >
-          Library
+          {favoritesOnly ? "Favorites" : "Library"}
         </Typography>
         <Box
           {...tauriDragRegionProps()}
@@ -112,12 +113,14 @@ export default function Library({
           }}
         >
           <Typography variant="h6" gutterBottom>
-            No games found
+            {favoritesOnly ? "No favorites yet" : "No games found"}
           </Typography>
           <Typography variant="body2" sx={{ mb: 3 }}>
-            Scan a local ROM folder or sync from your RomM server.
+            {favoritesOnly
+              ? "Favorite a game to keep it close at hand."
+              : "Scan a local ROM folder or sync from your RomM server."}
           </Typography>
-          <Box sx={{ display: "flex", gap: 2 }}>
+          {!favoritesOnly && <Box sx={{ display: "flex", gap: 2 }}>
             <Button
               variant="contained"
               startIcon={<FolderOpenIcon />}
@@ -133,7 +136,7 @@ export default function Library({
             >
               Sync from RomM
             </Button>
-          </Box>
+          </Box>}
         </Box>
       ) : (
         <Box

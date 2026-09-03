@@ -117,7 +117,9 @@ function PlatformIcon({ platform, rommUrl, size = 28 }) {
 export default function Sidebar({
   platforms,
   selectedPlatform,
+  favoritesOnly,
   onSelectPlatform,
+  onShowFavorites,
   onNavigate,
   currentView,
   drawerWidth,
@@ -174,7 +176,7 @@ export default function Sidebar({
 
       <List sx={{ px: 1 }}>
         <ListItemButton
-          selected={currentView === "library" && !selectedPlatform}
+          selected={currentView === "library" && !selectedPlatform && !favoritesOnly}
           onClick={() => onSelectPlatform(null)}
           sx={{ borderRadius: 2, mb: 0.5 }}
         >
@@ -185,10 +187,8 @@ export default function Sidebar({
         </ListItemButton>
 
         <ListItemButton
-          onClick={() => {
-            onSelectPlatform(null);
-            onNavigate("library");
-          }}
+          selected={currentView === "library" && favoritesOnly}
+          onClick={onShowFavorites}
           sx={{ borderRadius: 2, mb: 0.5 }}
         >
           <ListItemIcon sx={{ minWidth: 40 }}>

@@ -1,4 +1,4 @@
-export function filterVisibleGames(games, platformId, searchQuery) {
+export function filterVisibleGames(games, platformId, searchQuery, favoritesOnly = false) {
   const normalizedQuery = searchQuery?.trim().toLocaleLowerCase() || "";
 
   return games.filter((game) => {
@@ -7,6 +7,10 @@ export function filterVisibleGames(games, platformId, searchQuery) {
     }
 
     if (normalizedQuery && !game.name?.toLocaleLowerCase().includes(normalizedQuery)) {
+      return false;
+    }
+
+    if (favoritesOnly && !game.is_favorite) {
       return false;
     }
 
