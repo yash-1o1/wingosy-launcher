@@ -6,7 +6,13 @@ import Stack from "@mui/material/Stack";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "@mui/material/Button";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import IconButton from "@mui/material/IconButton";
 import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import GameCard from "./GameCard";
@@ -18,7 +24,9 @@ export default function Library({
   loading,
   searchQuery,
   favoritesOnly,
+  sortBy,
   onSearchChange,
+  onSortChange,
   onSelectGame,
   onToggleFavorite,
   onLaunchGame,
@@ -44,14 +52,17 @@ export default function Library({
         justifyContent="space-between"
         sx={{ mb: 3 }}
       >
-        <Typography
-          variant="h4"
-          component="h1"
+        <Box
           {...tauriDragRegionProps()}
-          sx={{ flexShrink: 0, lineHeight: 1.2, ...tauriDragRegionSx }}
+          sx={{ flexShrink: 0, ...tauriDragRegionSx }}
         >
-          {favoritesOnly ? "Favorites" : "Library"}
-        </Typography>
+          <Typography variant="h4" component="h1" sx={{ lineHeight: 1.2 }}>
+            {favoritesOnly ? "Favorites" : "Library"}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {games.length} {games.length === 1 ? "game" : "games"}
+          </Typography>
+        </Box>
         <Box
           {...tauriDragRegionProps()}
           sx={{
@@ -63,6 +74,25 @@ export default function Library({
             ...tauriDragRegionSx,
           }}
         />
+        <FormControl
+          {...tauriNoDragProps()}
+          size="small"
+          sx={{ minWidth: 160, flexShrink: 0, ...tauriNoDragSx }}
+        >
+          <InputLabel id="library-sort-label">Sort by</InputLabel>
+          <Select
+            labelId="library-sort-label"
+            value={sortBy}
+            label="Sort by"
+            onChange={(event) => onSortChange(event.target.value)}
+          >
+            <MenuItem value="name">Name</MenuItem>
+            <MenuItem value="last_played">Recently played</MenuItem>
+            <MenuItem value="play_count">Most played</MenuItem>
+            <MenuItem value="play_time">Playtime</MenuItem>
+            <MenuItem value="release_year">Release year</MenuItem>
+          </Select>
+        </FormControl>
         <TextField
           {...tauriNoDragProps()}
           size="small"
@@ -81,6 +111,18 @@ export default function Library({
                 <SearchIcon color="action" />
               </InputAdornment>
             ),
+            endAdornment: searchQuery ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  aria-label="Clear search"
+                  onClick={() => onSearchChange("")}
+                  edge="end"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null,
           }}
         />
       </Stack>

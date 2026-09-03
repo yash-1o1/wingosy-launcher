@@ -16,7 +16,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { setFullscreenReliable } from "./windowFullscreen";
 import WindowChrome from "./components/WindowChrome";
 import { isTauri, mousedownTargetElement } from "./utils/isTauri";
-import { filterVisibleGames } from "./utils/gameFilters";
+import { filterVisibleGames, sortVisibleGames } from "./utils/gameFilters";
 import { UiSoundsProvider } from "./UiSoundsContext";
 
 const appWindow = isTauri() ? getCurrentWindow() : null;
@@ -76,6 +76,7 @@ function App() {
   const [selectedGame, setSelectedGame] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [librarySort, setLibrarySort] = useState("name");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rommToken, setRommToken] = useState(null);
@@ -409,7 +410,10 @@ function App() {
     );
   }
 
-  const visibleGames = filterVisibleGames(games, selectedPlatform, searchQuery, favoritesOnly);
+  const visibleGames = sortVisibleGames(
+    filterVisibleGames(games, selectedPlatform, searchQuery, favoritesOnly),
+    librarySort
+  );
 
   return wrapUiSounds(
     <AppShell>
@@ -465,7 +469,9 @@ function App() {
             loading={loading}
             searchQuery={searchQuery}
             favoritesOnly={favoritesOnly}
+            sortBy={librarySort}
             onSearchChange={setSearchQuery}
+            onSortChange={setLibrarySort}
             onSelectGame={handleSelectGame}
             onToggleFavorite={handleToggleFavorite}
             onLaunchGame={handleLaunchGame}
