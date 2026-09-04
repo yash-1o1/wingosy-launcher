@@ -25,8 +25,10 @@ export default function Library({
   searchQuery,
   favoritesOnly,
   sortBy,
+  availability,
   onSearchChange,
   onSortChange,
+  onAvailabilityChange,
   onSelectGame,
   onToggleFavorite,
   onLaunchGame,
@@ -36,6 +38,12 @@ export default function Library({
   onDismissError,
 }) {
   const { getProgress } = useRomDownloads();
+  const hasActiveFilters = Boolean(searchQuery) || availability !== "all";
+
+  function clearLibraryFilters() {
+    onSearchChange("");
+    onAvailabilityChange("all");
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -91,6 +99,23 @@ export default function Library({
             <MenuItem value="play_count">Most played</MenuItem>
             <MenuItem value="play_time">Playtime</MenuItem>
             <MenuItem value="release_year">Release year</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl
+          {...tauriNoDragProps()}
+          size="small"
+          sx={{ minWidth: 140, flexShrink: 0, ...tauriNoDragSx }}
+        >
+          <InputLabel id="library-availability-label">Availability</InputLabel>
+          <Select
+            labelId="library-availability-label"
+            value={availability}
+            label="Availability"
+            onChange={(event) => onAvailabilityChange(event.target.value)}
+          >
+            <MenuItem value="all">All games</MenuItem>
+            <MenuItem value="installed">Installed</MenuItem>
+            <MenuItem value="remote">Cloud only</MenuItem>
           </Select>
         </FormControl>
         <TextField
@@ -155,14 +180,24 @@ export default function Library({
           }}
         >
           <Typography variant="h6" gutterBottom>
-            {favoritesOnly ? "No favorites yet" : "No games found"}
+            {hasActiveFilters
+              ? "No matching games"
+              : favoritesOnly
+                ? "No favorites yet"
+                : "No games found"}
           </Typography>
           <Typography variant="body2" sx={{ mb: 3 }}>
-            {favoritesOnly
-              ? "Favorite a game to keep it close at hand."
-              : "Scan a local ROM folder or sync from your RomM server."}
+            {hasActiveFilters
+              ? "Try changing your search or availability filter."
+              : favoritesOnly
+                ? "Favorite a game to keep it close at hand."
+                : "Scan a local ROM folder or sync from your RomM server."}
           </Typography>
-          {!favoritesOnly && <Box sx={{ display: "flex", gap: 2 }}>
+          {hasActiveFilters ? (
+            <Button variant="outlined" onClick={clearLibraryFilters}>
+              Clear filters
+            </Button>
+          ) : !favoritesOnly && <Box sx={{ display: "flex", gap: 2 }}>
             <Button
               variant="contained"
               startIcon={<FolderOpenIcon />}

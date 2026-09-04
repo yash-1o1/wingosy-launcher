@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { filterVisibleGames, sortVisibleGames } from "./gameFilters";
 
 const games = [
-  { id: 1, name: "Super Mario Odyssey", platform_id: "switch", is_favorite: true },
-  { id: 2, name: "Pokémon Scarlet", platform_id: "switch" },
+  { id: 1, name: "Super Mario Odyssey", platform_id: "switch", is_favorite: true, sync_state: "synced" },
+  { id: 2, name: "Pokémon Scarlet", platform_id: "switch", sync_state: "RemoteOnly" },
   { id: 3, name: "Pokémon Pinball", platform_id: "gba" },
   { id: 4, name: "Pokémon White", platform_id: "nds" },
 ];
@@ -23,6 +23,15 @@ describe("filterVisibleGames", () => {
 
   it("shows only favorited games when the favorites filter is active", () => {
     expect(filterVisibleGames(games, null, "", true)).toEqual([games[0]]);
+  });
+
+  it("filters installed and cloud-only games", () => {
+    expect(filterVisibleGames(games, null, "", false, "installed")).toEqual([
+      games[0],
+      games[2],
+      games[3],
+    ]);
+    expect(filterVisibleGames(games, null, "", false, "remote")).toEqual([games[1]]);
   });
 });
 

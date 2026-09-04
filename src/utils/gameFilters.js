@@ -1,4 +1,10 @@
-export function filterVisibleGames(games, platformId, searchQuery, favoritesOnly = false) {
+export function filterVisibleGames(
+  games,
+  platformId,
+  searchQuery,
+  favoritesOnly = false,
+  availability = "all"
+) {
   const normalizedQuery = searchQuery?.trim().toLocaleLowerCase() || "";
 
   return games.filter((game) => {
@@ -11,6 +17,15 @@ export function filterVisibleGames(games, platformId, searchQuery, favoritesOnly
     }
 
     if (favoritesOnly && !game.is_favorite) {
+      return false;
+    }
+
+    const remoteOnly =
+      String(game.sync_state).toLowerCase().replace(/[^a-z]/g, "") === "remoteonly";
+    if (availability === "installed" && remoteOnly) {
+      return false;
+    }
+    if (availability === "remote" && !remoteOnly) {
       return false;
     }
 

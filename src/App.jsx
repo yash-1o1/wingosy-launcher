@@ -77,6 +77,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [librarySort, setLibrarySort] = useState("name");
+  const [libraryAvailability, setLibraryAvailability] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rommToken, setRommToken] = useState(null);
@@ -411,7 +412,13 @@ function App() {
   }
 
   const visibleGames = sortVisibleGames(
-    filterVisibleGames(games, selectedPlatform, searchQuery, favoritesOnly),
+    filterVisibleGames(
+      games,
+      selectedPlatform,
+      searchQuery,
+      favoritesOnly,
+      libraryAvailability
+    ),
     librarySort
   );
 
@@ -470,8 +477,10 @@ function App() {
             searchQuery={searchQuery}
             favoritesOnly={favoritesOnly}
             sortBy={librarySort}
+            availability={libraryAvailability}
             onSearchChange={setSearchQuery}
             onSortChange={setLibrarySort}
+            onAvailabilityChange={setLibraryAvailability}
             onSelectGame={handleSelectGame}
             onToggleFavorite={handleToggleFavorite}
             onLaunchGame={handleLaunchGame}
