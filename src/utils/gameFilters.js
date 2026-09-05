@@ -33,31 +33,40 @@ export function filterVisibleGames(
   });
 }
 
-export function sortVisibleGames(games, sortBy = "name") {
+export function sortVisibleGames(
+  games,
+  sortBy = "name",
+  descending = sortBy !== "name"
+) {
   const sorted = [...games];
 
   sorted.sort((left, right) => {
     switch (sortBy) {
       case "last_played":
-        return compareDescending(left.last_played_at, right.last_played_at);
+        return compareValues(left.last_played_at, right.last_played_at, descending);
       case "play_count":
-        return compareDescending(left.play_count, right.play_count);
+        return compareValues(left.play_count, right.play_count, descending);
       case "play_time":
-        return compareDescending(left.play_time_minutes, right.play_time_minutes);
+        return compareValues(left.play_time_minutes, right.play_time_minutes, descending);
       case "release_year":
-        return compareDescending(left.release_year, right.release_year);
+        return compareValues(left.release_year, right.release_year, descending);
       default:
-        return (left.name || "").localeCompare(right.name || "", undefined, {
+        return compareValues(left.name, right.name, descending, (first, second) => first.localeCompare(second, undefined, {
           sensitivity: "base",
-        });
+        }));
     }
   });
 
   return sorted;
 }
 
-function compareDescending(left, right) {
+function compareValues(left, right, descending, compare = defaultCompare) {
   if (left == null) return right == null ? 0 : 1;
   if (right == null) return -1;
-  return left < right ? 1 : left > right ? -1 : 0;
+  const result = compare(left, right);
+  return descending ? -result : result;
+}
+
+function defaultCompare(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

@@ -53,6 +53,19 @@ describe("sortVisibleGames", () => {
     expect(sortVisibleGames(sortableGames, "play_count").map((game) => game.id)).toEqual([2, 3, 1]);
   });
 
+  it("reverses the selected sort without moving missing values to the front", () => {
+    expect(sortVisibleGames(sortableGames, "name", true).map((game) => game.name)).toEqual([
+      "Zelda",
+      "Metroid",
+      "Astro Bot",
+    ]);
+    expect(sortVisibleGames(sortableGames, "release_year", false).map((game) => game.id)).toEqual([
+      1,
+      2,
+      3,
+    ]);
+  });
+
   it("keeps missing values at the end of descending sorts", () => {
     expect(sortVisibleGames(sortableGames, "last_played").map((game) => game.id)).toEqual([2, 1, 3]);
     expect(sortVisibleGames(sortableGames, "release_year").map((game) => game.id)).toEqual([2, 1, 3]);

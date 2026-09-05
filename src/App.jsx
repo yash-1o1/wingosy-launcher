@@ -77,6 +77,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [librarySort, setLibrarySort] = useState("name");
+  const [librarySortDescending, setLibrarySortDescending] = useState(false);
   const [libraryAvailability, setLibraryAvailability] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -338,6 +339,11 @@ function App() {
     setSelectedGame(null);
   }
 
+  function handleLibrarySortChange(sortBy) {
+    setLibrarySort(sortBy);
+    setLibrarySortDescending(sortBy !== "name");
+  }
+
   function handleNavigate(newView, options) {
     setView(newView);
     if (newView === "library" || newView === "downloads") {
@@ -419,7 +425,8 @@ function App() {
       favoritesOnly,
       libraryAvailability
     ),
-    librarySort
+    librarySort,
+    librarySortDescending
   );
 
   return wrapUiSounds(
@@ -477,9 +484,11 @@ function App() {
             searchQuery={searchQuery}
             favoritesOnly={favoritesOnly}
             sortBy={librarySort}
+            sortDescending={librarySortDescending}
             availability={libraryAvailability}
             onSearchChange={setSearchQuery}
-            onSortChange={setLibrarySort}
+            onSortChange={handleLibrarySortChange}
+            onSortDirectionChange={setLibrarySortDescending}
             onAvailabilityChange={setLibraryAvailability}
             onSelectGame={handleSelectGame}
             onToggleFavorite={handleToggleFavorite}

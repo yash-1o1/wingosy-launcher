@@ -13,6 +13,8 @@ import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import GameCard from "./GameCard";
@@ -25,9 +27,11 @@ export default function Library({
   searchQuery,
   favoritesOnly,
   sortBy,
+  sortDescending,
   availability,
   onSearchChange,
   onSortChange,
+  onSortDirectionChange,
   onAvailabilityChange,
   onSelectGame,
   onToggleFavorite,
@@ -101,6 +105,15 @@ export default function Library({
             <MenuItem value="release_year">Release year</MenuItem>
           </Select>
         </FormControl>
+        <IconButton
+          {...tauriNoDragProps()}
+          aria-label={sortDescending ? "Sort ascending" : "Sort descending"}
+          title={sortDescending ? "Sort ascending" : "Sort descending"}
+          onClick={() => onSortDirectionChange(!sortDescending)}
+          sx={{ flexShrink: 0, ...tauriNoDragSx }}
+        >
+          {sortDescending ? <ArrowDownwardIcon /> : <ArrowUpwardIcon />}
+        </IconButton>
         <FormControl
           {...tauriNoDragProps()}
           size="small"
