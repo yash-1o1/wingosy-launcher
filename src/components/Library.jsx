@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -20,6 +21,7 @@ import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import GameCard from "./GameCard";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { useRomDownloads } from "../RomDownloadsContext";
+import { isLibrarySearchShortcut } from "../utils/keyboardShortcuts";
 
 export default function Library({
   games,
@@ -42,7 +44,26 @@ export default function Library({
   onDismissError,
 }) {
   const { getProgress } = useRomDownloads();
+  const searchInputRef = useRef(null);
   const hasActiveFilters = Boolean(searchQuery) || availability !== "all";
+
+  useEffect(() => {
+    function handleSearchShortcut(event) {
+      if (isLibrarySearchShortcut(event)) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (event.key === "Escape" && document.activeElement === searchInputRef.current) {
+        onSearchChange("");
+      }
+    }
+
+    window.addEventListener("keydown", handleSearchShortcut);
+    return () => window.removeEventListener("keydown", handleSearchShortcut);
+  }, [onSearchChange]);
 
   function clearLibraryFilters() {
     onSearchChange("");
@@ -133,8 +154,9 @@ export default function Library({
         </FormControl>
         <TextField
           {...tauriNoDragProps()}
+          inputRef={searchInputRef}
           size="small"
-          placeholder="Search games..."
+          placeholder="Search games... (Ctrl+F)"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           sx={{
