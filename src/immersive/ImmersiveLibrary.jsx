@@ -13,10 +13,19 @@ import { useAppTheme } from "../ThemeContext";
 import { useRomDownloads } from "../RomDownloadsContext";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import Badge from "@mui/material/Badge";
+import { scrollFocusedTileIntoView } from "./scrollFocusedTile";
 
 const DEFAULT_COLUMNS = 6;
 
 const SECTIONS = ["all", "favorites", "recent"];
+
+function tileAt(grid, index) {
+  return grid?.querySelector?.(`[data-immersive-index="${index}"]`) || null;
+}
+
+function focusTile(tile) {
+  tile?.querySelector?.("button")?.focus?.({ preventScroll: true });
+}
 
 function byLastPlayedDesc(a, b) {
   const ax = a.last_played_at || "";
@@ -76,13 +85,9 @@ export default function ImmersiveLibrary({
     if (!visibleGames.length) return;
     // Keep the focused tile visible when navigating with keyboard/controller.
     const id = window.requestAnimationFrame(() => {
-      const el = gridRef.current?.querySelector?.(`[data-immersive-index="${selectedIndex}"]`);
-      if (!el) return;
-      try {
-        el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-      } catch {
-        // ignore
-      }
+      const tile = tileAt(gridRef.current, selectedIndex);
+      focusTile(tile);
+      scrollFocusedTileIntoView(scrollRef.current, tile);
     });
     return () => window.cancelAnimationFrame(id);
   }, [loading, selectedIndex, visibleGames.length]);
@@ -93,8 +98,7 @@ export default function ImmersiveLibrary({
     setSection(next);
     onSelectedIndexChange(0);
     rootRef.current?.focus?.();
-    const el = gridRef.current?.querySelector?.(`[data-immersive-index="0"]`);
-    el?.focus?.();
+    focusTile(tileAt(gridRef.current, 0));
   }
 
   function handleKeyDown(e) {
@@ -156,15 +160,9 @@ export default function ImmersiveLibrary({
     if (next !== selectedIndex) {
       e.preventDefault();
       onSelectedIndexChange(next);
-      const el = gridRef.current?.querySelector?.(
-        `[data-immersive-index="${next}"]`
-      );
-      el?.focus?.();
-      try {
-        el?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-      } catch {
-        // ignore
-      }
+      const tile = tileAt(gridRef.current, next);
+      focusTile(tile);
+      scrollFocusedTileIntoView(scrollRef.current, tile);
     }
   }
 
