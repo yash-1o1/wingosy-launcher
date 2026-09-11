@@ -103,6 +103,8 @@ fn main() {
             commands::disconnect_romm,
             commands::restore_romm_session,
             commands::sync_romm_library,
+            commands::list_romm_sync_platforms,
+            commands::sync_romm_platform,
             commands::download_rom,
             bios::get_bios_directory,
             bios::set_bios_directory,

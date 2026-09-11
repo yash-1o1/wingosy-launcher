@@ -123,6 +123,7 @@ export default function Settings({
   onRommConnect,
   onRommDisconnect = null,
   onLibraryChange,
+  onOpenSyncMonitor = null,
   onImmersiveModeChange = null,
   onFullscreenChange = null,
   initialSection = "general",
@@ -1510,7 +1511,13 @@ export default function Settings({
           {rommPairing && (
             <Button variant="text" onClick={cancelDevicePairing}>Cancel</Button>
           )}
-          <Button variant="outlined" onClick={handleSyncRomM} disabled={!rommUrl}>Sync Library</Button>
+          <Button
+            variant="outlined"
+            onClick={onOpenSyncMonitor || handleSyncRomM}
+            disabled={!rommUrl}
+          >
+            {onOpenSyncMonitor ? "Open Sync Monitor" : "Sync Library"}
+          </Button>
           {rommSessionSaved && (
             <Button color="error" variant="text" onClick={handleDisconnectRomM}>
               Disconnect
