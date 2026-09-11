@@ -891,6 +891,183 @@ pub struct SyncResult {
     pub total_games: i32,
 }
 
+#[derive(Debug, Serialize)]
+pub struct PlatformSyncOverview {
+    pub romm_platform_id: i32,
+    pub platform_id: String,
+    pub name: String,
+    pub server_games: i32,
+    pub local_games: i32,
+    pub installed_games: i32,
+}
+
+fn platform_from_romm(romm_platform: &crate::api::RomMPlatform, server_url: &str) -> Platform {
+    use crate::models::map_romm_slug;
+
+    let logo_url = romm_platform.url_logo.as_ref().map(|logo| {
+        if logo.starts_with("http") {
+            logo.clone()
+        } else {
+            format!("{}{}", server_url.trim_end_matches('/'), logo)
+        }
+    });
+
+    Platform {
+        id: map_romm_slug(&romm_platform.slug),
+        name: romm_platform
+            .display_name
+            .clone()
+            .unwrap_or_else(|| romm_platform.name.clone()),
+        short_name: Some(romm_platform.name.clone()),
+        extensions: vec![],
+        logo_path: logo_url,
+        sort_order: 0,
+    }
+}
+
+#[tauri::command]
+pub async fn list_romm_sync_platforms(
+    server_url: String,
+    token: String,
+) -> Result<Vec<PlatformSyncOverview>, String> {
+    let client = RomMClient::new(&server_url).with_token(token);
+    let db = Database::open().map_err(|e| e.to_string())?;
+    let local_games = db.get_all_romm_games().map_err(|e| e.to_string())?;
+    let mut platforms = client.get_platforms().await.map_err(|e| e.to_string())?;
+
+    platforms.sort_by(|left, right| {
+        let left_name = left.display_name.as_ref().unwrap_or(&left.name);
+        let right_name = right.display_name.as_ref().unwrap_or(&right.name);
+        left_name.to_lowercase().cmp(&right_name.to_lowercase())
+    });
+
+    Ok(platforms
+        .iter()
+        .map(|romm_platform| {
+            let platform = platform_from_romm(romm_platform, &server_url);
+            let matching: Vec<_> = local_games
+                .iter()
+                .filter(|game| game.platform_id == platform.id)
+                .collect();
+            PlatformSyncOverview {
+                romm_platform_id: romm_platform.id,
+                platform_id: platform.id,
+                name: platform.name,
+                server_games: romm_platform.rom_count,
+                local_games: matching.len() as i32,
+                installed_games: matching
+                    .iter()
+                    .filter(|game| game.local_file_path.is_some())
+                    .count() as i32,
+            }
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn sync_romm_platform(
+    app: tauri::AppHandle,
+    server_url: String,
+    token: String,
+    romm_platform_id: i32,
+) -> Result<SyncResult, String> {
+    use crate::models::map_romm_slug;
+
+    let client = RomMClient::new(&server_url).with_token(token);
+    let db = Database::open().map_err(|e| e.to_string())?;
+    let remote_platform = client
+        .get_platforms()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|platform| platform.id == romm_platform_id)
+        .ok_or_else(|| format!("RomM platform {romm_platform_id} was not found"))?;
+    let platform = platform_from_romm(&remote_platform, &server_url);
+    let platform_id = map_romm_slug(&remote_platform.slug);
+
+    db.insert_platform(&platform).map_err(|e| e.to_string())?;
+    db.mark_platform_games_dirty(&platform_id)
+        .map_err(|e| e.to_string())?;
+
+    let mut games_added = 0;
+    let mut games_updated = 0;
+    let mut processed = 0;
+    let mut offset = 0;
+    let limit = 500;
+
+    loop {
+        let response = match client
+            .get_roms(Some(romm_platform_id), limit, offset)
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                for game in db.get_dirty_games().unwrap_or_default() {
+                    if game.platform_id == platform_id {
+                        let _ = db.clear_sync_dirty(game.id);
+                    }
+                }
+                return Err(error.to_string());
+            }
+        };
+        let fetched_count = response.items.len();
+        let total = response.total;
+
+        for mut rom in response.items {
+            if rom.platform_slug.is_empty() {
+                rom.platform_slug = remote_platform.slug.clone();
+            }
+            let romm_id = rom.id;
+            let is_new = db
+                .get_game_by_romm_id(romm_id)
+                .map_err(|e| e.to_string())?
+                .is_none();
+            let game_id = db
+                .upsert_game(&rom.into_game(&server_url))
+                .map_err(|e| e.to_string())?;
+            db.clear_sync_dirty(game_id).map_err(|e| e.to_string())?;
+            if is_new {
+                games_added += 1;
+            } else {
+                games_updated += 1;
+            }
+            processed += 1;
+        }
+
+        let _ = app.emit(
+            "romm-platform-sync-progress",
+            serde_json::json!({
+                "romm_platform_id": romm_platform_id,
+                "platform_id": platform_id,
+                "processed": processed,
+                "total": total,
+            }),
+        );
+
+        if fetched_count < limit as usize || processed >= total {
+            break;
+        }
+        offset += limit;
+    }
+
+    let dirty_games = db.get_dirty_games().map_err(|e| e.to_string())?;
+    let mut games_deleted = 0;
+    for game in dirty_games
+        .into_iter()
+        .filter(|game| game.platform_id == platform_id && game.romm_id.is_some())
+    {
+        db.delete_game(game.id).map_err(|e| e.to_string())?;
+        games_deleted += 1;
+    }
+
+    Ok(SyncResult {
+        games_added,
+        games_updated,
+        games_deleted,
+        total_games: processed,
+    })
+}
+
 #[tauri::command]
 pub async fn sync_romm_library(
     server_url: String,
@@ -914,22 +1091,7 @@ pub async fn sync_romm_library(
     for romm_platform in &romm_platforms {
         let platform_id = map_romm_slug(&romm_platform.slug);
         
-        let logo_url = romm_platform.url_logo.as_ref().map(|logo| {
-            if logo.starts_with("http") {
-                logo.clone()
-            } else {
-                format!("{}{}", server_url.trim_end_matches('/'), logo)
-            }
-        });
-        
-        let platform = Platform {
-            id: platform_id.clone(),
-            name: romm_platform.display_name.clone().unwrap_or_else(|| romm_platform.name.clone()),
-            short_name: Some(romm_platform.name.clone()),
-            extensions: vec![],
-            logo_path: logo_url,
-            sort_order: 0,
-        };
+        let platform = platform_from_romm(romm_platform, &server_url);
         
         if let Err(e) = db.insert_platform(&platform) {
             tracing::warn!("[RomM] Failed to update platform {}: {}", platform_id, e);

@@ -14,6 +14,7 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import SettingsIcon from "@mui/icons-material/Settings";
 import HomeIcon from "@mui/icons-material/Home";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import Badge from "@mui/material/Badge";
 import { useAppTheme } from "../ThemeContext";
 import { useRomDownloads } from "../RomDownloadsContext";
@@ -216,6 +217,20 @@ export default function Sidebar({
             </Badge>
           </ListItemIcon>
           <ListItemText primary="Downloads" />
+        </ListItemButton>
+
+        <ListItemButton
+          selected={currentView === "sync"}
+          onClick={() => {
+            onSelectPlatform(null);
+            onNavigate("sync");
+          }}
+          sx={{ borderRadius: 2, mb: 0.5 }}
+        >
+          <ListItemIcon sx={{ minWidth: 40 }}>
+            <CloudSyncIcon />
+          </ListItemIcon>
+          <ListItemText primary="Library Sync" />
         </ListItemButton>
       </List>
 

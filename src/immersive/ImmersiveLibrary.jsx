@@ -12,6 +12,7 @@ import LauncherIcon from "../components/LauncherIcon";
 import { useAppTheme } from "../ThemeContext";
 import { useRomDownloads } from "../RomDownloadsContext";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import Badge from "@mui/material/Badge";
 import { scrollFocusedTileIntoView } from "./scrollFocusedTile";
 
@@ -43,6 +44,7 @@ export default function ImmersiveLibrary({
   onExitImmersive,
   onOpenSettings,
   onOpenDownloads,
+  onOpenSync,
 }) {
   const [section, setSection] = useState("all"); // all | favorites | recent
   const gridRef = useRef(null);
@@ -257,6 +259,16 @@ export default function ImmersiveLibrary({
                 Downloads
               </Button>
             </Badge>
+          ) : null}
+          {onOpenSync ? (
+            <Button
+              variant="outlined"
+              startIcon={<CloudSyncIcon />}
+              onClick={onOpenSync}
+              sx={{ borderRadius: 2, px: 2.25, textTransform: "none", fontWeight: 700 }}
+            >
+              Sync
+            </Button>
           ) : null}
           <Button variant="outlined" onClick={onOpenSettings} sx={{ borderRadius: 2, px: 2.25, textTransform: "none", fontWeight: 700 }}>
             Settings

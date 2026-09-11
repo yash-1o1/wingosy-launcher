@@ -7,6 +7,7 @@ import Library from "./components/Library";
 import GameDetails from "./components/GameDetails";
 import Settings from "./components/Settings";
 import RomDownloadsView from "./components/RomDownloadsView";
+import SyncMonitor from "./components/SyncMonitor";
 import SetupWizard from "./components/SetupWizard";
 import ImmersiveModeApp from "./immersive/ImmersiveModeApp";
 import { invoke } from "@tauri-apps/api/core";
@@ -346,7 +347,7 @@ function App() {
 
   function handleNavigate(newView, options) {
     setView(newView);
-    if (newView === "library" || newView === "downloads") {
+    if (newView === "library" || newView === "downloads" || newView === "sync") {
       setSelectedGame(null);
     }
     if (newView === "settings") {
@@ -468,6 +469,23 @@ function App() {
             <RomDownloadsView />
           </Box>
         )}
+        {view === "sync" && (
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
+              overscrollBehavior: "contain",
+            }}
+          >
+            <SyncMonitor
+              rommUrl={rommUrl}
+              rommToken={rommToken}
+              onLibraryChange={loadData}
+            />
+          </Box>
+        )}
         {view === "library" && (
           <Box
             sx={{
@@ -554,6 +572,7 @@ function App() {
             onRommConnect={handleRommConnect}
             onRommDisconnect={handleRommDisconnect}
             onLibraryChange={loadData}
+            onOpenSyncMonitor={() => handleNavigate("sync")}
           />
           </Box>
         )}
