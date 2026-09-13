@@ -147,7 +147,14 @@ function AchievementRow({ achievement, locked }) {
           flexShrink: 0,
         }}
       >
-        {locked ? (
+        {achievement.badge_url || achievement.badge_url_lock ? (
+          <Box
+            component="img"
+            src={locked ? (achievement.badge_url_lock || achievement.badge_url) : (achievement.badge_url || achievement.badge_url_lock)}
+            alt=""
+            sx={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 1, opacity: locked ? 0.65 : 1 }}
+          />
+        ) : locked ? (
           <LockIcon color="disabled" />
         ) : (
           <EmojiEventsIcon sx={{ color: TROPHY_AMBER }} />
@@ -160,6 +167,11 @@ function AchievementRow({ achievement, locked }) {
         {achievement.description ? (
           <Typography variant="caption" color="text.secondary">
             {achievement.description}
+          </Typography>
+        ) : null}
+        {achievement.unlocked_hardcore ? (
+          <Typography variant="caption" sx={{ color: TROPHY_AMBER, display: "block", mt: 0.25 }}>
+            Hardcore unlock
           </Typography>
         ) : null}
       </Box>
