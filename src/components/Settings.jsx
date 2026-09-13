@@ -2182,7 +2182,8 @@ export default function Settings({
           label="Enable RetroAchievements"
         />
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, maxWidth: 520 }}>
-          When enabled, Wingosy may connect to RetroAchievements for tracking and display where supported. Full integration is planned for a future release.
+          Loads achievement definitions, earned progress, badge art, and hardcore unlocks from your connected RomM account.
+          Configure your RetroAchievements account in RomM first, then sync games into Wingosy.
         </Typography>
       </Paper>
       )}

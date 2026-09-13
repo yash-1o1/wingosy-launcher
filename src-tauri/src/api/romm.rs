@@ -431,6 +431,87 @@ impl RomMClient {
         Ok(rom)
     }
 
+    pub async fn get_retroachievements(
+        &self,
+        rom_id: i32,
+        refresh_progression: bool,
+    ) -> Result<Vec<RomMAchievement>> {
+        let mut rom_request = self
+            .client
+            .get(format!("{}/api/roms/{}", self.base_url, rom_id));
+        if let Some(auth) = self.auth_header() {
+            rom_request = rom_request.header("Authorization", auth);
+        }
+        let rom_response = rom_request.send().await.context("Failed to fetch ROM achievements")?;
+        let rom_status = rom_response.status();
+        let rom_text = rom_response.text().await.context("Failed to read ROM achievements")?;
+        if !rom_status.is_success() {
+            anyhow::bail!("RomM achievements request returned {}", rom_status);
+        }
+        let rom: serde_json::Value = serde_json::from_str(&rom_text)
+            .context("ROM achievements response is not valid JSON")?;
+
+        let definitions = rom
+            .get("merged_ra_metadata")
+            .and_then(|value| value.get("achievements"))
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if definitions.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let ra_game_id = rom.get("ra_id").and_then(|value| value.as_i64());
+        let mut user = self.get_current_user_json().await.ok();
+        if refresh_progression {
+            if let Some(user_id) = user.as_ref().and_then(|value| value.get("id")).and_then(|value| value.as_i64()) {
+                let mut request = self
+                    .client
+                    .post(format!("{}/api/users/{}/ra/refresh", self.base_url, user_id))
+                    .json(&serde_json::json!({ "incremental": true }));
+                if let Some(auth) = self.auth_header() {
+                    request = request.header("Authorization", auth);
+                }
+                if request.send().await.map(|response| response.status().is_success()).unwrap_or(false) {
+                    user = self.get_current_user_json().await.ok();
+                }
+            }
+        }
+
+        let progression = user
+            .as_ref()
+            .and_then(|value| value.pointer("/ra_progression/results"))
+            .and_then(|value| value.as_array())
+            .and_then(|results| {
+                results.iter().find(|item| {
+                    item.get("rom_ra_id").and_then(|value| value.as_i64()) == ra_game_id
+                })
+            });
+        let earned = progression
+            .and_then(|value| value.get("earned_achievements"))
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        Ok(definitions
+            .into_iter()
+            .filter_map(|definition| achievement_from_json(&definition, &earned))
+            .collect())
+    }
+
+    async fn get_current_user_json(&self) -> Result<serde_json::Value> {
+        let mut request = self.client.get(format!("{}/api/users/me", self.base_url));
+        if let Some(auth) = self.auth_header() {
+            request = request.header("Authorization", auth);
+        }
+        let response = request.send().await.context("Failed to fetch RomM user")?;
+        let status = response.status();
+        if !status.is_success() {
+            anyhow::bail!("RomM user request returned {}", status);
+        }
+        response.json().await.context("RomM user response is not valid JSON")
+    }
+
     pub fn rom_download_url(&self, rom_id: i32, filename: &str) -> String {
         format!(
             "{}/api/roms/{}/content/{}",
@@ -919,6 +1000,54 @@ pub struct RomMRom {
     /// Resolved from RomM JSON (`screenshots`, `igdb_screenshots`, etc.); not serde-filled from list API.
     #[serde(default)]
     pub screenshots: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RomMAchievement {
+    pub id: i64,
+    pub title: String,
+    pub description: Option<String>,
+    pub points: i32,
+    #[serde(rename = "type")]
+    pub achievement_type: Option<String>,
+    pub badge_url: Option<String>,
+    pub badge_url_lock: Option<String>,
+    pub unlocked: bool,
+    pub unlocked_hardcore: bool,
+    pub unlocked_at: Option<String>,
+}
+
+fn achievement_from_json(
+    definition: &serde_json::Value,
+    earned: &[serde_json::Value],
+) -> Option<RomMAchievement> {
+    let id = definition.get("ra_id")?.as_i64()?;
+    let badge_id = definition.get("badge_id").and_then(|value| value.as_str());
+    let earned_record = earned.iter().find(|item| {
+        item.get("id").and_then(|value| value.as_str()) == badge_id
+            || item.get("id").and_then(|value| value.as_i64()) == Some(id)
+    });
+    let unlocked_at = earned_record
+        .and_then(|item| item.get("date"))
+        .and_then(|value| value.as_str())
+        .map(str::to_owned);
+    let unlocked_hardcore_at = earned_record
+        .and_then(|item| item.get("date_hardcore"))
+        .and_then(|value| value.as_str())
+        .map(str::to_owned);
+
+    Some(RomMAchievement {
+        id,
+        title: definition.get("title").and_then(|value| value.as_str()).unwrap_or("Achievement").to_owned(),
+        description: definition.get("description").and_then(|value| value.as_str()).map(str::to_owned),
+        points: definition.get("points").and_then(|value| value.as_i64()).unwrap_or(0) as i32,
+        achievement_type: definition.get("type").and_then(|value| value.as_str()).map(str::to_owned),
+        badge_url: definition.get("badge_url").and_then(|value| value.as_str()).map(str::to_owned),
+        badge_url_lock: definition.get("badge_url_lock").and_then(|value| value.as_str()).map(str::to_owned),
+        unlocked: unlocked_at.is_some() || unlocked_hardcore_at.is_some(),
+        unlocked_hardcore: unlocked_hardcore_at.is_some(),
+        unlocked_at: unlocked_hardcore_at.or(unlocked_at),
+    })
 }
 
 impl RomMRom {
@@ -1559,5 +1688,43 @@ mod tests {
         let game = rom.into_game("https://romm.example.com");
         assert_eq!(game.source, crate::models::GameSource::RomM);
         assert_eq!(game.romm_id, Some(123));
+    }
+
+    #[test]
+    fn achievement_json_merges_progress_and_hardcore_state() {
+        let definition = serde_json::json!({
+            "ra_id": 42,
+            "badge_id": "12345",
+            "title": "First Win",
+            "description": "Win once",
+            "points": 10,
+            "type": "progression",
+            "badge_url": "https://media.example/12345.png",
+            "badge_url_lock": "https://media.example/12345_lock.png"
+        });
+        let earned = vec![serde_json::json!({
+            "id": "12345",
+            "date": "2026-01-01T00:00:00Z",
+            "date_hardcore": "2026-01-02T00:00:00Z"
+        })];
+
+        let achievement = achievement_from_json(&definition, &earned).unwrap();
+        assert_eq!(achievement.id, 42);
+        assert!(achievement.unlocked);
+        assert!(achievement.unlocked_hardcore);
+        assert_eq!(achievement.unlocked_at.as_deref(), Some("2026-01-02T00:00:00Z"));
+    }
+
+    #[test]
+    fn achievement_json_keeps_unearned_badges_locked() {
+        let definition = serde_json::json!({
+            "ra_id": 7,
+            "title": "Secret",
+            "points": 5
+        });
+        let achievement = achievement_from_json(&definition, &[]).unwrap();
+        assert!(!achievement.unlocked);
+        assert!(!achievement.unlocked_hardcore);
+        assert_eq!(achievement.points, 5);
     }
 }

@@ -407,7 +407,13 @@ export default function ImmersiveGameDetails({
 
           <Divider sx={{ my: 3, opacity: 0.12 }} />
 
-          <GameAchievementsSection gameName={game.name} retroAchievementsEnabled={retroachievementsEnabled} />
+          <GameAchievementsSection
+            gameName={game.name}
+            rommId={game.romm_id}
+            rommUrl={rommUrl}
+            rommToken={rommToken}
+            retroAchievementsEnabled={retroachievementsEnabled}
+          />
 
           <Divider sx={{ my: 3, opacity: 0.12 }} />
 

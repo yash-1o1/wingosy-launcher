@@ -934,7 +934,13 @@ export default function GameDetails({
           )}
         </Box>
 
-        <GameAchievementsSection gameName={game.name} retroAchievementsEnabled={retroachievementsEnabled} />
+        <GameAchievementsSection
+          gameName={game.name}
+          rommId={game.romm_id}
+          rommUrl={rommUrl}
+          rommToken={rommToken}
+          retroAchievementsEnabled={retroachievementsEnabled}
+        />
 
         {/* Developer / Publisher */}
         {(game.developer || game.publisher) && (

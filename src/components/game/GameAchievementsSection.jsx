@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import LockIcon from "@mui/icons-material/Lock";
+import CircularProgress from "@mui/material/CircularProgress";
+import Tooltip from "@mui/material/Tooltip";
 import AchievementListOverlay from "./AchievementListOverlay";
 
 const TROPHY_AMBER = "#FFB300";
@@ -14,11 +17,41 @@ const TROPHY_AMBER = "#FFB300";
  */
 export default function GameAchievementsSection({
   gameName,
+  rommId = null,
+  rommUrl = null,
+  rommToken = null,
   retroAchievementsEnabled,
-  /** Optional real data later */
-  achievements = [],
 }) {
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [achievements, setAchievements] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadAchievements = useCallback(async (refreshProgression = false) => {
+    if (!retroAchievementsEnabled || !rommId || !rommUrl || !rommToken) {
+      setAchievements([]);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const result = await invoke("get_romm_retroachievements", {
+        serverUrl: rommUrl,
+        token: rommToken,
+        romId: rommId,
+        refreshProgression,
+      });
+      setAchievements(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setError(err?.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [retroAchievementsEnabled, rommId, rommUrl, rommToken]);
+
+  useEffect(() => {
+    loadAchievements(false);
+  }, [loadAchievements]);
   const total = achievements.length;
   const uCount = achievements.filter((a) => a.unlocked).length;
   const displayUnlocked = retroAchievementsEnabled ? uCount : 0;
@@ -49,14 +82,32 @@ export default function GameAchievementsSection({
               ({displayUnlocked}/{displayTotal})
             </Typography>
           </Box>
-          <Button size="small" variant="outlined" onClick={() => setOverlayOpen(true)}>
-            View all
-          </Button>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {retroAchievementsEnabled && rommId ? (
+              <Button size="small" disabled={loading} onClick={() => loadAchievements(true)}>
+                Refresh
+              </Button>
+            ) : null}
+            <Button size="small" variant="outlined" onClick={() => setOverlayOpen(true)}>
+              View all
+            </Button>
+          </Box>
         </Box>
 
         {!retroAchievementsEnabled ? (
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
             Enable RetroAchievements in Settings → Integrations to track progress.
+          </Typography>
+        ) : null}
+
+        {retroAchievementsEnabled && !rommId ? (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Achievement data is available for games synced from RomM.
+          </Typography>
+        ) : null}
+        {error ? (
+          <Typography variant="caption" color="error" display="block" sx={{ mb: 1 }}>
+            Could not load achievements: {error}
           </Typography>
         ) : null}
 
@@ -79,14 +130,27 @@ export default function GameAchievementsSection({
                     flexShrink: 0,
                   }}
                 >
-                  {a.unlocked ? (
+                  {a.badge_url || a.badge_url_lock ? (
+                    <Tooltip title={`${a.title} · ${a.points ?? 0} pts`}>
+                      <Box
+                        component="img"
+                        src={a.unlocked ? (a.badge_url || a.badge_url_lock) : (a.badge_url_lock || a.badge_url)}
+                        alt={a.title}
+                        sx={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 1, opacity: a.unlocked ? 1 : 0.65 }}
+                      />
+                    </Tooltip>
+                  ) : a.unlocked ? (
                     <EmojiEventsIcon sx={{ color: TROPHY_AMBER }} />
                   ) : (
                     <LockIcon fontSize="small" color="disabled" />
                   )}
                 </Box>
               ))
-            : Array.from({ length: 6 }).map((_, i) => (
+            : loading ? (
+                <Box sx={{ width: 72, height: 72, display: "grid", placeItems: "center" }}>
+                  <CircularProgress size={28} />
+                </Box>
+              ) : Array.from({ length: 6 }).map((_, i) => (
                 <Box
                   key={i}
                   sx={{

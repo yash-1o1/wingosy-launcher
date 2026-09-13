@@ -926,6 +926,20 @@ fn platform_from_romm(romm_platform: &crate::api::RomMPlatform, server_url: &str
 }
 
 #[tauri::command]
+pub async fn get_romm_retroachievements(
+    server_url: String,
+    token: String,
+    rom_id: i32,
+    refresh_progression: Option<bool>,
+) -> Result<Vec<crate::api::RomMAchievement>, String> {
+    RomMClient::new(&server_url)
+        .with_token(token)
+        .get_retroachievements(rom_id, refresh_progression.unwrap_or(false))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub async fn list_romm_sync_platforms(
     server_url: String,
     token: String,
