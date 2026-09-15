@@ -7,6 +7,7 @@ import Divider from "@mui/material/Divider";
 import CloseIcon from "@mui/icons-material/Close";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import LockIcon from "@mui/icons-material/Lock";
+import LinearProgress from "@mui/material/LinearProgress";
 
 /** Argosy TrophyAmber */
 const TROPHY_AMBER = "#FFB300";
@@ -27,6 +28,8 @@ export default function AchievementListOverlay({
   const total = achievements.length;
   const uCount = unlocked.length;
   const pct = total > 0 ? Math.floor((uCount * 100) / total) : 0;
+  const earnedPoints = unlocked.reduce((sum, achievement) => sum + (achievement.points ?? 0), 0);
+  const totalPoints = achievements.reduce((sum, achievement) => sum + (achievement.points ?? 0), 0);
 
   return (
     <Dialog
@@ -58,15 +61,30 @@ export default function AchievementListOverlay({
               Achievements
             </Typography>
           </Box>
-          <Typography variant="subtitle1" color="primary">
-            {uCount}/{total} ({pct}%)
-          </Typography>
+          <Box sx={{ minWidth: 150 }}>
+            <Typography variant="subtitle1" color="primary" textAlign="right">
+              {uCount}/{total} ({pct}%)
+            </Typography>
+            {total > 0 ? (
+              <Typography variant="caption" color="text.secondary" display="block" textAlign="right">
+                {earnedPoints}/{totalPoints} points
+              </Typography>
+            ) : null}
+          </Box>
           <IconButton onClick={onClose} aria-label="Close">
             <CloseIcon />
           </IconButton>
         </Box>
 
         <Box sx={{ flex: 1, overflow: "auto", px: 3, py: 2 }}>
+          {total > 0 ? (
+            <LinearProgress
+              variant="determinate"
+              value={pct}
+              aria-label="Achievement completion"
+              sx={{ height: 8, borderRadius: 999, mb: 2 }}
+            />
+          ) : null}
           {!retroAchievementsEnabled ? (
             <Typography color="text.secondary" sx={{ py: 4 }}>
               Turn on <strong>Enable RetroAchievements</strong> in Settings → Integrations to load achievement

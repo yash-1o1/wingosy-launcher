@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -7,6 +7,7 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import LockIcon from "@mui/icons-material/Lock";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
+import LinearProgress from "@mui/material/LinearProgress";
 import AchievementListOverlay from "./AchievementListOverlay";
 
 const TROPHY_AMBER = "#FFB300";
@@ -26,10 +27,14 @@ export default function GameAchievementsSection({
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const requestIdRef = useRef(0);
 
   const loadAchievements = useCallback(async (refreshProgression = false) => {
+    const requestId = ++requestIdRef.current;
     if (!retroAchievementsEnabled || !rommId || !rommUrl || !rommToken) {
       setAchievements([]);
+      setError("");
+      setLoading(false);
       return;
     }
     setLoading(true);
@@ -41,11 +46,17 @@ export default function GameAchievementsSection({
         romId: rommId,
         refreshProgression,
       });
-      setAchievements(Array.isArray(result) ? result : []);
+      if (requestId === requestIdRef.current) {
+        setAchievements(Array.isArray(result) ? result : []);
+      }
     } catch (err) {
-      setError(err?.message || String(err));
+      if (requestId === requestIdRef.current) {
+        setError(err?.message || String(err));
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [retroAchievementsEnabled, rommId, rommUrl, rommToken]);
 
@@ -56,6 +67,12 @@ export default function GameAchievementsSection({
   const uCount = achievements.filter((a) => a.unlocked).length;
   const displayUnlocked = retroAchievementsEnabled ? uCount : 0;
   const displayTotal = retroAchievementsEnabled ? total : 0;
+  const progress = total > 0 ? Math.round((uCount / total) * 100) : 0;
+  const earnedPoints = achievements.reduce(
+    (sum, achievement) => sum + (achievement.unlocked ? (achievement.points ?? 0) : 0),
+    0,
+  );
+  const totalPoints = achievements.reduce((sum, achievement) => sum + (achievement.points ?? 0), 0);
 
   return (
     <>
@@ -81,10 +98,15 @@ export default function GameAchievementsSection({
             <Typography variant="body2" color="text.secondary">
               ({displayUnlocked}/{displayTotal})
             </Typography>
+            {total > 0 ? (
+              <Typography variant="caption" color="text.secondary">
+                {earnedPoints}/{totalPoints} pts
+              </Typography>
+            ) : null}
           </Box>
           <Box sx={{ display: "flex", gap: 1 }}>
             {retroAchievementsEnabled && rommId ? (
-              <Button size="small" disabled={loading} onClick={() => loadAchievements(true)}>
+              <Button size="small" disabled={loading} onClick={() => loadAchievements(true)} aria-label="Refresh achievement progress">
                 Refresh
               </Button>
             ) : null}
@@ -109,6 +131,20 @@ export default function GameAchievementsSection({
           <Typography variant="caption" color="error" display="block" sx={{ mb: 1 }}>
             Could not load achievements: {error}
           </Typography>
+        ) : null}
+
+        {total > 0 ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 1.5 }}>
+            <LinearProgress
+              variant="determinate"
+              value={progress}
+              aria-label="Achievement completion"
+              sx={{ flex: 1, height: 7, borderRadius: 999 }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 34, textAlign: "right" }}>
+              {progress}%
+            </Typography>
+          </Box>
         ) : null}
 
         {/* Argosy-style horizontal badge strip */}
@@ -150,6 +186,10 @@ export default function GameAchievementsSection({
                 <Box sx={{ width: 72, height: 72, display: "grid", placeItems: "center" }}>
                   <CircularProgress size={28} />
                 </Box>
+              ) : retroAchievementsEnabled && rommId && !error ? (
+                <Typography variant="caption" color="text.secondary">
+                  No achievements are available for this game.
+                </Typography>
               ) : Array.from({ length: 6 }).map((_, i) => (
                 <Box
                   key={i}
