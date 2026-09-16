@@ -17,7 +17,7 @@ export default function normalizeUrl(input) {
     return url;
   }
 
-  const host = url.split(":")[0].split("/")[0];
+  const host = url.split(":")[0].split("/")[0].toLowerCase();
 
   const isLocal =
     host === "localhost" ||

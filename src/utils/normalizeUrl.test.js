@@ -20,6 +20,7 @@ describe("normalizeUrl", () => {
 
   it("uses http for localhost and loopback", () => {
     expect(normalizeUrl("localhost:3000")).toBe("http://localhost:3000");
+    expect(normalizeUrl("LOCALHOST:3000")).toBe("http://LOCALHOST:3000");
     expect(normalizeUrl("127.0.0.1:8080")).toBe("http://127.0.0.1:8080");
     expect(normalizeUrl("0.0.0.0")).toBe("http://0.0.0.0");
   });
@@ -34,6 +35,7 @@ describe("normalizeUrl", () => {
   it("uses http for .local and .lan", () => {
     expect(normalizeUrl("nas.local")).toBe("http://nas.local");
     expect(normalizeUrl("server.lan:8080")).toBe("http://server.lan:8080");
+    expect(normalizeUrl("RomM.LOCAL:8080")).toBe("http://RomM.LOCAL:8080");
   });
 
   it("uses https for public hostnames", () => {
