@@ -50,6 +50,8 @@ import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import GameScreenshotsSection from "./game/GameScreenshotsSection";
 import GameAchievementsSection from "./game/GameAchievementsSection";
 import CollectionPickerDialog from "./game/CollectionPickerDialog";
+import PersonalGameFieldsDialog from "./game/PersonalGameFieldsDialog";
+import { formatPersonalFieldsSummary } from "./game/personalGameFields";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
@@ -594,7 +596,7 @@ export default function GameDetails({
                 </ListItemIcon>
                 <ListItemText
                   primary="Ratings & status"
-                  secondary="Local backlog / playing (coming soon)"
+                  secondary={formatPersonalFieldsSummary(game)}
                   secondaryTypographyProps={{ variant: "caption" }}
                 />
               </MenuItem>
@@ -1121,19 +1123,12 @@ export default function GameDetails({
         gameName={game.name}
       />
 
-      <Dialog open={ratingsDialogOpen} onClose={() => setRatingsDialogOpen(false)}>
-        <DialogTitle>Ratings & status</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Per-game backlog and ratings will appear here in a future update. Use favorites and play stats for now.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRatingsDialogOpen(false)} variant="contained">
-            OK
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <PersonalGameFieldsDialog
+        open={ratingsDialogOpen}
+        game={game}
+        onClose={() => setRatingsDialogOpen(false)}
+        onSaved={() => onGameUpdate?.(game.id)}
+      />
 
       <Dialog open={comingSoon.open} onClose={() => setComingSoon((s) => ({ ...s, open: false }))}>
         <DialogTitle>{comingSoon.title}</DialogTitle>

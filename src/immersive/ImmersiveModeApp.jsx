@@ -288,8 +288,12 @@ export default function ImmersiveModeApp({
         onToggleFavorite={handleToggleFavorite}
         onGameUpdate={async (gameId) => {
           await loadData();
-          const updated = games.find((g) => g.id === gameId);
-          if (updated) setSelectedGame(updated);
+          try {
+            const updated = await invoke("get_game_details", { gameId });
+            setSelectedGame(updated);
+          } catch (err) {
+            console.error("Failed to refresh game details:", err);
+          }
         }}
         rommToken={rommToken}
         rommUrl={rommUrl}

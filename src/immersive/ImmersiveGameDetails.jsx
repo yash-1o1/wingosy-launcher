@@ -45,6 +45,8 @@ import { useAppTheme } from "../ThemeContext";
 import GameScreenshotsSection from "../components/game/GameScreenshotsSection";
 import GameAchievementsSection from "../components/game/GameAchievementsSection";
 import CollectionPickerDialog from "../components/game/CollectionPickerDialog";
+import PersonalGameFieldsDialog from "../components/game/PersonalGameFieldsDialog";
+import { formatPersonalFieldsSummary } from "../components/game/personalGameFields";
 
 function isLocalPath(path) {
   if (!path) return false;
@@ -283,7 +285,7 @@ export default function ImmersiveGameDetails({
                 <ListItemIcon>
                   <StarOutlineIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText primary="Ratings & status" secondary="Coming soon" secondaryTypographyProps={{ variant: "caption" }} />
+                <ListItemText primary="Ratings & status" secondary={formatPersonalFieldsSummary(game)} secondaryTypographyProps={{ variant: "caption" }} />
               </MenuItem>
               <MenuItem
                 onClick={() => {
@@ -549,19 +551,12 @@ export default function ImmersiveGameDetails({
         gameName={game.name}
       />
 
-      <Dialog open={ratingsDialogOpen} onClose={() => setRatingsDialogOpen(false)}>
-        <DialogTitle>Ratings & status</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Per-game backlog and ratings will appear here in a future update.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRatingsDialogOpen(false)} variant="contained">
-            OK
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <PersonalGameFieldsDialog
+        open={ratingsDialogOpen}
+        game={game}
+        onClose={() => setRatingsDialogOpen(false)}
+        onSaved={() => onGameUpdate?.(game.id)}
+      />
 
       <Dialog open={comingSoon.open} onClose={() => setComingSoon((s) => ({ ...s, open: false }))}>
         <DialogTitle>{comingSoon.title}</DialogTitle>
