@@ -966,6 +966,9 @@ pub struct IgdbMetadata {
     pub aggregated_rating: Option<f64>,
     #[serde(default)]
     pub total_rating: Option<f64>,
+    /// RomM's community average rating, used when IGDB supplies no aggregate.
+    #[serde(default)]
+    pub average_rating: Option<f64>,
     #[serde(default)]
     pub franchises: Option<Vec<String>>,
     #[serde(default)]
@@ -1066,9 +1069,11 @@ impl RomMRom {
             .and_then(|m| m.first_release_date)
     }
 
+    /// Community rating on a 0–100 scale. Prefers IGDB's aggregated score, then
+    /// IGDB's total score, then RomM's own community average.
     pub fn aggregated_rating(&self) -> Option<f32> {
         self.igdb_metadata.as_ref()
-            .and_then(|m| m.aggregated_rating.or(m.total_rating))
+            .and_then(|m| m.aggregated_rating.or(m.total_rating).or(m.average_rating))
             .map(|r| r as f32)
     }
 
@@ -1420,6 +1425,7 @@ mod tests {
                 first_release_date: None,
                 aggregated_rating: None,
                 total_rating: None,
+                average_rating: None,
                 franchises: None,
                 companies: None,
                 game_modes: None,
@@ -1448,6 +1454,7 @@ mod tests {
                 first_release_date: None,
                 aggregated_rating: Some(85.5),
                 total_rating: Some(90.0),
+                average_rating: Some(70.0),
                 franchises: None,
                 companies: None,
                 game_modes: None,
@@ -1474,6 +1481,7 @@ mod tests {
                 first_release_date: None,
                 aggregated_rating: None,
                 total_rating: Some(75.0),
+                average_rating: Some(60.0),
                 franchises: None,
                 companies: None,
                 game_modes: None,
@@ -1481,6 +1489,60 @@ mod tests {
             screenshots: vec![],
         };
         assert_eq!(rom.aggregated_rating(), Some(75.0));
+    }
+
+    #[test]
+    fn rom_rating_falls_back_to_romm_average() {
+        let rom = RomMRom {
+            id: 1,
+            platform_id: 1,
+            platform_slug: "snes".into(),
+            name: "Test".into(),
+            fs_name: "test.sfc".into(),
+            fs_size_bytes: 1024,
+            igdb_id: None,
+            summary: None,
+            url_cover: None,
+            igdb_metadata: Some(IgdbMetadata {
+                genres: None,
+                first_release_date: None,
+                aggregated_rating: None,
+                total_rating: None,
+                average_rating: Some(64.5),
+                franchises: None,
+                companies: None,
+                game_modes: None,
+            }),
+            screenshots: vec![],
+        };
+        assert_eq!(rom.aggregated_rating(), Some(64.5));
+    }
+
+    #[test]
+    fn rom_rating_is_none_without_any_source() {
+        let rom = RomMRom {
+            id: 1,
+            platform_id: 1,
+            platform_slug: "snes".into(),
+            name: "Test".into(),
+            fs_name: "test.sfc".into(),
+            fs_size_bytes: 1024,
+            igdb_id: None,
+            summary: None,
+            url_cover: None,
+            igdb_metadata: Some(IgdbMetadata {
+                genres: None,
+                first_release_date: None,
+                aggregated_rating: None,
+                total_rating: None,
+                average_rating: None,
+                franchises: None,
+                companies: None,
+                game_modes: None,
+            }),
+            screenshots: vec![],
+        };
+        assert_eq!(rom.aggregated_rating(), None);
     }
 
     #[test]
@@ -1655,6 +1717,7 @@ mod tests {
                 first_release_date: None,
                 aggregated_rating: Some(88.0),
                 total_rating: None,
+                average_rating: None,
                 franchises: None,
                 companies: Some(vec!["Dev Studio".into(), "Pub Co".into()]),
                 game_modes: Some(vec!["Single player".into(), "Co-operative".into()]),

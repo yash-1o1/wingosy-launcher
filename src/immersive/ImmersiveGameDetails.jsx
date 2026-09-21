@@ -47,6 +47,7 @@ import GameAchievementsSection from "../components/game/GameAchievementsSection"
 import CollectionPickerDialog from "../components/game/CollectionPickerDialog";
 import PersonalGameFieldsDialog from "../components/game/PersonalGameFieldsDialog";
 import { formatPersonalFieldsSummary } from "../components/game/personalGameFields";
+import { formatCommunityRating } from "../components/game/communityRating";
 
 function isLocalPath(path) {
   if (!path) return false;
@@ -193,6 +194,8 @@ export default function ImmersiveGameDetails({
       setActionStatus({ type: "error", message: err.message || String(err) });
     }
   }
+
+  const communityRating = formatCommunityRating(game);
 
   return (
     <Box
@@ -403,6 +406,14 @@ export default function ImmersiveGameDetails({
           <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: "-0.5px", mb: 1, color: "text.primary" }}>
             {game.name}
           </Typography>
+          {communityRating && (
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1.5 }}>
+              <StarOutlineIcon fontSize="small" sx={{ opacity: 0.7, color: "text.secondary" }} />
+              <Typography variant="body2" color="text.secondary">
+                Community rating {communityRating}
+              </Typography>
+            </Stack>
+          )}
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 1100, lineHeight: 1.8 }}>
             {game.summary || "No description available."}
           </Typography>

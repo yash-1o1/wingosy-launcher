@@ -52,6 +52,7 @@ import GameAchievementsSection from "./game/GameAchievementsSection";
 import CollectionPickerDialog from "./game/CollectionPickerDialog";
 import PersonalGameFieldsDialog from "./game/PersonalGameFieldsDialog";
 import { formatPersonalFieldsSummary } from "./game/personalGameFields";
+import { formatCommunityRating } from "./game/communityRating";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
@@ -411,6 +412,7 @@ export default function GameDetails({
     ? game.screenshot_paths
     : [];
   const lastPlayedLabel = formatLastPlayed(game.last_played_at);
+  const communityRating = formatCommunityRating(game);
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto" }}>
@@ -907,15 +909,15 @@ export default function GameDetails({
             </Box>
           )}
 
-          {game.user_rating != null && game.user_rating !== undefined && (
+          {communityRating && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <StarIcon color="action" />
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  IGDB aggregated rating
+                  Community rating
                 </Typography>
                 <Typography variant="body2" fontWeight={600}>
-                  {Number(game.user_rating).toFixed(1)} / 100
+                  {communityRating}
                 </Typography>
               </Box>
             </Box>
