@@ -6,7 +6,6 @@ Not application code. Nothing here is compiled, bundled, or shipped.
 | File | Purpose |
 | --- | --- |
 | `ARGOSY_WINGOSY_PARITY.md` | Source of truth: cursor, ledger, counts, candidate backlog, open decisions. |
-| `CODEX_RUN_LOG.md` | Archived run log from the Codex local cron that ran this audit 2026-09-16 → 2026-09-22. |
 
 ## Rules
 
