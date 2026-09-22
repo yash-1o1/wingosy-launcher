@@ -431,6 +431,33 @@ impl Database {
         Ok(games)
     }
 
+    /// Point a game's cover at a locally cached file, replacing the remote URL.
+    pub fn update_cover_path(&self, game_id: i64, cover_path: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE games SET cover_path = ?1 WHERE id = ?2",
+            params![cover_path, game_id],
+        )
+        .context("Failed to update cover path")?;
+        Ok(())
+    }
+
+    /// RomM games whose cover still points at a remote URL rather than a cached file.
+    pub fn get_games_with_uncached_covers(&self) -> Result<Vec<Game>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT * FROM games WHERE source = 'romm' AND romm_id IS NOT NULL AND cover_path LIKE 'http%'")
+            .context("Failed to prepare statement")?;
+
+        let games = stmt
+            .query_map([], |row: &Row| Ok(Self::row_to_game(row)))
+            .context("Failed to query games with uncached covers")?
+            .filter_map(|r| r.ok().and_then(|g| g.ok()))
+            .collect();
+
+        Ok(games)
+    }
+
     /// Clear the local file path (after deleting the ROM)
     pub fn clear_local_path(&self, game_id: i64) -> Result<()> {
         let conn = self.conn.lock().unwrap();

@@ -8,6 +8,7 @@ mod api;
 mod bios;
 mod commands;
 mod config;
+mod covers;
 mod database;
 mod emulators;
 mod models;

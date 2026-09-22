@@ -523,6 +523,25 @@ impl RomMClient {
         format!("{}/api/roms/{}/cover", self.base_url, rom_id)
     }
 
+    /// Downloads a cover image's raw bytes. The RomM auth header is only sent
+    /// when the URL is hosted by this RomM server, so a token never leaks to
+    /// a third-party image host (e.g. IGDB's CDN) that a rom's cover may point to.
+    pub async fn download_cover(&self, url: &str) -> Result<Vec<u8>> {
+        let mut request = self.client.get(url);
+        if url.starts_with(&self.base_url) {
+            if let Some(auth) = self.auth_header() {
+                request = request.header("Authorization", auth);
+            }
+        }
+        let response = request.send().await.context("Failed to download cover")?;
+        let status = response.status();
+        if !status.is_success() {
+            anyhow::bail!("Cover download returned HTTP {}", status);
+        }
+        let bytes = response.bytes().await.context("Failed to read cover bytes")?;
+        Ok(bytes.to_vec())
+    }
+
     pub async fn get_saves(&self, rom_id: i32) -> Result<Vec<RomMSave>> {
         tracing::debug!("[RomM] Fetching saves for ROM id={}", rom_id);
         

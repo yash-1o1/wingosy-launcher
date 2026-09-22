@@ -987,7 +987,7 @@ pub async fn sync_romm_platform(
 ) -> Result<SyncResult, String> {
     use crate::models::map_romm_slug;
 
-    let client = RomMClient::new(&server_url).with_token(token);
+    let client = RomMClient::new(&server_url).with_token(token.clone());
     let db = Database::open().map_err(|e| e.to_string())?;
     let remote_platform = client
         .get_platforms()
@@ -1036,9 +1036,8 @@ pub async fn sync_romm_platform(
                 .get_game_by_romm_id(romm_id)
                 .map_err(|e| e.to_string())?
                 .is_none();
-            let game_id = db
-                .upsert_game(&rom.into_game(&server_url))
-                .map_err(|e| e.to_string())?;
+            let game = rom.into_game(&server_url);
+            let game_id = db.upsert_game(&game).map_err(|e| e.to_string())?;
             db.clear_sync_dirty(game_id).map_err(|e| e.to_string())?;
             if is_new {
                 games_added += 1;
@@ -1046,6 +1045,17 @@ pub async fn sync_romm_platform(
                 games_updated += 1;
             }
             processed += 1;
+
+            if let Some(cover_url) = game.cover_path.filter(|url| url.starts_with("http")) {
+                crate::covers::spawn_cover_cache(
+                    app.clone(),
+                    server_url.clone(),
+                    token.clone(),
+                    game_id,
+                    romm_id,
+                    cover_url,
+                );
+            }
         }
 
         let _ = app.emit(
@@ -1084,14 +1094,15 @@ pub async fn sync_romm_platform(
 
 #[tauri::command]
 pub async fn sync_romm_library(
+    app: tauri::AppHandle,
     server_url: String,
     token: String,
 ) -> Result<Vec<Game>, String> {
     use crate::models::map_romm_slug;
-    
+
     tracing::info!("[RomM] Starting library sync from {}", server_url);
-    
-    let client = RomMClient::new(&server_url).with_token(token);
+
+    let client = RomMClient::new(&server_url).with_token(token.clone());
     let db = Database::open().map_err(|e| e.to_string())?;
     
     let romm_platforms = client.get_platforms().await.map_err(|e| {
@@ -1163,13 +1174,24 @@ pub async fn sync_romm_library(
             
             // Clear the dirty flag for this game (it exists on server)
             db.clear_sync_dirty(game_id).map_err(|e| e.to_string())?;
-            
+
             if is_new {
                 games_added += 1;
             } else {
                 games_updated += 1;
             }
-            
+
+            if let Some(cover_url) = game.cover_path.filter(|url| url.starts_with("http")) {
+                crate::covers::spawn_cover_cache(
+                    app.clone(),
+                    server_url.clone(),
+                    token.clone(),
+                    game_id,
+                    romm_id,
+                    cover_url,
+                );
+            }
+
             // Get the updated game with proper ID
             if let Ok(Some(updated_game)) = db.get_game(game_id) {
                 all_games.push(updated_game);
@@ -1207,12 +1229,15 @@ pub async fn sync_romm_library(
     
     // Step 4: Clear any remaining dirty flags (cleanup)
     db.clear_all_sync_dirty().map_err(|e| e.to_string())?;
-    
+
+    // Retry covers left uncached by an earlier, interrupted sync.
+    crate::covers::queue_pending_covers(&app, &server_url, &token, &db);
+
     tracing::info!(
-        "[RomM] Library sync complete: {} added, {} updated, {} deleted, {} total", 
+        "[RomM] Library sync complete: {} added, {} updated, {} deleted, {} total",
         games_added, games_updated, games_deleted, all_games.len()
     );
-    
+
     Ok(all_games)
 }
 

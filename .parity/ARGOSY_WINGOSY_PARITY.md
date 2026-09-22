@@ -21,10 +21,25 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `a1e8437463c95b4a34bc9b8a6f6005ad5cf0c7c4` — 2026-09-20
-- Baseline history size: 2,842 commits
-- Wingosy baseline observed: `11ea278bd5e455f80aa799d584c0ba437f6f3a7c` — 2026-09-22
+- Argosy baseline observed: `f18070b0fa21b542abc3c06b90627f20da7a108f` — 2026-03-04 (2026-09-22 run)
+- Baseline history size: 805 commits on `origin/main`
+- Wingosy baseline observed: `2a1c780` — 2026-09-22
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
+
+### Baseline correction (2026-09-22)
+
+A prior run recorded an Argosy baseline of `a1e8437463c95b4a34bc9b8a6f6005ad5cf0c7c4`
+with 2,842 commits, dated 2026-09-20. That SHA does not exist in the real
+repository (`git cat-file -t` on it returns "bad object" after a full
+unshallow fetch), and both a direct `git fetch` and the GitHub API confirm
+`origin/main`'s actual tip is `f18070b` (805 commits total), dated
+2026-03-04 — no branch in the repository (including all `dependabot/*` and
+`feature/*` branches) has any commit newer than 2026-03-07. The figures
+above were corrected to match the verified repository state. This did not
+require rewinding the audit: every commit already recorded in the ledger
+(`900808d` through `dfc98b4`, and the stored cursor `bee6b46`) was verified
+to exist at its recorded position in the real history, so only the
+aggregate baseline metadata was wrong, not the per-commit ledger work.
 
 ### Local verification constraints
 
@@ -47,6 +62,26 @@ Recorded 2026-09-21 so future runs do not rediscover them:
   `cargo test` and clippy on `windows-latest` for every push to `main`). A run
   that touches Rust must say so and check the CI result.
 
+**Cloud/Linux sandbox runs (recorded 2026-09-22):** when this job runs in a
+Linux container instead of the Windows machine above, `git`, `node`, `npm`
+and `cargo`/`rustc` are all directly on `PATH` and frontend checks (vitest,
+tsc, eslint, vite build) run normally. `cargo check`/`cargo test` on the
+native Linux target additionally needs `libgtk-3-dev libwebkit2gtk-4.1-dev
+libayatana-appindicator3-dev librsvg2-dev` (`apt-get install`, run
+`apt-get update` first or the mirror 404s) to get past the `gdk-sys` build
+script, and `npm run build` must run first so `tauri::generate_context!()`
+finds `../dist`. Even with those installed, a full `cargo check` still
+cannot pass on Linux: several pre-existing functions in `commands.rs` /
+`emulators/detection.rs` are only defined under `#[cfg(windows)]` with no
+Linux fallback, so the crate fails to fully type-check on any non-Windows
+host regardless of what a given run changes. This is still useful:
+`cargo check` surfaces real errors in any newly-added/changed code (it
+caught two real mistakes in this run's `covers.rs`/`api/romm.rs` module
+before they reached CI), and the remaining failures can be diffed against
+`git diff` to confirm they're the same pre-existing Windows-only gaps and
+not something the run introduced. Full correctness of `#[cfg(windows)]`
+code paths still relies on CI on `windows-latest`.
+
 ## Status vocabulary
 
 - `implemented`: portable behavior added to Wingosy and pushed.
@@ -59,10 +94,10 @@ Recorded 2026-09-21 so future runs do not rediscover them:
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `dfc98b4195b219d2dcead62f1f104edb6fe70ee2`
-- Next Argosy commit: `bee6b46158b7512c2f668fb78217461e4c00d6a0`
-- Audited: 45 / 2,842 baseline commits
-- Portable candidates waiting: 4
+- Last fully audited Argosy commit: `c21a65e49ffa276e8bc3335dd7db372236cfb022`
+- Next Argosy commit: `3de24f35c1fdc83861aa66c7f756bf65e8bc5ca3`
+- Audited: 55 / 805 baseline commits
+- Portable candidates waiting: 6
 - Last tracker update: 2026-09-22
 
 The first automated parity run must begin with `900808d`. A run may inspect as
@@ -118,6 +153,16 @@ must record every inspected commit before advancing this cursor.
 | 43 | `55045f4` | 2025-12-09 | Fix drawer input timing race condition | superseded | Intermediate Android timing fix replaced by later unsubscribe/restore handling. |
 | 44 | `61f8c52` | 2025-12-09 | Fix drawer not unsubscribing on navigation | superseded | Intermediate Android subscription fix replaced by the final restore registration change. |
 | 45 | `dfc98b4` | 2025-12-09 | Fix input subscription not re-registering on navigation restore | already-covered | Wingosy's single gamepad mapper remains mounted across immersive navigation and routes through the active view; no Compose lifecycle subscription exists. |
+| 46 | `bee6b46` | 2025-12-09 | Bump version to 0.5.22-beta.1 | non-feature | Android release metadata only. |
+| 47 | `3375b88` | 2025-12-09 | Add cover art caching during sync | implemented | Wingosy already had `covers_dir()` (`config/mod.rs`) and frontend `convertFileSrc`/`isLocalPath` handling for cover art scaffolded but unused. This run wires them together: `RomMClient::download_cover` (auth header only sent when the URL is same-origin as the RomM server, so a token never leaks to a third-party image host like IGDB's CDN), a new `covers` module that downloads and caches each synced game's cover under `covers_dir()` and updates `cover_path` to the local file, queued from both `sync_romm_library` and `sync_romm_platform` after each upsert, plus a resume pass in `sync_romm_library` for any game left uncached by an interrupted prior sync. No resizing (Argosy resizes to 400px JPEG 85%); caching the original bytes was judged sufficient value without adding an image-processing dependency. |
+| 48 | `362f688` | 2025-12-09 | Add VID-based controller detection and separate button swap settings | candidate | Wingosy has no controller-VID detection or A/B or X/Y icon-swap settings at all today. Worthwhile for Xbox vs. Nintendo-layout controllers on Windows, but is a multi-file frontend slice (gamepad VID/PID detection, settings UI, icon rendering across desktop and immersive) better scoped as its own run. |
+| 49 | `c697635` | 2025-12-09 | Add route-validated input subscriptions to prevent focus stealing | already-covered | Android Compose navigation race between background screens kept alive by `saveState`/`restoreState`; Wingosy's single gamepad mapper has no comparable multi-screen subscription race to guard against. |
+| 50 | `19823f6` | 2025-12-09 | Add battery indicator to home screen and drawer | candidate | Android battery/charging display on the home header and drawer. Wingosy targets desktop and immersive/couch modes that could run on Windows handhelds (e.g. ROG Ally, Legion Go) where a battery indicator would matter; worth a focused slice using Windows battery APIs rather than assuming Argosy's Android `BatteryManager` semantics. |
+| 51 | `f973883` | 2025-12-09 | Improve Apps screen layout and add touch support | already-covered | Android app-grid padding/density and touch-target tuning; Wingosy's density selector (`613160f`) and desktop pointer/touch input already cover the portable intent. |
+| 52 | `397a395` | 2025-12-09 | Bump version to 0.6.0 | non-feature | Android release metadata only. |
+| 53 | `56ed787` | 2025-12-09 | Add Steam game integration with launcher scanning and manual entry | not-portable | Launches Steam titles on Android handhelds indirectly through third-party launcher APKs (GameHub variants, GameNative) running Windows games under emulation. Wingosy runs natively on Windows, where users already have native Steam; there is no equivalent indirection to port. |
+| 54 | `c8841df` | 2025-12-09 | Update README for general users with new features and screenshots structure | non-feature | Documentation-only change. |
+| 55 | `c21a65e` | 2025-12-09 | Bump version to 0.7.0 | non-feature | Android release metadata only. |
 
 ## Implemented parity outside the chronological audit
 
@@ -139,6 +184,8 @@ Argosy commits must still be recorded when encountered.
 | `0e4296d` | Resumable, pausable concurrent ROM downloads | Native persistent job queue, Range-capable transfer restart, queue policy, and desktop/immersive controls. |
 | `6ecfe99`, `d199708` | Non-blocking cleanup after cancelling downloads or deleting large local ROMs | Move filesystem removal to a blocking Rust task, refresh UI immediately, and verify in Windows CI. |
 | `5f6ebd8` | Complete Azahar support | Detect `azahar.exe`, validate the existing launcher command, and add focused Windows CI coverage. |
+| `362f688` | VID-based controller detection with separate A/B and X/Y icon-swap settings | Gamepad VID/PID lookup (Xbox/Nintendo/Sony), a settings UI, and icon rendering updates across desktop and immersive views. |
+| `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
 
 ## Open decisions
 
@@ -172,6 +219,7 @@ chronological work can proceed safely.
 | 2026-09-21 | `0e23a85..a98a571` (7 commits) | Community rating: RomM `average_rating` fallback, shared formatter, immersive display, accurate desktop label | `612c099` | 43 unit tests (+4 new), typecheck, lint (0 errors; 8 existing warnings), build. Rust verified in CI, not locally (Smart App Control blocks cargo, `os error 4551`): CI run `35642876461` green, including "Cargo tests (non-ignored)" and "Rust lint". | Pushed to `origin/main` after the user chose CI verification for the Rust half. First run in this program to touch Rust. Argosy baseline grew 2,741 → 2,842 (tip `a1e8437`, 2026-09-20). |
 | 2026-09-22 | `0e4296d..9c0eca7` (6 commits) | Desktop library density selector backed by existing `display.grid_columns` | `613160f` | 43 unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build. | Three native/controller candidates recorded; no Rust was changed. |
 | 2026-09-22 | `99a3d03..dfc98b4` (24 commits) | Immersive controller Y shortcut to favorite the focused game | `702d6ec` | 43 unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build. | Release metadata, Android storage/intent mechanics, and superseded Android input fixes were dispositioned. New candidates: non-blocking cancellation cleanup and complete Azahar detection. |
+| 2026-09-22 | `bee6b46..c21a65e` (10 commits) | Local RomM cover-art caching during sync, completing the previously scaffolded `covers_dir()`/`convertFileSrc` support | `<pending, see below>` | 43 unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build. `cargo check` run directly (this run executed in a Linux cloud sandbox, not the Windows machine above): new/changed files (`covers.rs`, `api/romm.rs`, `database/games.rs`, `commands.rs` sync wiring) compiled with no errors; the only remaining `cargo check` failures are pre-existing `#[cfg(windows)]`-only functions unrelated to this diff (verified via `git diff --stat` that those call sites were untouched). Full `#[cfg(windows)]` correctness still falls to CI on `windows-latest`. | Corrected a stale baseline (see Repositories and baseline). Two new candidates recorded: VID-based controller/button-swap detection, and a battery indicator for Windows handhelds. Steam-launcher integration dispositioned not-portable (Wingosy runs natively on Windows, where real Steam is already available). |
 
 ## Completion rule
 
