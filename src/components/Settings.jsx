@@ -178,6 +178,7 @@ export default function Settings({
   const [immersiveModeEnabled, setImmersiveModeEnabled] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(false);
   const [retroachievementsEnabled, setRetroachievementsEnabled] = useState(false);
+  const [libraryGridColumns, setLibraryGridColumns] = useState(5);
   
   // Theme/Appearance settings from context
   const { themeMode, setThemeMode, accentHue, setAccentHue } = useAppTheme();
@@ -385,6 +386,8 @@ export default function Settings({
       setImmersiveModeEnabled(Boolean(cfg.display?.big_picture));
       setFullscreenEnabled(Boolean(cfg.display?.fullscreen));
       setRetroachievementsEnabled(Boolean(cfg.display?.retroachievements_enabled));
+      const gridColumns = Number(cfg.display?.grid_columns);
+      setLibraryGridColumns(Number.isInteger(gridColumns) && gridColumns >= 4 && gridColumns <= 6 ? gridColumns : 5);
       setCheckOnStartup(cfg.updater?.check_on_startup !== false);
       const auto = Boolean(cfg.updater?.auto_update_enabled);
       setAutoUpdateEnabled(auto);
@@ -1292,6 +1295,34 @@ export default function Settings({
           Accent Color
         </Typography>
         <AccentHueSlider accentHue={accentHue} setAccentHue={setAccentHue} />
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 3 }}>
+          Library density
+        </Typography>
+        <ToggleButtonGroup
+          value={libraryGridColumns}
+          exclusive
+          onChange={async (_, nextColumns) => {
+            if (!nextColumns) return;
+            setLibraryGridColumns(nextColumns);
+            try {
+              const cfg = await invoke("get_config");
+              cfg.display = cfg.display || {};
+              cfg.display.grid_columns = nextColumns;
+              await invoke("save_config", { config: cfg });
+            } catch (err) {
+              console.error("Failed to save library density:", err);
+            }
+          }}
+          size="small"
+        >
+          <ToggleButton value={6} sx={{ px: 2 }}>Compact</ToggleButton>
+          <ToggleButton value={5} sx={{ px: 2 }}>Comfortable</ToggleButton>
+          <ToggleButton value={4} sx={{ px: 2 }}>Spacious</ToggleButton>
+        </ToggleButtonGroup>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+          Controls the number of game cards shown across the desktop library. Changes apply when you return to the library.
+        </Typography>
       </Paper>
       )}
 

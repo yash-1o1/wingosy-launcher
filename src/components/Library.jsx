@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -22,6 +22,7 @@ import GameCard from "./GameCard";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { useRomDownloads } from "../RomDownloadsContext";
 import { isLibrarySearchShortcut } from "../utils/keyboardShortcuts";
+import { invoke } from "@tauri-apps/api/core";
 
 export default function Library({
   games,
@@ -45,7 +46,25 @@ export default function Library({
 }) {
   const { getProgress } = useRomDownloads();
   const searchInputRef = useRef(null);
+  const [gridColumns, setGridColumns] = useState(5);
   const hasActiveFilters = Boolean(searchQuery) || availability !== "all";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    invoke("get_config")
+      .then((cfg) => {
+        const columns = Number(cfg.display?.grid_columns);
+        if (!cancelled && Number.isInteger(columns) && columns >= 4 && columns <= 6) {
+          setGridColumns(columns);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     function handleSearchShortcut(event) {
@@ -257,9 +276,9 @@ export default function Library({
             gridTemplateColumns: {
               xs: "repeat(2, 1fr)",
               sm: "repeat(3, 1fr)",
-              md: "repeat(4, 1fr)",
-              lg: "repeat(5, 1fr)",
-              xl: "repeat(6, 1fr)",
+              md: `repeat(${gridColumns - 1}, 1fr)`,
+              lg: `repeat(${gridColumns}, 1fr)`,
+              xl: `repeat(${gridColumns + 1}, 1fr)`,
             },
             gap: 2.5,
             pb: 4,
