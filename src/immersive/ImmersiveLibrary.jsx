@@ -45,6 +45,7 @@ export default function ImmersiveLibrary({
   onOpenSettings,
   onOpenDownloads,
   onOpenSync,
+  onToggleFavorite,
 }) {
   const [section, setSection] = useState("all"); // all | favorites | recent
   const gridRef = useRef(null);
@@ -117,6 +118,14 @@ export default function ImmersiveLibrary({
     if (e.key === "s" || e.key === "S") {
       e.preventDefault();
       onOpenSettings();
+      return;
+    }
+
+    if (e.key === "f" || e.key === "F") {
+      if (!loading && visibleGames.length && onToggleFavorite) {
+        e.preventDefault();
+        onToggleFavorite(visibleGames[selectedIndex].id);
+      }
       return;
     }
 

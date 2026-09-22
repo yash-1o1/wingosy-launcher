@@ -313,6 +313,7 @@ export default function ImmersiveModeApp({
         onOpenSettings={() => setView("settings")}
         onOpenDownloads={() => setView("downloads")}
         onOpenSync={() => setView("sync")}
+        onToggleFavorite={handleToggleFavorite}
       />
     );
   }

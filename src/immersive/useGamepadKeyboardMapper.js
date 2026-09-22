@@ -22,6 +22,8 @@ const KEY_TO_CODE = {
   PageDown: "PageDown",
   s: "KeyS",
   S: "KeyS",
+  f: "KeyF",
+  F: "KeyF",
   h: "KeyH",
   H: "KeyH",
 };
@@ -68,6 +70,7 @@ function dispatchKey(key) {
  * - B: Escape
  * - LB/RB: PageUp/PageDown (section switching in library)
  * - Start: "s" (open settings in library)
+ * - Y: "f" (toggle favorite for the focused library game)
  * - Back/View: "h" (toggle on-screen help/hints)
  */
 export function useGamepadKeyboardMapper({
@@ -90,6 +93,7 @@ export function useGamepadKeyboardMapper({
     rb: false,
     start: false,
     back: false,
+    y: false,
   });
 
   useEffect(() => {
@@ -123,6 +127,7 @@ export function useGamepadKeyboardMapper({
       const pressedRB = Boolean(b[5]?.pressed);
       const pressedBack = Boolean(b[8]?.pressed);
       const pressedStart = Boolean(b[9]?.pressed);
+      const pressedY = Boolean(b[3]?.pressed);
       const pressedUp = Boolean(b[12]?.pressed);
       const pressedDown = Boolean(b[13]?.pressed);
       const pressedLeft = Boolean(b[14]?.pressed);
@@ -144,6 +149,7 @@ export function useGamepadKeyboardMapper({
         rb: pressedRB,
         start: pressedStart,
         back: pressedBack,
+        y: pressedY,
       };
 
       const prev = lastDigital.current;
@@ -154,6 +160,7 @@ export function useGamepadKeyboardMapper({
       if (digital.lb && !prev.lb) dispatchKey("PageUp");
       if (digital.rb && !prev.rb) dispatchKey("PageDown");
       if (digital.start && !prev.start) dispatchKey("s");
+      if (digital.y && !prev.y) dispatchKey("f");
       if (digital.back && !prev.back) dispatchKey("h");
 
       // Held navigation (dpad/stick)

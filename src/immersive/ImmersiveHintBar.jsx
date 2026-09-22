@@ -53,6 +53,7 @@ export default function ImmersiveHintBar({ view, visible = true }) {
         : [
             { label: "D-pad / Stick", detail: "Move" },
             { label: "A / Enter", detail: "Open" },
+            { label: "Y / F", detail: "Favorite" },
             { label: "B / Esc", detail: "Exit" },
             { label: "LB/RB", detail: "All / Favorites / Recent" },
             { label: "Menu / S", detail: "Settings" },
