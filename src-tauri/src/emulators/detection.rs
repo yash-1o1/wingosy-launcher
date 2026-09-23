@@ -389,7 +389,7 @@ fn get_emulator_patterns() -> Vec<(&'static str, &'static str, &'static [&'stati
         ),
         ("cemu", "Cemu", &["Cemu.exe"][..]),
         ("eden", "Eden", &["eden.exe", "Eden.exe"][..]),
-        ("citra", "Citra", &["citra-qt.exe", "lime3ds.exe"][..]),
+        ("citra", "Azahar", crate::models::THREE_DS_EXECUTABLES),
         ("melonds", "melonDS", &["melonDS.exe"][..]),
         ("mgba", "mGBA", &["mGBA.exe", "mgba.exe"][..]),
         ("flycast", "Flycast", &["flycast.exe"][..]),
@@ -593,6 +593,20 @@ mod tests {
         assert!(ids.contains(&"retroarch"));
         assert!(ids.contains(&"dolphin"));
         assert!(ids.contains(&"pcsx2"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_azahar_is_detected_as_compatible_3ds_emulator() {
+        let (_, name, executables) = get_emulator_patterns()
+            .into_iter()
+            .find(|(id, _, _)| *id == "citra")
+            .expect("3DS emulator detection pattern");
+
+        assert_eq!(name, "Azahar");
+        assert!(executables.contains(&"azahar.exe"));
+        assert!(executables.contains(&"lime3ds.exe"));
+        assert!(executables.contains(&"citra-qt.exe"));
     }
 
     #[cfg(windows)]

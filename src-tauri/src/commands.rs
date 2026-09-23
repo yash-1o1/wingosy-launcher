@@ -7,7 +7,10 @@ use crate::config::{AppConfig, UpdateChannel};
 use crate::database::Database;
 use crate::emulators::{EmulatorLauncher, LaunchCommand, LaunchResult};
 use crate::emulators::detection::{detect_installed_emulators, find_retroarch_cores};
-use crate::models::{Game, Platform, Collection, GameFilter, GameSort, default_emulators, retroarch_cores};
+use crate::models::{
+    Collection, Game, GameFilter, GameSort, Platform, THREE_DS_EXECUTABLES, default_emulators,
+    retroarch_cores,
+};
 use crate::scanner::RomScanner;
 
 /// Path saved in config (e.g. after install or browse) counts as installed when detection missed it.
@@ -2050,7 +2053,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
         "duckstation" => vec!["duckstation-qt-x64-ReleaseLTCG.exe", "duckstation-nogui-x64-ReleaseLTCG.exe"],
         "cemu" => vec!["Cemu.exe"],
         "eden" => vec!["eden.exe", "Eden.exe"],
-        "citra" => vec!["lime3ds.exe", "citra-qt.exe"],
+        "citra" => THREE_DS_EXECUTABLES.to_vec(),
         "melonds" => vec!["melonDS.exe"],
         "mgba" => vec!["mGBA.exe"],
         "flycast" => vec!["flycast.exe"],

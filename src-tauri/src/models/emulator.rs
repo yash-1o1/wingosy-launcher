@@ -19,6 +19,8 @@ pub struct Emulator {
     pub archive_format: Option<String>,
 }
 
+pub const THREE_DS_EXECUTABLES: &[&str] = &["azahar.exe", "lime3ds.exe", "citra-qt.exe"];
+
 impl Emulator {
     pub fn build_launch_command(&self, rom_path: &str) -> Option<(PathBuf, Vec<String>)> {
         let exe = self.executable_path.as_ref()?;
@@ -180,7 +182,7 @@ pub fn default_emulators() -> Vec<Emulator> {
         },
         Emulator {
             id: "citra".into(),
-            name: "Citra / Lime3DS".into(),
+            name: "Azahar".into(),
             executable_path: None,
             supported_platforms: vec!["3ds".into()],
             launch_args: vec![],
@@ -188,8 +190,8 @@ pub fn default_emulators() -> Vec<Emulator> {
             core_name: None,
             is_retroarch: false,
             is_installed: false,
-            github_repo: Some("Lime3DS/Lime3DS".into()),
-            asset_pattern: Some("(?i)(lime3ds|azahar).*windows.*msvc.*\\.zip$".into()),
+            github_repo: Some("azahar-emu/azahar".into()),
+            asset_pattern: Some("(?i)^azahar-windows-mxe-.*\\.zip$".into()),
             download_url: None,
             archive_format: Some("zip".into()),
         },
@@ -302,4 +304,35 @@ pub fn retroarch_cores() -> HashMap<String, &'static str> {
     cores.insert("psp".into(), "ppsspp_libretro.dll");
     cores.insert("arcade".into(), "mame_libretro.dll");
     cores
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn azahar_metadata_and_launch_command_are_supported() {
+        let mut emulator = default_emulators()
+            .into_iter()
+            .find(|emulator| emulator.id == "citra")
+            .expect("3DS emulator definition");
+
+        assert_eq!(emulator.name, "Azahar");
+        assert_eq!(emulator.github_repo.as_deref(), Some("azahar-emu/azahar"));
+        assert!(THREE_DS_EXECUTABLES.contains(&"azahar.exe"));
+
+        let pattern = regex_lite::Regex::new(
+            emulator.asset_pattern.as_deref().expect("Azahar asset pattern"),
+        )
+        .expect("valid Azahar asset pattern");
+        assert!(pattern.is_match("azahar-windows-mxe-2126.1.2.zip"));
+        assert!(!pattern.is_match("azahar-windows-mxe-2126.1.2-installer.exe"));
+
+        emulator.executable_path = Some(PathBuf::from("C:/Emulators/Azahar/azahar.exe"));
+        let (executable, args) = emulator
+            .build_launch_command("C:/Roms/Game.3ds")
+            .expect("Azahar launch command");
+        assert_eq!(executable, PathBuf::from("C:/Emulators/Azahar/azahar.exe"));
+        assert_eq!(args, vec!["C:/Roms/Game.3ds"]);
+    }
 }

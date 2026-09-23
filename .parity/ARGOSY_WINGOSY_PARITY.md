@@ -1,7 +1,8 @@
 # Argosy → Wingosy parity tracker
 
 This file is the durable source of truth for the daily Argosy parity review.
-It lives outside either repository so it is not published as application code.
+It is committed under Wingosy's `.parity` directory so local and cloud runs share
+one chronological cursor and one decision record.
 
 ## Objective
 
@@ -21,25 +22,22 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `f18070b0fa21b542abc3c06b90627f20da7a108f` — 2026-03-04 (2026-09-22 run)
-- Baseline history size: 805 commits on `origin/main`
-- Wingosy baseline observed: `2a1c780` — 2026-09-22
+- Argosy baseline observed: `30d42ccb12ba696feec0f070e9a7d55f2ae83d82` — 2026-09-23 (2026-09-23 run)
+- Baseline history size: 2,854 commits on `origin/main`
+- Wingosy baseline observed: `19eac00` — 2026-09-23 pre-run synced tip
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
-### Baseline correction (2026-09-22)
+### Baseline correction (2026-09-23)
 
-A prior run recorded an Argosy baseline of `a1e8437463c95b4a34bc9b8a6f6005ad5cf0c7c4`
-with 2,842 commits, dated 2026-09-20. That SHA does not exist in the real
-repository (`git cat-file -t` on it returns "bad object" after a full
-unshallow fetch), and both a direct `git fetch` and the GitHub API confirm
-`origin/main`'s actual tip is `f18070b` (805 commits total), dated
-2026-03-04 — no branch in the repository (including all `dependabot/*` and
-`feature/*` branches) has any commit newer than 2026-03-07. The figures
-above were corrected to match the verified repository state. This did not
-require rewinding the audit: every commit already recorded in the ledger
-(`900808d` through `dfc98b4`, and the stored cursor `bee6b46`) was verified
-to exist at its recorded position in the real history, so only the
-aggregate baseline metadata was wrong, not the per-commit ledger work.
+The 2026-09-22 correction to `f18070b` / 805 commits came from an incomplete
+view of the remote and was itself stale. A fresh fetch on 2026-09-23 verifies
+`origin/main` at `30d42ccb12ba696feec0f070e9a7d55f2ae83d82` with 2,854 commits.
+The formerly rejected SHA `a1e8437463c95b4a34bc9b8a6f6005ad5cf0c7c4`
+exists, is an ancestor of the current tip, and is commit 2,842 in the same
+reverse history. The chronological cursor did not need to move or rewind:
+`c21a65e` remains commit 55 and its recorded next commit `3de24f3` remains
+commit 56. Only aggregate baseline metadata was corrected before this run's
+six newly audited commits were appended.
 
 ### Local verification constraints
 
@@ -94,11 +92,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `c21a65e49ffa276e8bc3335dd7db372236cfb022`
-- Next Argosy commit: `3de24f35c1fdc83861aa66c7f756bf65e8bc5ca3`
-- Audited: 55 / 805 baseline commits
-- Portable candidates waiting: 6
-- Last tracker update: 2026-09-22
+- Last fully audited Argosy commit: `b03791b6924ea7bc32fc07d5dd6c5eb24ab6f278`
+- Next Argosy commit: `623563de9fdb08aac8c3ab3fdc39d19180ed459e`
+- Audited: 61 / 2,854 baseline commits
+- Portable candidates waiting: 8
+- Last tracker update: 2026-09-23
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -125,7 +123,7 @@ must record every inspected commit before advancing this cursor.
 | 15 | `a98a571` | 2025-12-07 | Add community rating display and UI refinements | implemented | `612c099`. Added RomM `average_rating` as a fallback behind IGDB `aggregated_rating`/`total_rating`, a shared `formatCommunityRating` helper, the missing community rating row in immersive game details, and an accurate "Community rating" label on desktop. Compose typography/opacity tweaks are Argosy-specific styling and were not ported. |
 | 16 | `0e4296d` | 2025-12-07 | Add concurrent downloads with pause/resume and progress UI | candidate | Wingosy already shows concurrent active transfers, progress, game-card indicators, and recent results. Durable queueing, HTTP Range resume, pause controls, and a configurable concurrency limit require a native transfer-job model; retain as a bounded future vertical slice rather than adding partial controls. |
 | 17 | `12895cc` | 2025-12-07 | Reorganize settings menu and add UI density feature | implemented | Wingosy already uses semantic settings sections. This run exposes and applies its existing persisted `display.grid_columns` setting as Compact (6), Comfortable (5), or Spacious (4) desktop library density. Android-only app-grid behavior and cache progress details are not applicable. |
-| 18 | `6b98551` | 2025-12-07 | Add control legend footer to home screen | candidate | Wingosy immersive mode already has a controller hint bar for navigation, select, back, sections, settings, and help. Argosy's direct Y=favorite and X=details actions are a worthwhile but separate controller-routing slice. |
+| 18 | `6b98551` | 2025-12-07 | Add control legend footer to home screen | implemented | Wingosy immersive mode already had a controller hint bar for navigation, select, back, sections, settings, and help. The portable direct-action gap was completed by `702d6ec`, which adds Y-button favorite toggling and its matching hint; details already has a controller-accessible route. |
 | 19 | `d199708` | 2025-12-07 | Fix UI hang when deleting large installed files | candidate | Wingosy removes local ROMs through an async Tauri command, but its filesystem deletion remains synchronous within the command. Moving large deletion work to a dedicated blocking task with immediate UI refresh merits a focused Rust/UX slice. |
 | 20 | `323327f` | 2025-12-07 | Bump version to 0.3.0 | non-feature | Android release metadata only; no portable runtime behavior. |
 | 21 | `9c0eca7` | 2025-12-07 | Improve home screen with smart sorting, ratings, and View All navigation | already-covered | Wingosy has installed/favorites filters, name/recently played/play-count/play-time/release-year sorting, personal and community ratings, and an immersive Recent section. Argosy's Android platform-row/View All layout is not a direct fit for Wingosy's full library navigation. |
@@ -142,7 +140,7 @@ must record every inspected commit before advancing this cursor.
 | 32 | `305a00f` | 2025-12-08 | Add download path recovery after validation | not-portable | Repairs Android storage-validation path loss caused by that platform's lifecycle; Wingosy keeps local paths in its database and has no matching invalidation flow. |
 | 33 | `599f21b` | 2025-12-08 | Fix download validation clearing paths before device unlock | not-portable | Android user-unlock/storage lifecycle only. |
 | 34 | `080ac7e` | 2025-12-08 | Fix storage validation to work on normal app restart | not-portable | Android mount-state polling and post-unlock validation do not apply to Wingosy's Windows filesystem model. |
-| 35 | `5f6ebd8` | 2025-12-09 | Fix 3DS emulator launch intents and add Azahar support | candidate | Wingosy's Citra/Lime3DS entry can download Azahar-compatible assets, but does not detect `azahar.exe`; add focused detection/launch coverage before claiming full Azahar support. |
+| 35 | `5f6ebd8` | 2025-12-09 | Fix 3DS emulator launch intents and add Azahar support | implemented | The 2026-09-23 run completes the portable Windows behavior: the stable `citra` config ID now presents Azahar, downloads the official recommended Windows MXE archive, discovers `azahar.exe` for both managed and existing installs, retains legacy Lime3DS/Citra executable compatibility, and has focused direct-launch/detection tests. Android intent mechanics are not copied. |
 | 36 | `05e55c7` | 2025-12-09 | Fix drawer input routing desync after returning from emulator | superseded | Intermediate Android drawer-routing change replaced by the later single-handler and subscription revisions in this reviewed sequence. |
 | 37 | `3859fda` | 2025-12-09 | Refactor input handling to use overlay priority pattern | superseded | Intermediate Android input architecture replaced by subsequent handler/subscription fixes. |
 | 38 | `5f9dc76` | 2025-12-09 | Move drawer state to ViewModel for lifecycle stability | superseded | Intermediate Android drawer-state revision replaced by subsequent routing fixes. |
@@ -163,6 +161,12 @@ must record every inspected commit before advancing this cursor.
 | 53 | `56ed787` | 2025-12-09 | Add Steam game integration with launcher scanning and manual entry | not-portable | Launches Steam titles on Android handhelds indirectly through third-party launcher APKs (GameHub variants, GameNative) running Windows games under emulation. Wingosy runs natively on Windows, where users already have native Steam; there is no equivalent indirection to port. |
 | 54 | `c8841df` | 2025-12-09 | Update README for general users with new features and screenshots structure | non-feature | Documentation-only change. |
 | 55 | `c21a65e` | 2025-12-09 | Bump version to 0.7.0 | non-feature | Android release metadata only. |
+| 56 | `3de24f3` | 2025-12-09 | Add save sync infrastructure, touch input fixes, and UI improvements | candidate | Wingosy already has negotiated pre/post-launch RomM save sync, retry/failure state, manual save actions, pointer input, and equivalent settings organization. Its automatic path-aware sync is currently limited to RetroArch and Eden, while Argosy's registry covers more emulator families; extending Wingosy's resolver to additional Windows emulators remains a bounded candidate. The ROM-hack metadata filter is useful but lower priority and should travel with a broader sync-filter pass. |
+| 57 | `26c7023` | 2025-12-09 | Bump version to 0.8.0-beta.1 | non-feature | Android release metadata only. |
+| 58 | `03261a4` | 2025-12-10 | Add multi-disc game support for PlayStation titles | candidate | Wingosy detects multi-disc filenames during scanning but still exposes separate launch paths and an explicit "Multi-disc support planned" action. Consolidating sibling discs, downloading the complete set, and providing a desktop/immersive disc picker is a portable future vertical slice. |
+| 59 | `8a9f00a` | 2025-12-10 | Let RetroArch pick cores based on file extension | superseded | Android-only interim removal of explicit core paths was replaced two commits later by deliberate per-platform core resolution. Windows RetroArch command-line launch requires Wingosy's explicit `-L` core argument. |
+| 60 | `211e865` | 2025-12-10 | Bump version to 0.8.0-beta.2 | non-feature | Android release metadata only. |
+| 61 | `b03791b` | 2025-12-10 | Add RetroArch core selection and multi-disc improvements | candidate | Wingosy already supports per-platform emulator defaults, displays the effective RetroArch core, and hides RetroArch when its mapped core is absent. It currently maps one fixed core per platform; user-selectable compatible cores are portable and should be implemented as a focused settings/launch slice. The disc-menu changes belong to the multi-disc candidate above; Android process/intent flags are not portable. |
 
 ## Implemented parity outside the chronological audit
 
@@ -183,7 +187,9 @@ Argosy commits must still be recorded when encountered.
 |---|---|---|
 | `0e4296d` | Resumable, pausable concurrent ROM downloads | Native persistent job queue, Range-capable transfer restart, queue policy, and desktop/immersive controls. |
 | `6ecfe99`, `d199708` | Non-blocking cleanup after cancelling downloads or deleting large local ROMs | Move filesystem removal to a blocking Rust task, refresh UI immediately, and verify in Windows CI. |
-| `5f6ebd8` | Complete Azahar support | Detect `azahar.exe`, validate the existing launcher command, and add focused Windows CI coverage. |
+| `3de24f3` | Extend automatic path-aware RomM save sync beyond RetroArch and Eden | Add Windows save resolvers incrementally per emulator with live RomM negotiation proof; consider the ROM-hack metadata filter in the same sync-settings pass. |
+| `03261a4`, `b03791b` | Consolidated multi-disc downloads and disc picker | Model sibling discs without losing RomM identity, download/repair the full set, and provide pointer plus immersive-controller selection. |
+| `b03791b` | User-selectable compatible RetroArch cores per platform | Expand the one-core mapping into tested compatible choices while preserving current defaults and missing-core safeguards. |
 | `362f688` | VID-based controller detection with separate A/B and X/Y icon-swap settings | Gamepad VID/PID lookup (Xbox/Nintendo/Sony), a settings UI, and icon rendering updates across desktop and immersive views. |
 | `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
 
@@ -220,6 +226,7 @@ chronological work can proceed safely.
 | 2026-09-22 | `0e4296d..9c0eca7` (6 commits) | Desktop library density selector backed by existing `display.grid_columns` | `613160f` | 43 unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build. | Three native/controller candidates recorded; no Rust was changed. |
 | 2026-09-22 | `99a3d03..dfc98b4` (24 commits) | Immersive controller Y shortcut to favorite the focused game | `702d6ec` | 43 unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build. | Release metadata, Android storage/intent mechanics, and superseded Android input fixes were dispositioned. New candidates: non-blocking cancellation cleanup and complete Azahar detection. |
 | 2026-09-22 | `bee6b46..c21a65e` (10 commits) | Local RomM cover-art caching during sync, completing the previously scaffolded `covers_dir()`/`convertFileSrc` support | `b671f00` | 43 unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build. `cargo check` run directly (this run executed in a Linux cloud sandbox, not the Windows machine above): new/changed files (`covers.rs`, `api/romm.rs`, `database/games.rs`, `commands.rs` sync wiring) compiled with no errors; the only remaining `cargo check` failures are pre-existing `#[cfg(windows)]`-only functions unrelated to this diff (verified via `git diff --stat` that those call sites were untouched). Full `#[cfg(windows)]` correctness still falls to CI on `windows-latest`. | Corrected a stale baseline (see Repositories and baseline). Two new candidates recorded: VID-based controller/button-swap detection, and a battery indicator for Windows handhelds. Steam-launcher integration dispositioned not-portable (Wingosy runs natively on Windows, where real Steam is already available). |
+| 2026-09-23 | `3de24f3..b03791b` (6 commits) | Complete Azahar support: official releases, `azahar.exe` discovery for managed and existing installs, and direct-launch coverage while retaining the compatible `citra` config ID | `<pending, see follow-up tracker commit>` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust tests/lint require the Windows CI gate after push because Smart App Control blocks locally emitted cargo build-script executables (`os error 4551`). | Corrected the fetched baseline to `30d42cc` / 2,854. Added candidates for broader automatic save paths, consolidated multi-disc handling, and user-selectable RetroArch cores; resolved the prior Azahar candidate. RomM rating/difficulty sync remains an open decision. |
 
 ## Completion rule
 
