@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `30d42ccb12ba696feec0f070e9a7d55f2ae83d82` — 2026-09-23 (2026-09-23 run)
-- Baseline history size: 2,854 commits on `origin/main`
-- Wingosy baseline observed: `e17c531` — 2026-09-23 feature commit
+- Argosy baseline observed: `8b3eed9d7ab0a350d06cdfc1f802b569d1409e15` — 2026-09-24 (2026-09-24 run)
+- Baseline history size: 2,890 commits on `origin/main`
+- Wingosy baseline observed: `689be34` — 2026-09-24 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -38,6 +38,13 @@ reverse history. The chronological cursor did not need to move or rewind:
 `c21a65e` remains commit 55 and its recorded next commit `3de24f3` remains
 commit 56. Only aggregate baseline metadata was corrected before this run's
 six newly audited commits were appended.
+
+### Baseline refresh (2026-09-24)
+
+A fresh fetch advanced Argosy `origin/main` from `30d42cc` / 2,854 commits to
+`8b3eed9` / 2,890 commits. The stored chronological cursor was still valid:
+`b03791b` remained commit 61 and `623563de` remained commit 62. The baseline
+metadata was refreshed without skipping or reordering history.
 
 ### Local verification constraints
 
@@ -92,11 +99,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `b03791b6924ea7bc32fc07d5dd6c5eb24ab6f278`
-- Next Argosy commit: `623563de9fdb08aac8c3ab3fdc39d19180ed459e`
-- Audited: 61 / 2,854 baseline commits
-- Portable candidates waiting: 8
-- Last tracker update: 2026-09-23
+- Last fully audited Argosy commit: `b7f891cc1127a731d5fbcff792617277e799beab`
+- Next Argosy commit: `6dd07eb7a80e75c6347573a68e637694d8013a27`
+- Audited: 78 / 2,890 baseline commits
+- Portable candidates waiting: 9
+- Last tracker update: 2026-09-24
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -124,12 +131,12 @@ must record every inspected commit before advancing this cursor.
 | 16 | `0e4296d` | 2025-12-07 | Add concurrent downloads with pause/resume and progress UI | candidate | Wingosy already shows concurrent active transfers, progress, game-card indicators, and recent results. Durable queueing, HTTP Range resume, pause controls, and a configurable concurrency limit require a native transfer-job model; retain as a bounded future vertical slice rather than adding partial controls. |
 | 17 | `12895cc` | 2025-12-07 | Reorganize settings menu and add UI density feature | implemented | Wingosy already uses semantic settings sections. This run exposes and applies its existing persisted `display.grid_columns` setting as Compact (6), Comfortable (5), or Spacious (4) desktop library density. Android-only app-grid behavior and cache progress details are not applicable. |
 | 18 | `6b98551` | 2025-12-07 | Add control legend footer to home screen | implemented | Wingosy immersive mode already had a controller hint bar for navigation, select, back, sections, settings, and help. The portable direct-action gap was completed by `702d6ec`, which adds Y-button favorite toggling and its matching hint; details already has a controller-accessible route. |
-| 19 | `d199708` | 2025-12-07 | Fix UI hang when deleting large installed files | candidate | Wingosy removes local ROMs through an async Tauri command, but its filesystem deletion remains synchronous within the command. Moving large deletion work to a dedicated blocking task with immediate UI refresh merits a focused Rust/UX slice. |
+| 19 | `d199708` | 2025-12-07 | Fix UI hang when deleting large installed files | implemented | `689be34`: Wingosy now runs local ROM removal on Tokio's blocking pool instead of performing synchronous filesystem work on the async command executor. Desktop and immersive callers already refresh game state after successful removal, and focused tests cover successful and missing-file outcomes. |
 | 20 | `323327f` | 2025-12-07 | Bump version to 0.3.0 | non-feature | Android release metadata only; no portable runtime behavior. |
 | 21 | `9c0eca7` | 2025-12-07 | Improve home screen with smart sorting, ratings, and View All navigation | already-covered | Wingosy has installed/favorites filters, name/recently played/play-count/play-time/release-year sorting, personal and community ratings, and an immersive Recent section. Argosy's Android platform-row/View All layout is not a direct fit for Wingosy's full library navigation. |
 | 22 | `99a3d03` | 2025-12-07 | Bump version to 0.4.0 | non-feature | Android release metadata only. |
 | 23 | `86b76e1` | 2025-12-08 | Add sound effects, improve feedback systems, and fix download bugs | implemented | `702d6ec`: added direct Y-button favorite toggling for the focused immersive-library game, including keyboard equivalent and hint. Wingosy already had immersive UI sounds, sound settings, and download event feedback; the remaining Android haptic and queue mechanics are not copied. |
-| 24 | `6ecfe99` | 2025-12-08 | Refactor codebase for cleanliness and fix downloads screen bugs | candidate | The cleanup is non-portable, but non-blocking cancellation cleanup remains worthwhile; combine it with the existing native large-file deletion candidate rather than expose incomplete controls. |
+| 24 | `6ecfe99` | 2025-12-08 | Refactor codebase for cleanliness and fix downloads screen bugs | candidate | The general cleanup is non-portable. `689be34` resolves the related large-file deletion path, but durable cancellation cleanup still depends on the future native transfer-job model and remains a candidate. |
 | 25 | `3c89635` | 2025-12-08 | Fix RetroArch launch not working on Android 13+ | not-portable | Android activity/URI compatibility only; Wingosy builds Windows process arguments directly. |
 | 26 | `afd7f68` | 2025-12-08 | Fix emulator auto-detection not running before game launch | already-covered | Wingosy resolves a per-game override, platform default, and detected installed emulator on every launch. |
 | 27 | `63ba7c7` | 2025-12-08 | Fix emulator launch intent compatibility for Android 13+ | not-portable | Android intent compatibility only. |
@@ -167,6 +174,23 @@ must record every inspected commit before advancing this cursor.
 | 59 | `8a9f00a` | 2025-12-10 | Let RetroArch pick cores based on file extension | superseded | Android-only interim removal of explicit core paths was replaced two commits later by deliberate per-platform core resolution. Windows RetroArch command-line launch requires Wingosy's explicit `-L` core argument. |
 | 60 | `211e865` | 2025-12-10 | Bump version to 0.8.0-beta.2 | non-feature | Android release metadata only. |
 | 61 | `b03791b` | 2025-12-10 | Add RetroArch core selection and multi-disc improvements | candidate | Wingosy already supports per-platform emulator defaults, displays the effective RetroArch core, and hides RetroArch when its mapped core is absent. It currently maps one fixed core per platform; user-selectable compatible cores are portable and should be implemented as a focused settings/launch slice. The disc-menu changes belong to the multi-disc candidate above; Android process/intent flags are not portable. |
+| 62 | `623563de` | 2025-12-10 | Bump version to 0.8.0 | non-feature | Android release metadata only. |
+| 63 | `13596a1` | 2025-12-11 | Update RetroArch core IDs to match Android buildbot | already-covered | Wingosy deliberately uses Windows libretro DLL identifiers rather than Android GLES/core names, and its mapped cores share one buildbot URL resolver with an upstream-availability validation test. The Android identifier substitutions are not portable. |
+| 64 | `92447d9` | 2025-12-11 | Bump version to 0.8.1-beta.1 | non-feature | Android release metadata only. |
+| 65 | `72a0f91` | 2025-12-11 | Add RetroAchievements display and game detail navigation | already-covered | Wingosy shows RomM-backed achievement definitions, progress, points, badge art, locked state, refresh, and the full overlay from both desktop and immersive game details. |
+| 66 | `772a0aa` | 2025-12-11 | Bump version to 0.8.1-beta.2 | non-feature | Android release metadata only. |
+| 67 | `d38524e` | 2025-12-11 | Add earned achievement tracking from RetroAchievements | already-covered | Wingosy merges RomM achievement definitions with the signed-in user's earned progression, including hardcore unlocks, and exposes explicit refresh with focused parsing and UI tests. |
+| 68 | `53d4330` | 2025-12-11 | Bump version to 0.8.1-beta.3 | non-feature | Android release metadata only. |
+| 69 | `3128812` | 2025-12-12 | Bump version to 0.8.1 | non-feature | Android release metadata only. |
+| 70 | `9af5a63` | 2025-12-12 | Fix DownloadGameUseCaseTest constructor to include GameDiscDao | non-feature | Test-only constructor maintenance for Argosy's Android dependency graph. |
+| 71 | `b4fc721` | 2025-12-12 | Bump version to 0.9.0 | non-feature | Android release metadata only. |
+| 72 | `6edde78` | 2025-12-12 | Update dependencies and migrate to Kotlin 2.0 | non-feature | Android/Kotlin dependency maintenance; dependency upgrades are outside parity scope. |
+| 73 | `2246fa8` | 2025-12-12 | Merge pull request #15 from nendotools/chore/dependency-updates | non-feature | Merge commit containing the dependency-only change already dispositioned at `6edde78`. |
+| 74 | `76e2cc7` | 2025-12-12 | Improve sync filtering and cleanup for RomM games | candidate | Wingosy already removes stale RomM records after a complete sync, but lacks Argosy's invalid-extension, bad-dump/hack, and achievement-aware duplicate filtering. Fold the portable filtering intent into the existing broader sync-filter candidate; destructive cleanup needs recovery-safe design rather than copying Argosy's file deletion. |
+| 75 | `f58c021` | 2025-12-12 | Add Wii U platform and Cemu emulator support | already-covered | Wingosy already maps Wii U to Cemu, detects existing `Cemu.exe` installs, downloads official Windows x64 releases, and launches Wii U ROMs through the shared emulator path. |
+| 76 | `0b6733b` | 2025-12-12 | Bump version to 0.9.1-beta.1 | non-feature | Android release metadata only. |
+| 77 | `3e15b0f` | 2025-12-12 | Improve RetroArch launch handling and add achievement badge caching | candidate | Android focus-return launch retries and intent flags do not map to direct Windows process launch. Local achievement badge caching is portable and would improve offline game details; retain it as a bounded extension of Wingosy's existing cover cache. |
+| 78 | `b7f891c` | 2025-12-12 | Bump version to 0.9.1 | non-feature | Android release metadata only. |
 
 ## Implemented parity outside the chronological audit
 
@@ -186,12 +210,13 @@ Argosy commits must still be recorded when encountered.
 | Argosy commit | Candidate | Scope needed to resolve |
 |---|---|---|
 | `0e4296d` | Resumable, pausable concurrent ROM downloads | Native persistent job queue, Range-capable transfer restart, queue policy, and desktop/immersive controls. |
-| `6ecfe99`, `d199708` | Non-blocking cleanup after cancelling downloads or deleting large local ROMs | Move filesystem removal to a blocking Rust task, refresh UI immediately, and verify in Windows CI. |
-| `3de24f3` | Extend automatic path-aware RomM save sync beyond RetroArch and Eden | Add Windows save resolvers incrementally per emulator with live RomM negotiation proof; consider the ROM-hack metadata filter in the same sync-settings pass. |
+| `6ecfe99` | Non-blocking cleanup after cancelling downloads | Complete this only alongside the durable transfer-job model so cancellation, partial-file cleanup, and restart recovery share one state machine. Large local-ROM deletion was resolved by `689be34`. |
+| `3de24f3`, `76e2cc7` | Extend automatic path-aware RomM save sync and add recovery-safe sync filters | Add Windows save resolvers incrementally per emulator with live RomM negotiation proof; add opt-in bad-dump/hack/extension filtering and safe duplicate handling without destructive cleanup surprises. |
 | `03261a4`, `b03791b` | Consolidated multi-disc downloads and disc picker | Model sibling discs without losing RomM identity, download/repair the full set, and provide pointer plus immersive-controller selection. |
 | `b03791b` | User-selectable compatible RetroArch cores per platform | Expand the one-core mapping into tested compatible choices while preserving current defaults and missing-core safeguards. |
 | `362f688` | VID-based controller detection with separate A/B and X/Y icon-swap settings | Gamepad VID/PID lookup (Xbox/Nintendo/Sony), a settings UI, and icon rendering updates across desktop and immersive views. |
 | `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
+| `3e15b0f` | Cache RetroAchievements badge art for offline game details | Reuse the cover-cache origin-safety and retry patterns for locked/unlocked badges, then serve local asset paths to both desktop and immersive achievement views. |
 
 ## Open decisions
 
@@ -227,6 +252,7 @@ chronological work can proceed safely.
 | 2026-09-22 | `99a3d03..dfc98b4` (24 commits) | Immersive controller Y shortcut to favorite the focused game | `702d6ec` | 43 unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build. | Release metadata, Android storage/intent mechanics, and superseded Android input fixes were dispositioned. New candidates: non-blocking cancellation cleanup and complete Azahar detection. |
 | 2026-09-22 | `bee6b46..c21a65e` (10 commits) | Local RomM cover-art caching during sync, completing the previously scaffolded `covers_dir()`/`convertFileSrc` support | `b671f00` | 43 unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build. `cargo check` run directly (this run executed in a Linux cloud sandbox, not the Windows machine above): new/changed files (`covers.rs`, `api/romm.rs`, `database/games.rs`, `commands.rs` sync wiring) compiled with no errors; the only remaining `cargo check` failures are pre-existing `#[cfg(windows)]`-only functions unrelated to this diff (verified via `git diff --stat` that those call sites were untouched). Full `#[cfg(windows)]` correctness still falls to CI on `windows-latest`. | Corrected a stale baseline (see Repositories and baseline). Two new candidates recorded: VID-based controller/button-swap detection, and a battery indicator for Windows handhelds. Steam-launcher integration dispositioned not-portable (Wingosy runs natively on Windows, where real Steam is already available). |
 | 2026-09-23 | `3de24f3..b03791b` (6 commits) | Complete Azahar support: official releases, `azahar.exe` discovery for managed and existing installs, and direct-launch coverage while retaining the compatible `citra` config ID | `e17c531` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be built locally because Smart App Control blocks cargo build-script executables (`os error 4551`); Windows CI run `35905399163` passed frontend coverage, Cargo tests (non-ignored), Rust lint with warnings denied, Rust coverage, and artifact upload. | Corrected the fetched baseline to `30d42cc` / 2,854. Added candidates for broader automatic save paths, consolidated multi-disc handling, and user-selectable RetroArch cores; resolved the prior Azahar candidate. RomM rating/difficulty sync remains an open decision. |
+| 2026-09-24 | `623563de..b7f891c` (17 commits) | Non-blocking local ROM deletion: filesystem removal now runs on Tokio's blocking pool before the existing desktop/immersive refresh path | `689be34` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be built locally because Smart App Control remains enforced; focused Rust tests and the full Windows gate are pending CI. Repository-wide `cargo fmt --check` still reports extensive pre-existing formatting drift outside the changed hunk. | Refreshed the Argosy baseline to `8b3eed9` / 2,890 without moving the valid cursor. Added sync-filter and achievement-badge-cache candidates; resolved the large-file deletion candidate. RomM rating/difficulty sync remains an open decision. |
 
 ## Completion rule
 
