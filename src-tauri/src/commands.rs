@@ -1455,6 +1455,14 @@ pub async fn download_switch_save(
 
 // ========== Game Management Commands ==========
 
+async fn delete_file_off_main(path: PathBuf) -> Result<(), String> {
+    let display_path = path.display().to_string();
+    tokio::task::spawn_blocking(move || std::fs::remove_file(path))
+        .await
+        .map_err(|error| format!("Failed to run file deletion for {display_path}: {error}"))?
+        .map_err(|error| format!("Failed to delete file {display_path}: {error}"))
+}
+
 #[tauri::command]
 pub async fn delete_local_rom(game_id: i64) -> Result<String, String> {
     tracing::info!("[Game] Deleting local ROM for game id={}", game_id);
@@ -1468,9 +1476,9 @@ pub async fn delete_local_rom(game_id: i64) -> Result<String, String> {
     if let Some(local_path) = &game.local_file_path {
         let path = std::path::Path::new(local_path);
         if path.exists() {
-            std::fs::remove_file(path).map_err(|e| {
+            delete_file_off_main(path.to_path_buf()).await.map_err(|e| {
                 tracing::error!("[Game] Failed to delete file: {}", e);
-                format!("Failed to delete file: {}", e)
+                e
             })?;
             deleted_path = local_path.clone();
             tracing::info!("[Game] Deleted ROM file: {}", local_path);
@@ -2768,6 +2776,27 @@ pub async fn install_signed_app_update(app: tauri::AppHandle, channel: String) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn test_delete_file_off_main_removes_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("large-rom.iso");
+        std::fs::write(&path, b"rom bytes").unwrap();
+
+        delete_file_off_main(path.clone()).await.unwrap();
+
+        assert!(!path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_delete_file_off_main_reports_missing_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("missing-rom.iso");
+
+        let error = delete_file_off_main(path).await.unwrap_err();
+
+        assert!(error.contains("Failed to delete file"));
+    }
 
     #[test]
     fn test_remote_version_is_newer_semver() {
