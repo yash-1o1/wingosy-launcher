@@ -1575,7 +1575,7 @@ export default function Settings({
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
               gap: 1.5,
               mb: 3,
             }}
@@ -1587,6 +1587,14 @@ export default function Settings({
             <Paper variant="outlined" sx={{ p: 2, bgcolor: "action.hover" }}>
               <Typography variant="caption" color="text.secondary">Tracked size</Typography>
               <Typography variant="h6">{formatStorageBytes(storageOverview.tracked_rom_bytes)}</Typography>
+            </Paper>
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: "action.hover" }}>
+              <Typography variant="caption" color="text.secondary">ROM drive free</Typography>
+              <Typography variant="h6">
+                {storageOverview.available_rom_bytes == null
+                  ? "Unavailable"
+                  : formatStorageBytes(storageOverview.available_rom_bytes)}
+              </Typography>
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, bgcolor: "action.hover" }}>
               <Typography variant="caption" color="text.secondary">Active downloads</Typography>

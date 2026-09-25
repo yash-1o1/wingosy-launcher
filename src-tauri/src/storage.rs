@@ -41,6 +41,7 @@ pub struct StorageLocation {
 pub struct StorageOverview {
     pub roms_directory: String,
     pub using_default_roms_directory: bool,
+    pub available_rom_bytes: Option<u64>,
     pub active_rom_downloads: usize,
     pub tracked_rom_count: usize,
     pub tracked_rom_bytes: u64,
@@ -126,6 +127,7 @@ pub fn get_storage_overview() -> Result<StorageOverview, String> {
     Ok(StorageOverview {
         roms_directory: roms_directory.to_string_lossy().into_owned(),
         using_default_roms_directory: config.library.roms_directory.is_none(),
+        available_rom_bytes: available_space(&roms_directory),
         active_rom_downloads: ACTIVE_ROM_DOWNLOADS.load(Ordering::SeqCst),
         tracked_rom_count,
         tracked_rom_bytes,
@@ -133,6 +135,56 @@ pub fn get_storage_overview() -> Result<StorageOverview, String> {
         migratable_rom_bytes,
         locations,
     })
+}
+
+fn nearest_existing_path(path: &Path) -> Option<&Path> {
+    let mut candidate = path;
+    loop {
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        candidate = candidate.parent()?;
+    }
+}
+
+#[cfg(windows)]
+fn available_space(path: &Path) -> Option<u64> {
+    use std::iter::once;
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        #[link_name = "GetDiskFreeSpaceExW"]
+        fn get_disk_free_space_ex_w(
+            directory_name: *const u16,
+            free_bytes_available: *mut u64,
+            total_bytes: *mut u64,
+            total_free_bytes: *mut u64,
+        ) -> i32;
+    }
+
+    let existing_path = nearest_existing_path(path)?;
+    let wide_path: Vec<u16> = existing_path
+        .as_os_str()
+        .encode_wide()
+        .chain(once(0))
+        .collect();
+    let mut free_bytes = 0u64;
+    let succeeded = unsafe {
+        get_disk_free_space_ex_w(
+            wide_path.as_ptr(),
+            &mut free_bytes,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+
+    (succeeded != 0).then_some(free_bytes)
+}
+
+#[cfg(not(windows))]
+fn available_space(_path: &Path) -> Option<u64> {
+    None
 }
 
 /// Changes the ROM root. With `migrate_existing`, only database-linked files below the old root
@@ -451,5 +503,13 @@ mod tests {
 
         assert_eq!(grouped.len(), 1);
         assert_eq!(grouped.values().next().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn available_space_uses_nearest_existing_parent() {
+        let temp = tempdir().unwrap();
+        let missing = temp.path().join("future").join("roms");
+
+        assert_eq!(nearest_existing_path(&missing), Some(temp.path()));
     }
 }
