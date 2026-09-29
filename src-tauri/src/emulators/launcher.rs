@@ -192,6 +192,8 @@ impl EmulatorLauncher {
                 if emu.is_retroarch {
                     if let Some(core) = retroarch_cores().get(&game.platform_id) {
                         emu.core_name = Some(core.to_string());
+                    } else {
+                        emu.executable_path = None;
                     }
                 }
                 
@@ -214,6 +216,8 @@ impl EmulatorLauncher {
                 if emu.is_retroarch {
                     if let Some(core) = retroarch_cores().get(&game.platform_id) {
                         emu.core_name = Some(core.to_string());
+                    } else {
+                        emu.executable_path = None;
                     }
                 }
                 
@@ -228,9 +232,9 @@ impl EmulatorLauncher {
             retroarch.executable_path = self.get_emulator_path("retroarch");
             if let Some(core) = retroarch_cores().get(&game.platform_id) {
                 retroarch.core_name = Some(core.to_string());
-            }
-            if retroarch.executable_path.is_some() {
-                return Ok(retroarch.clone());
+                if retroarch.executable_path.is_some() {
+                    return Ok(retroarch.clone());
+                }
             }
         }
 
@@ -257,6 +261,7 @@ impl EmulatorLauncher {
             "xemu" => self.config.emulators.xemu.clone(),
             "xenia" => self.config.emulators.xenia.clone(),
             "mame" => self.config.emulators.mame.clone(),
+            "vita3k" => self.config.emulators.vita3k.clone(),
             _ => None,
         }
     }

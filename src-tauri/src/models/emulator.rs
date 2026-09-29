@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Emulator {
@@ -20,12 +20,76 @@ pub struct Emulator {
 }
 
 pub const THREE_DS_EXECUTABLES: &[&str] = &["azahar.exe", "lime3ds.exe", "citra-qt.exe"];
+pub const VITA3K_EXECUTABLES: &[&str] = &["Vita3K.exe", "vita3k.exe"];
+
+fn vita_title_id_from_name(name: &str) -> Option<String> {
+    let upper = name.to_ascii_uppercase();
+    let bytes = upper.as_bytes();
+
+    let is_title_id = |candidate: &[u8]| {
+        candidate.len() == 9
+            && candidate[..4].iter().all(u8::is_ascii_alphabetic)
+            && candidate[4..].iter().all(u8::is_ascii_digit)
+    };
+
+    if bytes.len() >= 9 && is_title_id(&bytes[..9]) {
+        return Some(upper[..9].to_string());
+    }
+
+    for start in 0..bytes.len().saturating_sub(10) {
+        if bytes[start] == b'['
+            && bytes[start + 10] == b']'
+            && is_title_id(&bytes[start + 1..start + 10])
+        {
+            return Some(upper[start + 1..start + 10].to_string());
+        }
+    }
+
+    None
+}
+
+fn vita_title_id(rom_path: &Path) -> Option<String> {
+    let name = rom_path.file_stem()?.to_string_lossy();
+    if let Some(title_id) = vita_title_id_from_name(&name) {
+        return Some(title_id);
+    }
+
+    if !rom_path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+    {
+        return None;
+    }
+
+    let file = std::fs::File::open(rom_path).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index).ok()?;
+        for component in Path::new(entry.name()).components() {
+            if let Some(title_id) =
+                vita_title_id_from_name(&component.as_os_str().to_string_lossy())
+            {
+                return Some(title_id);
+            }
+        }
+    }
+
+    None
+}
 
 impl Emulator {
     pub fn build_launch_command(&self, rom_path: &str) -> Option<(PathBuf, Vec<String>)> {
         let exe = self.executable_path.as_ref()?;
 
         let mut args: Vec<String> = self.launch_args.clone();
+
+        if self.id == "vita3k" {
+            if let Some(title_id) = vita_title_id(Path::new(rom_path)) {
+                args.push("-r".to_string());
+                args.push(title_id);
+            }
+            return Some((exe.clone(), args));
+        }
 
         if self.is_retroarch {
             if let Some(core) = &self.core_name {
@@ -286,6 +350,21 @@ pub fn default_emulators() -> Vec<Emulator> {
             download_url: None,
             archive_format: Some("exe".into()),
         },
+        Emulator {
+            id: "vita3k".into(),
+            name: "Vita3K".into(),
+            executable_path: None,
+            supported_platforms: vec!["psvita".into()],
+            launch_args: vec![],
+            rom_arg: "".into(),
+            core_name: None,
+            is_retroarch: false,
+            is_installed: false,
+            github_repo: Some("Vita3K/Vita3K-builds".into()),
+            asset_pattern: Some("(?i)^vita3k-.*-windows-x86_64\\.7z$".into()),
+            download_url: None,
+            archive_format: Some("7z".into()),
+        },
     ]
 }
 
@@ -309,6 +388,7 @@ pub fn retroarch_cores() -> HashMap<String, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     #[test]
     fn azahar_metadata_and_launch_command_are_supported() {
@@ -334,5 +414,68 @@ mod tests {
             .expect("Azahar launch command");
         assert_eq!(executable, PathBuf::from("C:/Emulators/Azahar/azahar.exe"));
         assert_eq!(args, vec!["C:/Roms/Game.3ds"]);
+    }
+
+    #[test]
+    fn vita3k_metadata_and_title_id_launch_are_supported() {
+        let mut emulator = default_emulators()
+            .into_iter()
+            .find(|emulator| emulator.id == "vita3k")
+            .expect("Vita3K emulator definition");
+
+        assert_eq!(
+            emulator.github_repo.as_deref(),
+            Some("Vita3K/Vita3K-builds")
+        );
+        assert!(VITA3K_EXECUTABLES.contains(&"Vita3K.exe"));
+
+        let pattern = regex_lite::Regex::new(
+            emulator
+                .asset_pattern
+                .as_deref()
+                .expect("Vita3K asset pattern"),
+        )
+        .expect("valid Vita3K asset pattern");
+        assert!(pattern.is_match("vita3k-4100-610e6970-windows-x86_64.7z"));
+        assert!(!pattern.is_match("vita3k-4100-610e6970-windows-arm64.7z"));
+
+        emulator.executable_path = Some(PathBuf::from("C:/Emulators/Vita3K/Vita3K.exe"));
+        let (executable, args) = emulator
+            .build_launch_command("C:/Roms/[PCSE00546] Persona 4 Golden.vpk")
+            .expect("Vita3K launch command");
+        assert_eq!(executable, PathBuf::from("C:/Emulators/Vita3K/Vita3K.exe"));
+        assert_eq!(args, vec!["-r", "PCSE00546"]);
+    }
+
+    #[test]
+    fn vita3k_opens_without_a_game_when_title_id_is_unknown() {
+        let mut emulator = default_emulators()
+            .into_iter()
+            .find(|emulator| emulator.id == "vita3k")
+            .expect("Vita3K emulator definition");
+        emulator.executable_path = Some(PathBuf::from("C:/Emulators/Vita3K/Vita3K.exe"));
+
+        let (_, args) = emulator
+            .build_launch_command("C:/Roms/Persona 4 Golden.vpk")
+            .expect("Vita3K launch command");
+        assert!(args.is_empty());
+    }
+
+    #[test]
+    fn vita3k_reads_title_id_from_a_zip_entry() {
+        let temp = tempfile::tempdir().expect("temporary Vita archive directory");
+        let archive_path = temp.path().join("Persona 4 Golden.zip");
+        let archive_file = std::fs::File::create(&archive_path).expect("Vita archive file");
+        let mut archive = zip::ZipWriter::new(archive_file);
+        archive
+            .start_file(
+                "PCSE00120/sce_sys/param.sfo",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .expect("Vita archive entry");
+        archive.write_all(b"metadata").expect("Vita archive data");
+        archive.finish().expect("finished Vita archive");
+
+        assert_eq!(vita_title_id(&archive_path).as_deref(), Some("PCSE00120"));
     }
 }

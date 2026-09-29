@@ -298,6 +298,7 @@ pub struct EmulatorPaths {
     pub xemu: Option<PathBuf>,
     pub xenia: Option<PathBuf>,
     pub mame: Option<PathBuf>,
+    pub vita3k: Option<PathBuf>,
     /// Per-platform default emulator ID (e.g., "gba" -> "mgba")
     #[serde(default)]
     pub platform_defaults: std::collections::HashMap<String, String>,

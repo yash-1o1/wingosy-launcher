@@ -396,6 +396,7 @@ fn get_emulator_patterns() -> Vec<(&'static str, &'static str, &'static [&'stati
         ("xemu", "xemu", &["xemu.exe"][..]),
         ("xenia", "Xenia", &["xenia_canary.exe", "xenia.exe"][..]),
         ("mame", "MAME", &["mame.exe", "mame64.exe"][..]),
+        ("vita3k", "Vita3K", crate::models::VITA3K_EXECUTABLES),
         ("snes9x", "Snes9x", &["snes9x-x64.exe", "snes9x.exe"][..]),
     ]
 }
