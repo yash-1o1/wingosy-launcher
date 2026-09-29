@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `8b3eed9d7ab0a350d06cdfc1f802b569d1409e15` — 2026-09-25 (2026-09-25 run)
-- Baseline history size: 2,890 commits on `origin/main`
-- Wingosy baseline observed: `65f82fb` — 2026-09-25 feature commit
+- Argosy baseline observed: `60dc34307c78e0c60a66319d99e31f5b7eb7c898` — 2026-09-29 (2026-09-29 run)
+- Baseline history size: 2,956 commits on `origin/main`
+- Wingosy baseline observed: `3866196` — 2026-09-29 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -52,6 +52,13 @@ A fresh fetch left Argosy `origin/main` unchanged at `8b3eed9` / 2,890
 commits. The stored cursor remained valid: `b7f891c` was still commit 78 and
 `6dd07eb` was still commit 79. Only the observation date was refreshed before
 the next six chronological dispositions were appended.
+
+### Baseline refresh (2026-09-29)
+
+A fresh fetch advanced Argosy `origin/main` from `8b3eed9` / 2,890 commits to
+`60dc343` / 2,956 commits. The stored chronological cursor remains valid:
+`16a398c` is still commit 84 and `f4cda7d` is still commit 85. Aggregate
+metadata was refreshed without moving or reinterpreting the valid cursor.
 
 ### Local verification constraints
 
@@ -106,11 +113,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `16a398ca072e6f900c389cfd942b2e4540dd5fcc`
-- Next Argosy commit: `f4cda7d1c8af32517f01080346eefc8e42be2216`
-- Audited: 84 / 2,890 baseline commits
-- Portable candidates waiting: 11
-- Last tracker update: 2026-09-25
+- Last fully audited Argosy commit: `eca9c0f022b423ac41cba59bd0f7472d8e54d4c8`
+- Next Argosy commit: `dd67a690742b888b21846d704128ac551d3d98e0`
+- Audited: 90 / 2,956 baseline commits
+- Portable candidates waiting: 12
+- Last tracker update: 2026-09-29
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -204,6 +211,12 @@ must record every inspected commit before advancing this cursor.
 | 82 | `c62bb43` | 2025-12-12 | Add background image settings with customization options | candidate | Wingosy has themed desktop/immersive backgrounds and game-detail artwork but no user-selectable home background or blur, saturation, and opacity controls. A portable appearance slice should preserve readable overlays and work with both pointer and controller settings flows. |
 | 83 | `b3b427b` | 2025-12-12 | Add Refresh Game Data option to all game modals | already-covered | Both Wingosy desktop and immersive game details already expose Refresh game data. The shared native command refetches the individual RomM record, preserves local state, updates metadata and artwork fields, and refreshes the active view. |
 | 84 | `16a398c` | 2025-12-13 | Improve multi-disc download handling and queue tracking | candidate | Durable per-disc queue identity, disc labels, and grouped downloads reinforce the existing consolidated multi-disc candidate. Wingosy must retain each disc's RomM identity and expose repair/selection across desktop and immersive views; Android database mechanics and globally ambiguous archive-extension detection are not copied. |
+| 85 | `f4cda7d` | 2025-12-13 | Bump version to 0.9.3 | non-feature | Android release metadata only. |
+| 86 | `38dc789` | 2025-12-13 | Fix AetherSX2 PS2 launch intent and bump version to 0.9.4-beta.1 | not-portable | Android activity, intent-extra, file-URI permission, and APK-download behavior. Wingosy already launches PS2 games directly through native Windows PCSX2 command lines. |
+| 87 | `4a9bda3` | 2025-12-14 | Add m3u multi-disc support and fix bugs, bump to 0.9.4-beta.2 | candidate | Automatic M3U generation for PS1, Saturn, and Dreamcast strengthens the existing consolidated multi-disc candidate and must be designed with Wingosy's retained RomM disc identities and desktop/immersive selection. Wingosy metadata refresh does not delete its cached cover first, and Argosy's Compose scroll-timing adjustment is not portable. |
+| 88 | `0f6576b` | 2025-12-14 | Add Vita3K ZX emulator and proper launch intent support | implemented | `3866196`: added official upstream Vita3K Windows x86_64 releases, managed/existing `Vita3K.exe` discovery, persisted configuration, and direct installed-title launch via Vita3K's `-r` contract when a title ID is available. The Android-only ZX fork and intent mechanics are not copied. |
+| 89 | `7c9d67c` | 2025-12-14 | Fix Vita3K detection and add zip format support, bump to 0.9.4-beta.4 | implemented | `3866196`: Vita title IDs are resolved from bracketed or prefixed filenames and ZIP entry paths; an unknown ID safely opens Vita3K without a false direct-launch argument. ZIP was not added as a global Vita scan extension because it is ambiguous with other platforms. |
+| 90 | `eca9c0f` | 2025-12-14 | Add wildcard emulator detection and new emulator support, bump to 0.9.4-beta.5 | already-covered | Android package-family wildcarding has no Windows equivalent. Wingosy detects supported emulators by executable across registry, managed, and common filesystem paths, supports custom configured paths, and now covers the portable Vita3K gap; the added Android-specific emulator packages and save-package routing are not copied. |
 
 ## Implemented parity outside the chronological audit
 
@@ -225,7 +238,7 @@ Argosy commits must still be recorded when encountered.
 | `0e4296d` | Resumable, pausable concurrent ROM downloads | Native persistent job queue, Range-capable transfer restart, queue policy, and desktop/immersive controls. |
 | `6ecfe99` | Non-blocking cleanup after cancelling downloads | Complete this only alongside the durable transfer-job model so cancellation, partial-file cleanup, and restart recovery share one state machine. Large local-ROM deletion was resolved by `689be34`. |
 | `3de24f3`, `76e2cc7` | Extend automatic path-aware RomM save sync and add recovery-safe sync filters | Add Windows save resolvers incrementally per emulator with live RomM negotiation proof; add opt-in bad-dump/hack/extension filtering and safe duplicate handling without destructive cleanup surprises. |
-| `03261a4`, `b03791b`, `16a398c` | Consolidated multi-disc downloads and disc picker | Model sibling discs without losing RomM identity, download/repair the full set, and provide pointer plus immersive-controller selection. |
+| `03261a4`, `b03791b`, `16a398c`, `4a9bda3` | Consolidated multi-disc downloads, M3U generation, and disc picker | Model sibling discs without losing RomM identity, download/repair the full set, generate valid M3U playlists where supported, and provide pointer plus immersive-controller selection. |
 | `b03791b` | User-selectable compatible RetroArch cores per platform | Expand the one-core mapping into tested compatible choices while preserving current defaults and missing-core safeguards. |
 | `362f688` | VID-based controller detection with separate A/B and X/Y icon-swap settings | Gamepad VID/PID lookup (Xbox/Nintendo/Sony), a settings UI, and icon rendering updates across desktop and immersive views. |
 | `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
@@ -268,6 +281,7 @@ chronological work can proceed safely.
 | 2026-09-23 | `3de24f3..b03791b` (6 commits) | Complete Azahar support: official releases, `azahar.exe` discovery for managed and existing installs, and direct-launch coverage while retaining the compatible `citra` config ID | `e17c531` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be built locally because Smart App Control blocks cargo build-script executables (`os error 4551`); Windows CI run `35905399163` passed frontend coverage, Cargo tests (non-ignored), Rust lint with warnings denied, Rust coverage, and artifact upload. | Corrected the fetched baseline to `30d42cc` / 2,854. Added candidates for broader automatic save paths, consolidated multi-disc handling, and user-selectable RetroArch cores; resolved the prior Azahar candidate. RomM rating/difficulty sync remains an open decision. |
 | 2026-09-24 | `623563de..b7f891c` (17 commits) | Non-blocking local ROM deletion: filesystem removal now runs on Tokio's blocking pool before the existing desktop/immersive refresh path | `689be34` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be built locally because Smart App Control remains enforced. Windows CI run `36025282244` passed frontend coverage, Cargo tests (including the focused deletion tests), Rust lint with warnings denied, Rust coverage, and artifact upload. Repository-wide local `cargo fmt --check` still reports extensive pre-existing formatting drift outside the changed hunk. | Refreshed the Argosy baseline to `8b3eed9` / 2,890 without moving the valid cursor. Added sync-filter and achievement-badge-cache candidates; resolved the large-file deletion candidate. RomM rating/difficulty sync remains an open decision. |
 | 2026-09-25 | `6dd07eb..16a398c` (6 commits) | Available ROM-drive capacity in Storage settings, with nearest-existing-parent fallback and explicit unavailable state | `65f82fb` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and targeted `rustfmt --check` passed locally. Rust could not be compiled locally because Smart App Control remains enforced. Windows CI run `36158559061` passed frontend coverage, Cargo tests (including the new storage-path test), Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `8b3eed9` / 2,890 and advanced the valid cursor to commit 84. Added a background-customization candidate; consolidated multi-disc work remains in the existing candidate. RomM rating/difficulty sync remains an open decision. |
+| 2026-09-29 | `f4cda7d..eca9c0f` (6 commits) | Official Windows Vita3K download/detection/configuration and title-ID direct launch, including ZIP-entry title discovery and safe emulator-only fallback | `3866196` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be compiled locally because Smart App Control remains enforced. Windows CI run `36640540601` passed frontend coverage, Cargo tests (including focused Vita3K metadata/title-ID tests), Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `60dc343` / 2,956 without moving the valid cursor, then advanced it to commit 90. Consolidated M3U support into the existing multi-disc candidate. RomM rating/difficulty sync remains an open decision. |
 
 ## Completion rule
 
