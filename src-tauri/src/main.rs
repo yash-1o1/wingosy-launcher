@@ -13,6 +13,7 @@ mod database;
 mod emulators;
 mod models;
 mod romm_credentials;
+mod retroachievements;
 mod scanner;
 mod storage;
 mod sync;
@@ -107,6 +108,10 @@ fn main() {
             commands::list_romm_sync_platforms,
             commands::sync_romm_platform,
             commands::get_romm_retroachievements,
+            commands::get_retroachievements_login,
+            commands::login_retroachievements,
+            commands::logout_retroachievements,
+            commands::sync_retroachievements_to_retroarch,
             commands::download_rom,
             bios::get_bios_directory,
             bios::set_bios_directory,

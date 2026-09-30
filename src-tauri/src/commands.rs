@@ -379,6 +379,13 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     let launch_command = launcher.build_command(&game).ok();
     let mut save_sync_warnings = Vec::new();
 
+    if let Some(command) = launch_command.as_ref().filter(|command| command.emulator_id == "retroarch") {
+        if let Err(error) = crate::retroachievements::sync_before_launch(Path::new(&command.executable)) {
+            tracing::warn!("[RetroAchievements] Could not sync RetroArch login: {error}");
+            save_sync_warnings.push(format!("RetroAchievements login sync: {error}"));
+        }
+    }
+
     let pre_sync_result = if let Some(command) = launch_command.as_ref() {
         if command.emulator_id == "retroarch" {
             crate::sync::retroarch_romm::pre_launch_sync(
@@ -517,6 +524,33 @@ pub async fn get_config() -> Result<AppConfig, String> {
 #[tauri::command]
 pub async fn save_config(config: AppConfig) -> Result<(), String> {
     config.save().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_retroachievements_login() -> Result<crate::retroachievements::Status, String> {
+    crate::retroachievements::status().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn login_retroachievements(
+    username: String,
+    password: String,
+) -> Result<crate::retroachievements::Status, String> {
+    crate::retroachievements::login(username, password)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn logout_retroachievements() -> Result<(), String> {
+    crate::retroachievements::logout().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn sync_retroachievements_to_retroarch() -> Result<String, String> {
+    crate::retroachievements::sync_to_retroarch()
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(|error| error.to_string())
 }
 
 /// Sorted paths to playable audio files in a folder (for Immersive ambient BGM).
@@ -1682,6 +1716,11 @@ pub async fn detect_emulators() -> Result<Vec<EmulatorInfo>, String> {
 pub async fn launch_emulator(emulator_path: String) -> Result<(), String> {
     tracing::info!("[Emulators] Launching emulator: {}", emulator_path);
     let path = std::path::PathBuf::from(&emulator_path);
+    if path.file_name().is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case("retroarch.exe")) {
+        if let Err(error) = crate::retroachievements::sync_before_launch(&path) {
+            tracing::warn!("[RetroAchievements] Could not sync RetroArch login: {error}");
+        }
+    }
     crate::emulators::detection::launch_emulator(&path)
 }
 

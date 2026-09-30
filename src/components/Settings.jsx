@@ -178,6 +178,11 @@ export default function Settings({
   const [immersiveModeEnabled, setImmersiveModeEnabled] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(false);
   const [retroachievementsEnabled, setRetroachievementsEnabled] = useState(false);
+  const [raLogin, setRaLogin] = useState(null);
+  const [raUsername, setRaUsername] = useState("");
+  const [raPassword, setRaPassword] = useState("");
+  const [raLoginBusy, setRaLoginBusy] = useState(false);
+  const [raLoginMessage, setRaLoginMessage] = useState(null);
   const [libraryGridColumns, setLibraryGridColumns] = useState(5);
   
   // Theme/Appearance settings from context
@@ -212,6 +217,7 @@ export default function Settings({
 
   useEffect(() => {
     loadConfig();
+    loadRetroAchievementsLogin();
     loadEmulators();
     loadMissingCores();
     loadPlatformDefaults();
@@ -540,6 +546,70 @@ export default function Settings({
       setRetroachievementsEnabled(Boolean(next));
     } catch (err) {
       console.error("Failed to save RetroAchievements preference:", err);
+    }
+  }
+
+  async function loadRetroAchievementsLogin() {
+    try {
+      setRaLogin(await invoke("get_retroachievements_login"));
+    } catch (error) {
+      setRaLoginMessage({ type: "error", message: error?.message || String(error) });
+    }
+  }
+
+  async function handleRetroAchievementsLogin(event) {
+    event.preventDefault();
+    setRaLoginBusy(true);
+    setRaLoginMessage(null);
+    try {
+      const status = await invoke("login_retroachievements", {
+        username: raUsername.trim(),
+        password: raPassword,
+      });
+      setRaLogin(status);
+      setRaUsername("");
+      setRaLoginMessage({
+        type: status.retroarch_config ? "success" : "info",
+        message: status.retroarch_config
+          ? "Signed in and synced to RetroArch. All supported libretro cores use this account."
+          : "Signed in. Start your configured RetroArch once, then sync the login here.",
+      });
+    } catch (error) {
+      // Authentication may succeed even if an existing RetroArch config is
+      // unwritable. Show the stored account so sync can be retried.
+      await loadRetroAchievementsLogin();
+      setRaLoginMessage({ type: "error", message: error?.message || String(error) });
+    } finally {
+      setRaPassword("");
+      setRaLoginBusy(false);
+    }
+  }
+
+  async function handleRetroAchievementsSync() {
+    setRaLoginBusy(true);
+    setRaLoginMessage(null);
+    try {
+      await invoke("sync_retroachievements_to_retroarch");
+      await loadRetroAchievementsLogin();
+      setRaLoginMessage({ type: "success", message: "RetroAchievements login synced to RetroArch." });
+    } catch (error) {
+      setRaLoginMessage({ type: "error", message: error?.message || String(error) });
+    } finally {
+      setRaLoginBusy(false);
+    }
+  }
+
+  async function handleRetroAchievementsLogout() {
+    setRaLoginBusy(true);
+    setRaLoginMessage(null);
+    try {
+      await invoke("logout_retroachievements");
+      setRaLogin(await invoke("get_retroachievements_login"));
+      setRaLoginMessage({ type: "success", message: "Signed out and cleared the matching RetroArch login." });
+    } catch (error) {
+      setRaLoginMessage({ type: "error", message: error?.message || String(error) });
+    } finally {
+      setRaLoginBusy(false);
     }
   }
 
@@ -2224,6 +2294,36 @@ export default function Settings({
           Loads achievement definitions, earned progress, badge art, and hardcore unlocks from your connected RomM account.
           Configure your RetroAchievements account in RomM first, then sync games into Wingosy.
         </Typography>
+        <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: "divider" }}>
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>RetroAchievements login for RetroArch</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 620 }}>
+            Sign in once to enable achievements in your configured RetroArch installation and its supported libretro cores.
+            Wingosy stores the login token in Windows Credential Manager; RetroArch also stores a token in its own configuration.
+          </Typography>
+          {raLogin?.username ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Typography variant="body2">Signed in as <strong>{raLogin.username}</strong></Typography>
+              <Button variant="outlined" onClick={handleRetroAchievementsSync} disabled={raLoginBusy}>
+                Sync to RetroArch
+              </Button>
+              <Button color="error" onClick={handleRetroAchievementsLogout} disabled={raLoginBusy}>
+                Sign out
+              </Button>
+            </Box>
+          ) : (
+            <Box component="form" onSubmit={handleRetroAchievementsLogin} sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
+              <TextField label="RetroAchievements username" value={raUsername} onChange={(event) => setRaUsername(event.target.value)} size="small" autoComplete="username" />
+              <TextField label="Password" type="password" value={raPassword} onChange={(event) => setRaPassword(event.target.value)} size="small" autoComplete="current-password" />
+              <Button type="submit" variant="contained" disabled={raLoginBusy || !raUsername.trim() || !raPassword}>Sign in</Button>
+            </Box>
+          )}
+          {raLogin?.username && !raLogin.retroarch_config && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              No RetroArch config found yet. Start RetroArch once, then select Sync to RetroArch.
+            </Typography>
+          )}
+          {raLoginMessage && <Alert severity={raLoginMessage.type} sx={{ mt: 2 }}>{raLoginMessage.message}</Alert>}
+        </Box>
       </Paper>
       )}
 
