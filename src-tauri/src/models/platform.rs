@@ -80,7 +80,7 @@ pub fn map_romm_slug(slug: &str) -> String {
         "ps2" | "playstation-2" | "sony-playstation-2" => "ps2".into(),
         "ps3" | "playstation-3" | "sony-playstation-3" => "ps3".into(),
         "psp" | "playstation-portable" | "sony-psp" => "psp".into(),
-        "psvita" | "playstation-vita" | "ps-vita" => "psvita".into(),
+        "vita" | "psvita" | "playstation-vita" | "ps-vita" => "psvita".into(),
         "genesis" | "sega-genesis" | "mega-drive" | "sega-mega-drive" | "megadrive" | "sega-mega-drive-genesis" => "genesis".into(),
         "saturn" | "sega-saturn" => "saturn".into(),
         "dreamcast" | "sega-dreamcast" => "dreamcast".into(),
@@ -107,6 +107,7 @@ mod tests {
         assert_eq!(map_romm_slug("nintendo-game-boy-advance"), "gba");
         assert_eq!(map_romm_slug("sega-dreamcast"), "dreamcast");
         assert_eq!(map_romm_slug("nintendo-switch"), "switch");
+        assert_eq!(map_romm_slug("vita"), "psvita");
     }
 
     #[test]

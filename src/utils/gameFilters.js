@@ -60,6 +60,15 @@ export function sortVisibleGames(
   return sorted;
 }
 
+export function selectRecentPlayableGames(games, limit = 24) {
+  return games
+    .filter((game) => game.last_played_at && game.local_file_path)
+    .sort((left, right) =>
+      String(right.last_played_at).localeCompare(String(left.last_played_at))
+    )
+    .slice(0, limit);
+}
+
 function compareValues(left, right, descending, compare = defaultCompare) {
   if (left == null) return right == null ? 0 : 1;
   if (right == null) return -1;

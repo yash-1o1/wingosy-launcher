@@ -15,6 +15,7 @@ import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import Badge from "@mui/material/Badge";
 import { scrollFocusedTileIntoView } from "./scrollFocusedTile";
+import { selectRecentPlayableGames } from "../utils/gameFilters";
 
 const DEFAULT_COLUMNS = 6;
 
@@ -26,12 +27,6 @@ function tileAt(grid, index) {
 
 function focusTile(tile) {
   tile?.querySelector?.("button")?.focus?.({ preventScroll: true });
-}
-
-function byLastPlayedDesc(a, b) {
-  const ax = a.last_played_at || "";
-  const bx = b.last_played_at || "";
-  return bx.localeCompare(ax);
 }
 
 export default function ImmersiveLibrary({
@@ -59,11 +54,7 @@ export default function ImmersiveLibrary({
     [games]
   );
 
-  const recent = useMemo(() => {
-    const played = games.filter((g) => g.last_played_at);
-    played.sort(byLastPlayedDesc);
-    return played.slice(0, 24);
-  }, [games]);
+  const recent = useMemo(() => selectRecentPlayableGames(games), [games]);
 
   const visibleGames = useMemo(() => {
     if (section === "favorites") return favorites;

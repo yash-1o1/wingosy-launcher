@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { filterVisibleGames, sortVisibleGames } from "./gameFilters";
+import {
+  filterVisibleGames,
+  selectRecentPlayableGames,
+  sortVisibleGames,
+} from "./gameFilters";
 
 const games = [
   { id: 1, name: "Super Mario Odyssey", platform_id: "switch", is_favorite: true, sync_state: "synced" },
@@ -69,5 +73,27 @@ describe("sortVisibleGames", () => {
   it("keeps missing values at the end of descending sorts", () => {
     expect(sortVisibleGames(sortableGames, "last_played").map((game) => game.id)).toEqual([2, 1, 3]);
     expect(sortVisibleGames(sortableGames, "release_year").map((game) => game.id)).toEqual([2, 1, 3]);
+  });
+});
+
+describe("selectRecentPlayableGames", () => {
+  it("keeps only locally playable entries and sorts newest first", () => {
+    const recentGames = [
+      { id: 1, last_played_at: "2026-08-01", local_file_path: "C:\\ROMs\\one.gba" },
+      { id: 2, last_played_at: "2026-09-01", local_file_path: null },
+      { id: 3, last_played_at: null, local_file_path: "C:\\ROMs\\three.gba" },
+      { id: 4, last_played_at: "2026-10-01", local_file_path: "C:\\ROMs\\four.gba" },
+    ];
+
+    expect(selectRecentPlayableGames(recentGames).map((game) => game.id)).toEqual([4, 1]);
+  });
+
+  it("honors the requested result limit", () => {
+    const recentGames = [
+      { id: 1, last_played_at: "2026-08-01", local_file_path: "one" },
+      { id: 2, last_played_at: "2026-09-01", local_file_path: "two" },
+    ];
+
+    expect(selectRecentPlayableGames(recentGames, 1).map((game) => game.id)).toEqual([2]);
   });
 });

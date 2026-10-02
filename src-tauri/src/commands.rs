@@ -316,7 +316,8 @@ pub async fn get_games_filtered(
         sort_descending: false,
     };
     
-    db.get_games_filtered(&filter).map_err(|e| e.to_string())
+    let games = db.get_games_filtered(&filter).map_err(|e| e.to_string())?;
+    Ok(validate_game_paths(games, &db))
 }
 
 #[tauri::command]
