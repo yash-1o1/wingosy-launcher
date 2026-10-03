@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `c1b83716f5113e794aa1fb76f1039154c4e8da3b` — 2026-10-02 (2026-10-02 run)
-- Baseline history size: 3,060 commits on `origin/main`
-- Wingosy baseline observed: `edc2424` — 2026-10-02 feature commit
+- Argosy baseline observed: `9cbc74304742386ea0aa6b7d01ee40c95636ef47` — 2026-10-03 (2026-10-03 run)
+- Baseline history size: 3,080 commits on `origin/main`
+- Wingosy baseline observed: `5b77952` — 2026-10-03 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -66,6 +66,14 @@ A fresh fetch advanced Argosy `origin/main` from `60dc343` / 2,956 commits to
 `c1b8371` / 3,060 commits. The chronological cursor remained valid:
 `eca9c0f` was still commit 90 and `dd67a69` was still commit 91. Aggregate
 metadata was refreshed without skipping or reordering history.
+
+### Baseline refresh (2026-10-03)
+
+A fresh fetch advanced Argosy `origin/main` from `c1b8371` / 3,060 commits to
+`9cbc743` / 3,080 commits. The chronological cursor remained valid:
+`b058467` was still commit 120 and `7d0d783` was still commit 121. Aggregate
+metadata was refreshed before the next ten chronological dispositions were
+appended.
 
 ### Local verification constraints
 
@@ -120,11 +128,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `b0584675e3b8a58943f25377c4899b1d7ff70b43`
-- Next Argosy commit: `7d0d783125a070beeeb25896b873a1e1a539722c`
-- Audited: 120 / 3,060 baseline commits
+- Last fully audited Argosy commit: `7d5434868c1f44c9ac625ae763087dd3b823188a`
+- Next Argosy commit: `35fd9212d3b29d9f178110b59415702b45e93faa`
+- Audited: 130 / 3,080 baseline commits
 - Portable candidates waiting: 20
-- Last tracker update: 2026-10-02
+- Last tracker update: 2026-10-03
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -241,7 +249,7 @@ must record every inspected commit before advancing this cursor.
 | 105 | `60ca11f` | 2025-12-16 | Improve save channel system with timestamp tracking and menu reorganization | candidate | Timestamp-accurate active-slot tracking strengthens the named save-channel candidate; the Compose menu reorganization is not copied. |
 | 106 | `202c6e8` | 2025-12-16 | Bump version to 0.9.5-beta.3 | non-feature | Android release metadata only. |
 | 107 | `3e7ef9d` | 2025-12-16 | Use argosy-latest as default save name and add proactive server download | already-covered | Wingosy uses an `autosave` latest slot, restores legacy `argosy-latest`, and its negotiated sync engine compares server/local state before launch. |
-| 108 | `66bfb40` | 2025-12-16 | Add controller support to FirstRun wizard and fix Home screen updates | candidate | Wingosy refreshes the library after setup sync, but its pre-immersive setup wizard has no controller-to-keyboard mapper; controller-complete first-run remains a focused accessibility candidate. |
+| 108 | `66bfb40` | 2025-12-16 | Add controller support to FirstRun wizard and fix Home screen updates | implemented | `5b77952`: Wingosy now mounts its existing controller mapper during setup, establishes visible focus across enabled controls, maps D-pad navigation and A activation, and lets B move to the previous setup step. The existing completion callback already refreshes the library after setup. |
 | 109 | `85bd420` | 2025-12-16 | Fix LaunchGameUseCase test to match updated signature | non-feature | Android test maintenance only. |
 | 110 | `12397d9` | 2025-12-16 | Improve save sync on game download and fix duplicate channel entries | candidate | Pre-launch sync already pulls the latest server save before first play, while channel deduplication, cleanup, and download-time prefetch belong to the named save-channel vertical slice. |
 | 111 | `ab7b4a4` | 2025-12-16 | Bump version to 0.9.5-beta.4 | non-feature | Android release metadata only. |
@@ -254,6 +262,16 @@ must record every inspected commit before advancing this cursor.
 | 118 | `65a86a7` | 2025-12-16 | Update README with save sync feature and cleanup | non-feature | Documentation-only change. |
 | 119 | `db1c6d9` | 2025-12-16 | Update README with new screenshots and sections | non-feature | Documentation-only change. |
 | 120 | `b058467` | 2025-12-17 | Restore Continue Playing QoL features and add View All navigation | implemented | `edc2424`: filtered library loads now run Wingosy's existing filesystem validation, and immersive Recent excludes entries without a validated local path. Wingosy already has dedicated Favorites and Recent library sections and selection clamping. |
+| 121 | `7d0d783` | 2025-12-17 | Add touch input support to settings sliders | already-covered | Wingosy's web-native settings controls already accept pointer/touch input directly; the Android tap-to-cycle workaround is unnecessary. |
+| 122 | `884575a` | 2025-12-17 | Add touch support to SaveChannelModal | candidate | Folded into the named save-channel vertical slice: any future timeline/slot UI must provide pointer and immersive-controller access, including selection, rename/lock actions, and dismissal. |
+| 123 | `9f20d8e` | 2025-12-17 | Add touch support to Home view game rail | already-covered | Wingosy's desktop library and Recent/Favorites sections already select and open cards with pointer input; immersive mode retains explicit controller selection and details navigation. Android long-press and Compose scroll-focus mechanics are not needed. |
+| 124 | `5fb036c` | 2025-12-17 | Add touch support to Library view | already-covered | Desktop cards, filters, and game actions already have direct pointer paths, while immersive cards remain controller-navigable. The two-stage Android touch-focus convention does not improve the Windows UI. |
+| 125 | `f63aba3` | 2025-12-17 | Fix double cursor on d-pad navigation and Apps screen back button | not-portable | The duplicate indicator came from Compose native focus layered over Argosy's custom focus state, and Apps is an Android launcher surface. Wingosy uses DOM focus plus its own Windows navigation routes. |
+| 126 | `0fa289b` | 2025-12-17 | Remove redundant items from About settings section | non-feature | Argosy-specific settings cleanup with no missing Wingosy capability. |
+| 127 | `ada8052` | 2025-12-17 | Add touch support, file logging UI improvements, and save sync logging | already-covered | Wingosy's React controls already support pointer input, and its native tracing stack writes daily application logs with save-sync lifecycle messages. Android folder-picker layout and emulator-card tap semantics do not port. |
+| 128 | `ad906b6` | 2025-12-17 | Improve save sync logging and fix save discovery logic | already-covered | Wingosy carries the selected RetroArch core through launch and resolves SRAM from core-specific save directories, with pre/post-launch tracing and safe fallback paths. Android intent parsing and package paths do not apply. |
+| 129 | `b1b3ae6` | 2025-12-17 | Bump version to 0.9.6 | non-feature | Android release metadata only. |
+| 130 | `7d54348` | 2025-12-17 | Fix tablet display scaling and file logging folder picker | already-covered | Wingosy uses responsive MUI/CSS breakpoints plus a configurable desktop grid density, and writes logs to its stable app-data location. Android tablet sizing, SAF URI parsing, and lifecycle refresh behavior are not portable. |
 
 ## Implemented parity outside the chronological audit
 
@@ -282,9 +300,8 @@ Argosy commits must still be recorded when encountered.
 | `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
 | `3e15b0f` | Cache RetroAchievements badge art for offline game details | Reuse the cover-cache origin-safety and retry patterns for locked/unlocked badges, then serve local asset paths to both desktop and immersive achievement views. |
 | `c62bb43` | Customizable home background and image treatment | Add game-art/custom-image selection plus blur, saturation, and opacity controls with readable overlays and equivalent desktop/immersive settings access. |
-| `3fdd187`, `60ca11f`, `12397d9` | Named RomM save channels and timeline restore | Prove current RomM channel contracts live, model active-slot timestamps and duplicate handling, retain reversible backups, and expose equivalent desktop/immersive controls. |
+| `3fdd187`, `60ca11f`, `12397d9`, `884575a` | Named RomM save channels and timeline restore | Prove current RomM channel contracts live, model active-slot timestamps and duplicate handling, retain reversible backups, and expose equivalent pointer and immersive-controller controls. |
 | `7867247`, `5646383` | Broader canonical platform aliases and ordering | Extend mappings only for established RomM aliases, preserve unknown-platform passthrough, and add stable family/chronological ordering without implying unavailable emulators. |
-| `66bfb40` | Controller-complete first-run setup | Make setup controls focusable and reuse a narrowly scoped gamepad-to-keyboard mapper before immersive mode is available. |
 
 ## Open decisions
 
@@ -324,6 +341,7 @@ chronological work can proceed safely.
 | 2026-09-25 | `6dd07eb..16a398c` (6 commits) | Available ROM-drive capacity in Storage settings, with nearest-existing-parent fallback and explicit unavailable state | `65f82fb` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and targeted `rustfmt --check` passed locally. Rust could not be compiled locally because Smart App Control remains enforced. Windows CI run `36158559061` passed frontend coverage, Cargo tests (including the new storage-path test), Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `8b3eed9` / 2,890 and advanced the valid cursor to commit 84. Added a background-customization candidate; consolidated multi-disc work remains in the existing candidate. RomM rating/difficulty sync remains an open decision. |
 | 2026-09-29 | `f4cda7d..eca9c0f` (6 commits) | Official Windows Vita3K download/detection/configuration and title-ID direct launch, including ZIP-entry title discovery and safe emulator-only fallback | `3866196` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be compiled locally because Smart App Control remains enforced. Windows CI run `36640540601` passed frontend coverage, Cargo tests (including focused Vita3K metadata/title-ID tests), Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `60dc343` / 2,956 without moving the valid cursor, then advanced it to commit 90. Consolidated M3U support into the existing multi-disc candidate. RomM rating/difficulty sync remains an open decision. |
 | 2026-10-02 | `dd67a69..b058467` (30 commits) | RomM `vita` slug normalization for Vita3K; filesystem-validated filtered loads and locally playable immersive Recent results | `edc2424` | 45 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be compiled locally because Smart App Control remains enforced. Windows CI run `37079548487` passed frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `c1b8371` / 3,060 while preserving the valid cursor, then advanced it to commit 120. Added archive-context, save-channel, platform-catalog, and first-run-controller candidates. RomM rating/difficulty sync remains an open decision. |
+| 2026-10-03 | `7d0d783..7d54348` (10 commits) | Controller-complete setup wizard with visible focus, D-pad navigation, A activation, and B back navigation | `5b77952` | 48 frontend unit tests (+3), typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Refreshed the Argosy baseline to `9cbc743` / 3,080 while preserving the valid cursor, then advanced it to commit 130. The save-channel pointer requirements were consolidated into the existing candidate. RomM rating/difficulty sync remains an open decision. |
 
 ## Completion rule
 
