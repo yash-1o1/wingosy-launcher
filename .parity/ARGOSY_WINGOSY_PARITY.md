@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `60dc34307c78e0c60a66319d99e31f5b7eb7c898` — 2026-09-29 (2026-09-29 run)
-- Baseline history size: 2,956 commits on `origin/main`
-- Wingosy baseline observed: `3866196` — 2026-09-29 feature commit
+- Argosy baseline observed: `c1b83716f5113e794aa1fb76f1039154c4e8da3b` — 2026-10-02 (2026-10-02 run)
+- Baseline history size: 3,060 commits on `origin/main`
+- Wingosy baseline observed: `edc2424` — 2026-10-02 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -59,6 +59,13 @@ A fresh fetch advanced Argosy `origin/main` from `8b3eed9` / 2,890 commits to
 `60dc343` / 2,956 commits. The stored chronological cursor remains valid:
 `16a398c` is still commit 84 and `f4cda7d` is still commit 85. Aggregate
 metadata was refreshed without moving or reinterpreting the valid cursor.
+
+### Baseline refresh (2026-10-02)
+
+A fresh fetch advanced Argosy `origin/main` from `60dc343` / 2,956 commits to
+`c1b8371` / 3,060 commits. The chronological cursor remained valid:
+`eca9c0f` was still commit 90 and `dd67a69` was still commit 91. Aggregate
+metadata was refreshed without skipping or reordering history.
 
 ### Local verification constraints
 
@@ -113,11 +120,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `eca9c0f022b423ac41cba59bd0f7472d8e54d4c8`
-- Next Argosy commit: `dd67a690742b888b21846d704128ac551d3d98e0`
-- Audited: 90 / 2,956 baseline commits
-- Portable candidates waiting: 12
-- Last tracker update: 2026-09-29
+- Last fully audited Argosy commit: `b0584675e3b8a58943f25377c4899b1d7ff70b43`
+- Next Argosy commit: `7d0d783125a070beeeb25896b873a1e1a539722c`
+- Audited: 120 / 3,060 baseline commits
+- Portable candidates waiting: 20
+- Last tracker update: 2026-10-02
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -217,6 +224,36 @@ must record every inspected commit before advancing this cursor.
 | 88 | `0f6576b` | 2025-12-14 | Add Vita3K ZX emulator and proper launch intent support | implemented | `3866196`: added official upstream Vita3K Windows x86_64 releases, managed/existing `Vita3K.exe` discovery, persisted configuration, and direct installed-title launch via Vita3K's `-r` contract when a title ID is available. The Android-only ZX fork and intent mechanics are not copied. |
 | 89 | `7c9d67c` | 2025-12-14 | Fix Vita3K detection and add zip format support, bump to 0.9.4-beta.4 | implemented | `3866196`: Vita title IDs are resolved from bracketed or prefixed filenames and ZIP entry paths; an unknown ID safely opens Vita3K without a false direct-launch argument. ZIP was not added as a global Vita scan extension because it is ambiguous with other platforms. |
 | 90 | `eca9c0f` | 2025-12-14 | Add wildcard emulator detection and new emulator support, bump to 0.9.4-beta.5 | already-covered | Android package-family wildcarding has no Windows equivalent. Wingosy detects supported emulators by executable across registry, managed, and common filesystem paths, supports custom configured paths, and now covers the portable Vita3K gap; the added Android-specific emulator packages and save-package routing are not copied. |
+| 91 | `dd67a69` | 2025-12-14 | Fix Dolphin launch intent and download URL, bump to 0.9.4-beta.6 | already-covered | Wingosy launches Dolphin directly with native Windows arguments and obtains official upstream Windows builds; Android activities, intent extras, and the handheld APK URL do not apply. |
+| 92 | `ff58410` | 2025-12-14 | Require MANAGE_EXTERNAL_STORAGE permission in first-run wizard | not-portable | Android all-files permission flow; Wingosy uses ordinary Windows paths and its folder picker. |
+| 93 | `2e4cf91` | 2025-12-14 | Bump version to 0.9.4 | non-feature | Android release metadata only. |
+| 94 | `30e97da` | 2025-12-14 | Allow ROM sync without IGDB metadata | already-covered | Wingosy upserts every RomM record by stable RomM ID and never requires IGDB, MobyGames, or RetroAchievements metadata. |
+| 95 | `f78a71a` | 2025-12-14 | Bump version to 0.9.5-beta.1 | non-feature | Android release metadata only. |
+| 96 | `40e8685` | 2025-12-14 | Add zip, 7z, and chd support to all platforms | candidate | Archive support is portable, but assigning globally ambiguous extensions to every platform would make Wingosy's extension-only scanner misclassify files. Retain platform-context-aware archive discovery as a bounded candidate. |
+| 97 | `632ce5e` | 2025-12-14 | Bump version to 0.9.5-beta.2 | non-feature | Android release metadata only. |
+| 98 | `6287d37` | 2025-12-15 | Add save sync with RomM server integration | already-covered | Wingosy already has device-aware negotiated and legacy RomM save APIs, pre/post-launch sync, retry/failure state, manual actions, and safe local backups. Broader Windows emulator path resolution remains the existing candidate. |
+| 99 | `ec40284` | 2025-12-15 | Fix lint and formatting issues | non-feature | Android-only formatting and static-analysis cleanup. |
+| 100 | `3fdd187` | 2025-12-15 | Add save channel system for managing multiple save slots | candidate | Named cloud-save slots, timeline restore, and active-slot tracking are portable, but need live RomM compatibility and conflict tests before altering Wingosy's working negotiated sync path. |
+| 101 | `37496ca` | 2025-12-15 | Add detekt static analysis and improve code quality | non-feature | Android/Kotlin analysis configuration and refactoring; the save-note behavior belongs to the save-channel candidate. |
+| 102 | `23e02f1` | 2025-12-15 | Refactor Settings screen with GameDataSection and improved navigation | non-feature | Compose settings decomposition and navigation refactor with no missing portable runtime capability. |
+| 103 | `045c864` | 2025-12-16 | Add psvita platform slug alias for Vita3K detection | implemented | `edc2424`: Wingosy now normalizes RomM's `vita` slug to its canonical `psvita` ID, preserving Vita3K detection and launch behavior across either server naming convention. |
+| 104 | `7867247` | 2025-12-16 | Improve platform sorting and expand platform definitions | candidate | Wingosy preserves unknown RomM platforms and sorts stored platforms, but a broader canonical alias catalog and family/chronological order would improve large libraries without inventing emulator support. |
+| 105 | `60ca11f` | 2025-12-16 | Improve save channel system with timestamp tracking and menu reorganization | candidate | Timestamp-accurate active-slot tracking strengthens the named save-channel candidate; the Compose menu reorganization is not copied. |
+| 106 | `202c6e8` | 2025-12-16 | Bump version to 0.9.5-beta.3 | non-feature | Android release metadata only. |
+| 107 | `3e7ef9d` | 2025-12-16 | Use argosy-latest as default save name and add proactive server download | already-covered | Wingosy uses an `autosave` latest slot, restores legacy `argosy-latest`, and its negotiated sync engine compares server/local state before launch. |
+| 108 | `66bfb40` | 2025-12-16 | Add controller support to FirstRun wizard and fix Home screen updates | candidate | Wingosy refreshes the library after setup sync, but its pre-immersive setup wizard has no controller-to-keyboard mapper; controller-complete first-run remains a focused accessibility candidate. |
+| 109 | `85bd420` | 2025-12-16 | Fix LaunchGameUseCase test to match updated signature | non-feature | Android test maintenance only. |
+| 110 | `12397d9` | 2025-12-16 | Improve save sync on game download and fix duplicate channel entries | candidate | Pre-launch sync already pulls the latest server save before first play, while channel deduplication, cleanup, and download-time prefetch belong to the named save-channel vertical slice. |
+| 111 | `ab7b4a4` | 2025-12-16 | Bump version to 0.9.5-beta.4 | non-feature | Android release metadata only. |
+| 112 | `926cc4f` | 2025-12-16 | Add All Files Access permission setting to Storage section | not-portable | Android permission settings have no Windows/Tauri equivalent. |
+| 113 | `450d6d4` | 2025-12-16 | Bump version to 0.9.5-beta.5 | non-feature | Android release metadata only. |
+| 114 | `5646383` | 2025-12-16 | Improve platform sorting with comprehensive definitions and slug aliases | candidate | Consolidated with `7867247`: extend Wingosy's canonical RomM aliases and predictable family ordering while continuing to pass unknown platforms through safely. |
+| 115 | `04ce9d3` | 2025-12-16 | Bump version to 0.9.5-beta.6 | non-feature | Android release metadata only. |
+| 116 | `668908f` | 2025-12-16 | Add save folder detection and folder-based save sync | candidate | Folded into the existing automatic save-path candidate: expand Windows emulator resolvers incrementally with live RomM proof and reversible backups. The blur default and slider fix are Argosy UI details. |
+| 117 | `6f1a3cd` | 2025-12-16 | Bump version to 0.9.5 | non-feature | Android release metadata only. |
+| 118 | `65a86a7` | 2025-12-16 | Update README with save sync feature and cleanup | non-feature | Documentation-only change. |
+| 119 | `db1c6d9` | 2025-12-16 | Update README with new screenshots and sections | non-feature | Documentation-only change. |
+| 120 | `b058467` | 2025-12-17 | Restore Continue Playing QoL features and add View All navigation | implemented | `edc2424`: filtered library loads now run Wingosy's existing filesystem validation, and immersive Recent excludes entries without a validated local path. Wingosy already has dedicated Favorites and Recent library sections and selection clamping. |
 
 ## Implemented parity outside the chronological audit
 
@@ -238,12 +275,16 @@ Argosy commits must still be recorded when encountered.
 | `0e4296d` | Resumable, pausable concurrent ROM downloads | Native persistent job queue, Range-capable transfer restart, queue policy, and desktop/immersive controls. |
 | `6ecfe99` | Non-blocking cleanup after cancelling downloads | Complete this only alongside the durable transfer-job model so cancellation, partial-file cleanup, and restart recovery share one state machine. Large local-ROM deletion was resolved by `689be34`. |
 | `3de24f3`, `76e2cc7` | Extend automatic path-aware RomM save sync and add recovery-safe sync filters | Add Windows save resolvers incrementally per emulator with live RomM negotiation proof; add opt-in bad-dump/hack/extension filtering and safe duplicate handling without destructive cleanup surprises. |
+| `40e8685` | Platform-context-aware archive discovery | Recognize ZIP/7z/CHD only when the configured platform or directory context is unambiguous; do not add ambiguous extensions globally to the extension-only scanner. |
 | `03261a4`, `b03791b`, `16a398c`, `4a9bda3` | Consolidated multi-disc downloads, M3U generation, and disc picker | Model sibling discs without losing RomM identity, download/repair the full set, generate valid M3U playlists where supported, and provide pointer plus immersive-controller selection. |
 | `b03791b` | User-selectable compatible RetroArch cores per platform | Expand the one-core mapping into tested compatible choices while preserving current defaults and missing-core safeguards. |
 | `362f688` | VID-based controller detection with separate A/B and X/Y icon-swap settings | Gamepad VID/PID lookup (Xbox/Nintendo/Sony), a settings UI, and icon rendering updates across desktop and immersive views. |
 | `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
 | `3e15b0f` | Cache RetroAchievements badge art for offline game details | Reuse the cover-cache origin-safety and retry patterns for locked/unlocked badges, then serve local asset paths to both desktop and immersive achievement views. |
 | `c62bb43` | Customizable home background and image treatment | Add game-art/custom-image selection plus blur, saturation, and opacity controls with readable overlays and equivalent desktop/immersive settings access. |
+| `3fdd187`, `60ca11f`, `12397d9` | Named RomM save channels and timeline restore | Prove current RomM channel contracts live, model active-slot timestamps and duplicate handling, retain reversible backups, and expose equivalent desktop/immersive controls. |
+| `7867247`, `5646383` | Broader canonical platform aliases and ordering | Extend mappings only for established RomM aliases, preserve unknown-platform passthrough, and add stable family/chronological ordering without implying unavailable emulators. |
+| `66bfb40` | Controller-complete first-run setup | Make setup controls focusable and reuse a narrowly scoped gamepad-to-keyboard mapper before immersive mode is available. |
 
 ## Open decisions
 
@@ -282,6 +323,7 @@ chronological work can proceed safely.
 | 2026-09-24 | `623563de..b7f891c` (17 commits) | Non-blocking local ROM deletion: filesystem removal now runs on Tokio's blocking pool before the existing desktop/immersive refresh path | `689be34` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be built locally because Smart App Control remains enforced. Windows CI run `36025282244` passed frontend coverage, Cargo tests (including the focused deletion tests), Rust lint with warnings denied, Rust coverage, and artifact upload. Repository-wide local `cargo fmt --check` still reports extensive pre-existing formatting drift outside the changed hunk. | Refreshed the Argosy baseline to `8b3eed9` / 2,890 without moving the valid cursor. Added sync-filter and achievement-badge-cache candidates; resolved the large-file deletion candidate. RomM rating/difficulty sync remains an open decision. |
 | 2026-09-25 | `6dd07eb..16a398c` (6 commits) | Available ROM-drive capacity in Storage settings, with nearest-existing-parent fallback and explicit unavailable state | `65f82fb` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and targeted `rustfmt --check` passed locally. Rust could not be compiled locally because Smart App Control remains enforced. Windows CI run `36158559061` passed frontend coverage, Cargo tests (including the new storage-path test), Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `8b3eed9` / 2,890 and advanced the valid cursor to commit 84. Added a background-customization candidate; consolidated multi-disc work remains in the existing candidate. RomM rating/difficulty sync remains an open decision. |
 | 2026-09-29 | `f4cda7d..eca9c0f` (6 commits) | Official Windows Vita3K download/detection/configuration and title-ID direct launch, including ZIP-entry title discovery and safe emulator-only fallback | `3866196` | 43 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be compiled locally because Smart App Control remains enforced. Windows CI run `36640540601` passed frontend coverage, Cargo tests (including focused Vita3K metadata/title-ID tests), Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `60dc343` / 2,956 without moving the valid cursor, then advanced it to commit 90. Consolidated M3U support into the existing multi-disc candidate. RomM rating/difficulty sync remains an open decision. |
+| 2026-10-02 | `dd67a69..b058467` (30 commits) | RomM `vita` slug normalization for Vita3K; filesystem-validated filtered loads and locally playable immersive Recent results | `edc2424` | 45 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be compiled locally because Smart App Control remains enforced. Windows CI run `37079548487` passed frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `c1b8371` / 3,060 while preserving the valid cursor, then advanced it to commit 120. Added archive-context, save-channel, platform-catalog, and first-run-controller candidates. RomM rating/difficulty sync remains an open decision. |
 
 ## Completion rule
 
