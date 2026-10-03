@@ -24,10 +24,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import normalizeUrl from "../utils/normalizeUrl";
+import {
+  activateControllerFocus,
+  ensureControllerFocus,
+  moveControllerFocus,
+} from "../utils/controllerFocus";
+import { useGamepadKeyboardMapper } from "../immersive/useGamepadKeyboardMapper";
 
 const STEPS = ["RomM Server", "ROM Folder", "Scan Games"];
 
 export default function SetupWizard({ onComplete, onRommConnect }) {
+  const wizardRef = useRef(null);
   const [activeStep, setActiveStep] = useState(-1);
   const [rommUrl, setRommUrl] = useState("");
   const [rommPairing, setRommPairing] = useState(null);
@@ -41,6 +48,8 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
   const [syncResult, setSyncResult] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
+
+  useGamepadKeyboardMapper({ enabled: true });
 
   useEffect(() => () => {
     pairingAttemptRef.current += 1;
@@ -184,9 +193,43 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
     setError(null);
   }
 
+  useEffect(() => {
+    ensureControllerFocus(wizardRef.current);
+  }, [activeStep, rommConnected, rommPairing, scanning, scanResult, syncing, syncResult]);
+
+  useEffect(() => {
+    function handleControllerKeyDown(event) {
+      const wizard = wizardRef.current;
+      if (!wizard) return;
+
+      if (["ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"].includes(event.key)) {
+        if (event.target !== window && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target?.tagName)) {
+          return;
+        }
+        event.preventDefault();
+        const direction = event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 1;
+        moveControllerFocus(wizard, direction);
+        return;
+      }
+
+      if (event.key === "Enter" && event.target === window) {
+        if (activateControllerFocus(wizard)) event.preventDefault();
+        return;
+      }
+
+      if (event.key === "Escape" && activeStep >= 0) {
+        event.preventDefault();
+        handleBack();
+      }
+    }
+
+    window.addEventListener("keydown", handleControllerKeyDown);
+    return () => window.removeEventListener("keydown", handleControllerKeyDown);
+  }, [activeStep]);
+
   if (activeStep === -1) {
     return (
-      <WizardContainer>
+      <WizardContainer rootRef={wizardRef}>
         <Fade in timeout={600}>
           <Box sx={{ textAlign: "center", py: 6 }}>
             <SportsEsportsIcon
@@ -229,7 +272,7 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
   }
 
   return (
-    <WizardContainer>
+    <WizardContainer rootRef={wizardRef}>
       <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
         {STEPS.map((label) => (
           <Step key={label}>
@@ -462,9 +505,11 @@ export default function SetupWizard({ onComplete, onRommConnect }) {
   );
 }
 
-function WizardContainer({ children }) {
+function WizardContainer({ children, rootRef }) {
   return (
     <Box
+      ref={rootRef}
+      data-testid="setup-wizard"
       sx={{
         display: "flex",
         alignItems: "center",
@@ -472,6 +517,11 @@ function WizardContainer({ children }) {
         minHeight: "100vh",
         bgcolor: "background.default",
         p: 3,
+        "& .MuiButton-root:focus": {
+          outline: "3px solid",
+          outlineColor: "primary.light",
+          outlineOffset: "3px",
+        },
       }}
     >
       <Paper
