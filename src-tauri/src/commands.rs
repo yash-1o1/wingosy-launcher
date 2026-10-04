@@ -40,7 +40,6 @@ fn configured_emulator_path(config: &AppConfig, emulator_id: &str) -> Option<Pat
         None
     }
 }
-
 /// True if this emulator supports the given platform id (including RetroArch wildcard `"*"`).
 fn emulator_supports_platform(supported: &[String], platform_id: &str) -> bool {
     supported.contains(&platform_id.to_string()) || supported.contains(&"*".to_string())
@@ -941,7 +940,7 @@ pub struct PlatformSyncOverview {
 }
 
 fn platform_from_romm(romm_platform: &crate::api::RomMPlatform, server_url: &str) -> Platform {
-    use crate::models::map_romm_slug;
+    use crate::models::{map_romm_slug, platform_sort_order};
 
     let logo_url = romm_platform.url_logo.as_ref().map(|logo| {
         if logo.starts_with("http") {
@@ -951,8 +950,11 @@ fn platform_from_romm(romm_platform: &crate::api::RomMPlatform, server_url: &str
         }
     });
 
+    let platform_id = map_romm_slug(&romm_platform.slug);
+
     Platform {
-        id: map_romm_slug(&romm_platform.slug),
+        sort_order: platform_sort_order(&platform_id),
+        id: platform_id,
         name: romm_platform
             .display_name
             .clone()
@@ -960,7 +962,6 @@ fn platform_from_romm(romm_platform: &crate::api::RomMPlatform, server_url: &str
         short_name: Some(romm_platform.name.clone()),
         extensions: vec![],
         logo_path: logo_url,
-        sort_order: 0,
     }
 }
 
@@ -989,9 +990,15 @@ pub async fn list_romm_sync_platforms(
     let mut platforms = client.get_platforms().await.map_err(|e| e.to_string())?;
 
     platforms.sort_by(|left, right| {
+        use crate::models::{map_romm_slug, platform_sort_order};
+
+        let left_order = platform_sort_order(&map_romm_slug(&left.slug));
+        let right_order = platform_sort_order(&map_romm_slug(&right.slug));
         let left_name = left.display_name.as_ref().unwrap_or(&left.name);
         let right_name = right.display_name.as_ref().unwrap_or(&right.name);
-        left_name.to_lowercase().cmp(&right_name.to_lowercase())
+        left_order
+            .cmp(&right_order)
+            .then_with(|| left_name.to_lowercase().cmp(&right_name.to_lowercase()))
     });
 
     Ok(platforms

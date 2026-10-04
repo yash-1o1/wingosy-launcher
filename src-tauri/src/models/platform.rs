@@ -9,17 +9,47 @@ pub struct Platform {
     pub logo_path: Option<String>,
     pub sort_order: i32,
 }
-
 impl Platform {
     pub fn new(id: impl Into<String>, name: impl Into<String>, extensions: Vec<&str>) -> Self {
+        let id = id.into();
         Self {
-            id: id.into(),
+            sort_order: platform_sort_order(&id),
+            id,
             name: name.into(),
             short_name: None,
             extensions: extensions.into_iter().map(String::from).collect(),
             logo_path: None,
-            sort_order: 0,
         }
+    }
+}
+
+pub fn platform_sort_order(id: &str) -> i32 {
+    match id {
+        "nes" => 100,
+        "snes" => 110,
+        "n64" => 120,
+        "gc" => 130,
+        "wii" => 140,
+        "wiiu" => 150,
+        "switch" => 160,
+        "gb" => 200,
+        "gbc" => 210,
+        "gba" => 220,
+        "nds" => 230,
+        "3ds" => 240,
+        "psx" => 300,
+        "ps2" => 310,
+        "ps3" => 320,
+        "psp" => 350,
+        "psvita" => 360,
+        "genesis" => 400,
+        "saturn" => 410,
+        "dreamcast" => 420,
+        "xbox" => 500,
+        "xbox360" => 510,
+        "arcade" => 900,
+        "pc" => 1_000,
+        _ => 10_000,
     }
 }
 
@@ -63,32 +93,38 @@ pub fn detect_platform_by_extension(ext: &str) -> Option<String> {
 }
 
 pub fn map_romm_slug(slug: &str) -> String {
-    match slug {
-        "snes" | "super-nintendo" | "super-nintendo-entertainment-system" => "snes".into(),
-        "nes" | "nintendo-entertainment-system" => "nes".into(),
-        "n64" | "nintendo-64" => "n64".into(),
-        "gc" | "gamecube" | "nintendo-gamecube" => "gc".into(),
+    let normalized = slug.trim().to_ascii_lowercase().replace('_', "-");
+
+    match normalized.as_str() {
+        "snes"
+        | "super-nintendo"
+        | "super-nintendo-entertainment-system"
+        | "super-famicom"
+        | "superfamicom" => "snes".into(),
+        "nes" | "nintendo-entertainment-system" | "famicom" => "nes".into(),
+        "n64" | "nintendo-64" | "nintendo64" => "n64".into(),
+        "gc" | "gamecube" | "nintendo-gamecube" | "ngc" => "gc".into(),
         "wii" | "nintendo-wii" => "wii".into(),
-        "wiiu" | "wii-u" | "nintendo-wii-u" => "wiiu".into(),
-        "switch" | "nintendo-switch" => "switch".into(),
-        "gb" | "game-boy" | "nintendo-game-boy" => "gb".into(),
-        "gbc" | "game-boy-color" | "nintendo-game-boy-color" => "gbc".into(),
-        "gba" | "game-boy-advance" | "nintendo-game-boy-advance" => "gba".into(),
-        "nds" | "nintendo-ds" => "nds".into(),
-        "3ds" | "nintendo-3ds" => "3ds".into(),
-        "psx" | "ps1" | "playstation" | "sony-playstation" => "psx".into(),
-        "ps2" | "playstation-2" | "sony-playstation-2" => "ps2".into(),
-        "ps3" | "playstation-3" | "sony-playstation-3" => "ps3".into(),
+        "wiiu" | "wii-u" | "nintendo-wii-u" | "nintendo-wiiu" => "wiiu".into(),
+        "switch" | "nintendo-switch" | "nswitch" => "switch".into(),
+        "gb" | "game-boy" | "gameboy" | "nintendo-game-boy" => "gb".into(),
+        "gbc" | "game-boy-color" | "gameboy-color" | "gameboycolor" | "nintendo-game-boy-color" => "gbc".into(),
+        "gba" | "game-boy-advance" | "gameboy-advance" | "gameboyadvance" | "nintendo-game-boy-advance" => "gba".into(),
+        "nds" | "nintendo-ds" | "nintendods" => "nds".into(),
+        "3ds" | "nintendo-3ds" | "nintendo3ds" | "new-nintendo-3ds" => "3ds".into(),
+        "psx" | "ps" | "ps1" | "playstation" | "playstation-1" | "playstation1" | "sony-playstation" => "psx".into(),
+        "ps2" | "playstation-2" | "playstation2" | "sony-playstation-2" => "ps2".into(),
+        "ps3" | "playstation-3" | "playstation3" | "sony-playstation-3" => "ps3".into(),
         "psp" | "playstation-portable" | "sony-psp" => "psp".into(),
-        "vita" | "psvita" | "playstation-vita" | "ps-vita" => "psvita".into(),
+        "vita" | "psvita" | "playstation-vita" | "playstationvita" | "ps-vita" | "sony-playstation-vita" => "psvita".into(),
         "genesis" | "sega-genesis" | "mega-drive" | "sega-mega-drive" | "megadrive" | "sega-mega-drive-genesis" => "genesis".into(),
         "saturn" | "sega-saturn" => "saturn".into(),
-        "dreamcast" | "sega-dreamcast" => "dreamcast".into(),
+        "dreamcast" | "sega-dreamcast" | "dc" => "dreamcast".into(),
         "xbox" | "microsoft-xbox" => "xbox".into(),
-        "xbox360" | "xbox-360" | "microsoft-xbox-360" => "xbox360".into(),
-        "arcade" | "mame" => "arcade".into(),
-        "pc" | "dos" | "windows" => "pc".into(),
-        other => other.to_string(),
+        "xbox360" | "xbox-360" | "microsoft-xbox-360" | "x360" => "xbox360".into(),
+        "arcade" | "mame" | "fbneo" | "final-burn-neo" => "arcade".into(),
+        "pc" | "dos" | "ms-dos" | "windows" | "microsoft-windows" => "pc".into(),
+        _ => slug.to_string(),
     }
 }
 
@@ -108,6 +144,10 @@ mod tests {
         assert_eq!(map_romm_slug("sega-dreamcast"), "dreamcast");
         assert_eq!(map_romm_slug("nintendo-switch"), "switch");
         assert_eq!(map_romm_slug("vita"), "psvita");
+        assert_eq!(map_romm_slug("GAMEBOY_ADVANCE"), "gba");
+        assert_eq!(map_romm_slug("nintendo64"), "n64");
+        assert_eq!(map_romm_slug("playstation3"), "ps3");
+        assert_eq!(map_romm_slug("final_burn_neo"), "arcade");
     }
 
     #[test]
@@ -121,6 +161,16 @@ mod tests {
     #[test]
     fn slug_unknown_passes_through() {
         assert_eq!(map_romm_slug("neo-geo-pocket"), "neo-geo-pocket");
+        assert_eq!(map_romm_slug("Custom_System"), "Custom_System");
+    }
+
+    #[test]
+    fn default_platforms_follow_stable_family_order() {
+        let platforms = default_platforms();
+        assert!(platforms
+            .windows(2)
+            .all(|pair| pair[0].sort_order < pair[1].sort_order));
+        assert!(platform_sort_order("unknown-system") > platforms.last().unwrap().sort_order);
     }
 
     #[test]

@@ -87,8 +87,7 @@ impl Database {
     pub fn initialize_default_platforms(&self) -> Result<()> {
         let platforms = crate::models::default_platforms();
 
-        for (i, mut platform) in platforms.into_iter().enumerate() {
-            platform.sort_order = i as i32;
+        for platform in platforms {
             self.insert_platform(&platform)?;
         }
 
