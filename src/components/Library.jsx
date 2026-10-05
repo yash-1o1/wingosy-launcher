@@ -29,6 +29,7 @@ export default function Library({
   loading,
   searchQuery,
   favoritesOnly,
+  selectedPlatform,
   sortBy,
   sortDescending,
   availability,
@@ -292,6 +293,7 @@ export default function Library({
               onToggleFavorite={() => onToggleFavorite(game.id)}
               onLaunch={() => onLaunchGame(game.id)}
               downloadProgress={getProgress(game.id)}
+              showPlatformBadge={!selectedPlatform}
             />
           ))}
         </Box>

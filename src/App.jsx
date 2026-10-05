@@ -501,6 +501,7 @@ function App() {
             loading={loading}
             searchQuery={searchQuery}
             favoritesOnly={favoritesOnly}
+            selectedPlatform={selectedPlatform}
             sortBy={librarySort}
             sortDescending={librarySortDescending}
             availability={libraryAvailability}

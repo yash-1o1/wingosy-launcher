@@ -43,7 +43,14 @@ function getCoverSrc(coverPath) {
   return coverPath;
 }
 
-export default function GameCard({ game, onClick, onToggleFavorite, onLaunch, downloadProgress }) {
+export default function GameCard({
+  game,
+  onClick,
+  onToggleFavorite,
+  onLaunch,
+  downloadProgress = null,
+  showPlatformBadge = true,
+}) {
   const [imgError, setImgError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const { colors } = useAppTheme();
@@ -153,32 +160,33 @@ export default function GameCard({ game, onClick, onToggleFavorite, onLaunch, do
           }}
         />
 
-        {/* Platform badge - top left corner (Argosy-style) */}
-        <Box
-          sx={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            bgcolor: "rgba(0,0,0,0.75)",
-            backdropFilter: "blur(8px)",
-            px: 1,
-            py: 0.4,
-            borderBottomRightRadius: "8px",
-            minWidth: 32,
-          }}
-        >
-          <Typography
+        {showPlatformBadge && platformSlug ? (
+          <Box
             sx={{
-              fontSize: "0.6rem",
-              fontWeight: 700,
-              color: "#fff",
-              letterSpacing: "0.5px",
-              textAlign: "center",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              bgcolor: "rgba(0,0,0,0.75)",
+              backdropFilter: "blur(8px)",
+              px: 1,
+              py: 0.4,
+              borderBottomRightRadius: "8px",
+              minWidth: 32,
             }}
           >
-            {platformSlug}
-          </Typography>
-        </Box>
+            <Typography
+              sx={{
+                fontSize: "0.6rem",
+                fontWeight: 700,
+                color: "#fff",
+                letterSpacing: "0.5px",
+                textAlign: "center",
+              }}
+            >
+              {platformSlug}
+            </Typography>
+          </Box>
+        ) : null}
 
         {/* Status badges - bottom row */}
         <Box
