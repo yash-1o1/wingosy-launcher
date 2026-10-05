@@ -1,7 +1,7 @@
 {
   "name": "wingosy-launcher",
   "private": true,
-  "version": "0.0.160",
+  "version": "0.0.161",
   "packageManager": "npm@11.12.1",
   "type": "module",
   "engines": {
