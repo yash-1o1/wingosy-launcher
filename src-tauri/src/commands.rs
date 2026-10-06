@@ -452,7 +452,10 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
             })
         }
         LaunchResult::DryRun { ref command } => {
-            tracing::info!("[Launch] Dry run completed for: {}", command.full_command);
+            tracing::info!(
+                "[Launch] Dry run completed: {}",
+                command.diagnostic_summary()
+            );
             Ok(LaunchGameResult {
                 success: true,
                 error: None,

@@ -23,6 +23,49 @@ pub struct LaunchCommand {
     pub rom_path: String,
 }
 
+impl LaunchCommand {
+    pub fn diagnostic_summary(&self) -> String {
+        let mut summary = format!(
+            "game={} | emulator={} ({}) | executable={} | rom={}",
+            single_line(&self.game_name),
+            single_line(&self.emulator_name),
+            single_line(&self.emulator_id),
+            file_name(&self.executable),
+            file_name(&self.rom_path),
+        );
+
+        if let Some(core_name) = self.core_name.as_deref() {
+            summary.push_str(" | core=");
+            summary.push_str(file_name(core_name));
+        }
+
+        summary
+    }
+}
+
+fn file_name(path: &str) -> &str {
+    path.rsplit(['/', '\\'])
+        .find(|part| !part.is_empty())
+        .unwrap_or(path)
+}
+
+fn single_line(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_control() {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect()
+}
+
+fn launch_log_entry(timestamp: impl std::fmt::Display, command: &LaunchCommand) -> String {
+    format!("[{}] {}\n\n", timestamp, command.diagnostic_summary())
+}
+
 pub struct EmulatorLauncher {
     config: AppConfig,
     db: Database,
@@ -99,7 +142,7 @@ impl EmulatorLauncher {
             game.name,
             emulator.name,
             game.platform_id,
-            rom_path
+            file_name(rom_path)
         );
 
         self.log_launch_to_file(&command);
@@ -144,14 +187,7 @@ impl EmulatorLauncher {
             let log_file = logs_dir.join("launches.log");
             let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
 
-            let log_entry = format!(
-                "[{}] {} via {}\n  ROM: {}\n  Command: {}\n\n",
-                timestamp,
-                command.game_name,
-                command.emulator_name,
-                command.rom_path,
-                command.full_command
-            );
+            let log_entry = launch_log_entry(timestamp, command);
 
             match OpenOptions::new()
                 .create(true)
@@ -281,6 +317,54 @@ impl EmulatorLauncher {
                 e
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{launch_log_entry, LaunchCommand};
+
+    fn private_path_command() -> LaunchCommand {
+        LaunchCommand {
+            executable: "C:\\Users\\player@example.com\\Emulators\\RetroArch\\retroarch.exe".to_string(),
+            args: vec![
+                "-L".to_string(),
+                "C:\\Users\\player@example.com\\cores\\mgba_libretro.dll".to_string(),
+                "C:\\Users\\player@example.com\\ROMs\\mario.gba".to_string(),
+            ],
+            full_command: "\"C:\\Users\\player@example.com\\Emulators\\RetroArch\\retroarch.exe\" -L \"C:\\Users\\player@example.com\\cores\\mgba_libretro.dll\" \"C:\\Users\\player@example.com\\ROMs\\mario.gba\"".to_string(),
+            emulator_id: "retroarch".to_string(),
+            emulator_name: "RetroArch".to_string(),
+            core_name: Some("C:\\Users\\player@example.com\\cores\\mgba_libretro.dll".to_string()),
+            game_name: "Super Mario\nAdvance".to_string(),
+            rom_path: "C:\\Users\\player@example.com\\ROMs\\mario.gba".to_string(),
+        }
+    }
+
+    #[test]
+    fn diagnostic_summary_keeps_launch_context_without_private_paths() {
+        let command = private_path_command();
+        let summary = command.diagnostic_summary();
+
+        assert!(summary.contains("game=Super Mario Advance"));
+        assert!(summary.contains("emulator=RetroArch (retroarch)"));
+        assert!(summary.contains("executable=retroarch.exe"));
+        assert!(summary.contains("rom=mario.gba"));
+        assert!(summary.contains("core=mgba_libretro.dll"));
+        assert!(!summary.contains("player@example.com"));
+        assert!(!summary.contains("C:\\Users"));
+    }
+
+    #[test]
+    fn persistent_launch_log_omits_raw_command_and_arguments() {
+        let command = private_path_command();
+        let entry = launch_log_entry("2026-10-06 09:00:00", &command);
+
+        assert!(entry.starts_with("[2026-10-06 09:00:00]"));
+        assert!(entry.contains("rom=mario.gba"));
+        assert!(!entry.contains(&command.full_command));
+        assert!(!entry.contains("-L"));
+        assert!(!entry.contains("player@example.com"));
     }
 }
 
