@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `4a5f529a1a1698b7c433419ad550248f49d8bb01` — 2026-10-05 (2026-10-05 run)
+- Argosy baseline observed: `4a5f529a1a1698b7c433419ad550248f49d8bb01` — 2026-10-06 (2026-10-06 run)
 - Baseline history size: 3,090 commits on `origin/main`
-- Wingosy baseline observed: `bf10b78` — 2026-10-05 feature commit
+- Wingosy baseline observed: `e606dc6` — 2026-10-06 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -92,6 +92,13 @@ A fresh fetch advanced Argosy `origin/main` from `1d58f89` / 3,087 commits to
 `ea8b196` was still commit 140 and `8fc59ff` was still commit 141. Aggregate
 metadata was refreshed without skipping or reordering history.
 
+### Baseline confirmation (2026-10-06)
+
+A fresh fetch left Argosy `origin/main` unchanged at `4a5f529` / 3,090
+commits. The chronological cursor remained valid: `f1df1da` was still commit
+154 and `6282d11` was still commit 155. Only the observation date was
+refreshed before this run's seven chronological dispositions were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -145,11 +152,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `f1df1da7d5d1f39403219b613b316caa896e03e0`
-- Next Argosy commit: `6282d117e53eba904c285cb094e3ec64fdf54eba`
-- Audited: 154 / 3,090 baseline commits
-- Portable candidates waiting: 30
-- Last tracker update: 2026-10-05
+- Last fully audited Argosy commit: `bb3d8320621bd24f5afb5765b25f45fee4768437`
+- Next Argosy commit: `b40a188a10a73e669aebd83c85d19998fcd19d7e`
+- Audited: 161 / 3,090 baseline commits
+- Portable candidates waiting: 31
+- Last tracker update: 2026-10-06
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -313,6 +320,13 @@ must record every inspected commit before advancing this cursor.
 | 152 | `831b37a` | 2025-12-19 | Move game info above carousel to prevent title overlap | superseded | Intermediate Argosy carousel layout immediately replaced by `4c9fb09`. |
 | 153 | `4c9fb09` | 2025-12-19 | Reposition game info as top-right overlay | already-covered | Wingosy's immersive grid keeps each title clamped inside its own cover card instead of using a detached carousel information overlay, so the overlap/clipping failure mode is absent. |
 | 154 | `f1df1da` | 2025-12-19 | Hide platform badges in single-platform views | implemented | `bf10b78`: Wingosy desktop cards now retain badges for mixed-platform Library/Favorites views and omit the repeated badge when a specific platform is selected. Immersive All/Favorites/Recent remain badged because all are mixed-platform sections. |
+| 155 | `6282d11` | 2025-12-19 | Fix detekt static analysis issues and tune configuration | non-feature | Android static-analysis cleanup and configuration tuning. Its semantic icon constants reinforce the existing theme-token candidate but add no separate user-visible behavior to port. |
+| 156 | `12129c6` | 2025-12-19 | Add log sanitization and comprehensive launch debugging | implemented | `e606dc6`: Wingosy launch diagnostics now retain game, emulator, executable, ROM filename, and core context while omitting user directories, raw command lines, and arguments from persistent and dry-run logs. Control characters in labels are flattened to prevent forged log lines. |
+| 157 | `f6164f4` | 2025-12-19 | Bump version to 0.9.13 | non-feature | Android release metadata only. |
+| 158 | `15d47d7` | 2025-12-19 | Fix save sync timestamp comparison using stale cached values | already-covered | Wingosy constructs every launch negotiation from current filesystem metadata and a fresh RomM negotiation response rather than cached local/server timestamps. Server conflict selection stays inside RomM's negotiated protocol. |
+| 159 | `c3a9519` | 2025-12-19 | Bump version to 0.9.14-beta.1 | non-feature | Android prerelease metadata only. |
+| 160 | `c31c87c` | 2025-12-20 | Improve save state conflict resolution and logging | candidate | Wingosy already negotiates fresh state and blocks post-session upload when RomM reports a newer save. Compatibility with legacy timestamp-suffixed latest filenames and retry semantics after a rejected update need live RomM proof before changing the fragile save path. |
+| 161 | `bb3d832` | 2025-12-20 | Bump version to 0.9.14-beta.2 | non-feature | Android prerelease metadata only. |
 
 ## Implemented parity outside the chronological audit
 
@@ -347,6 +361,7 @@ Argosy commits must still be recorded when encountered.
 | `5bb4358` | Single-flight launch and save-sync race protection | Serialize native launch/save-sync work so repeated desktop or controller input cannot start overlapping negotiations or emulator sessions; retain non-blocking UI feedback. |
 | `e9b6755`, `0d93830` | Light-mode surface audit and semantic status colors | Replace dark-only overlay/status literals with theme-aware surfaces and centralized success, warning, and info roles across desktop and immersive views. |
 | `6924ef1`, `4dc32e8` | Configurable box-art styling | Persist corner radius, border, glow/shadow, badge position, and padding with a representative preview and equivalent desktop/immersive rendering. |
+| `c31c87c` | Legacy timestamped latest-save compatibility | Verify current RomM slot metadata and update-failure behavior against live data, then recognize timestamp-tagged latest filenames only where slot metadata is absent and preserve negotiated conflict safety. |
 
 ## Open decisions
 
@@ -389,6 +404,7 @@ chronological work can proceed safely.
 | 2026-10-03 | `7d0d783..7d54348` (10 commits) | Controller-complete setup wizard with visible focus, D-pad navigation, A activation, and B back navigation | `5b77952` | 48 frontend unit tests (+3), typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Refreshed the Argosy baseline to `9cbc743` / 3,080 while preserving the valid cursor, then advanced it to commit 130. The save-channel pointer requirements were consolidated into the existing candidate. RomM rating/difficulty sync remains an open decision. |
 | 2026-10-04 | `35fd921..ea8b196` (10 commits) | Established RomM aliases for supported systems plus deterministic family/chronological platform ordering, with exact unknown-slug passthrough | `3d5c895` | 48 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be compiled locally because Smart App Control remains enforced (`os error 4551`); Windows CI run `37215735027` passed frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `1d58f89` / 3,087 while preserving the valid cursor, then advanced it to commit 140. Reconciled the stale pre-run candidate total (20 stated vs. 21 ledger rows), added candidates for per-platform sync/storage controls, save-path overrides, and save-status/progress UX, and resolved the two alias/order commits for a final 23. RomM rating/difficulty sync remains an open decision. |
 | 2026-10-05 | `8fc59ff..f1df1da` (14 commits) | Context-aware desktop platform badges: visible in mixed-platform Library/Favorites views and hidden for a selected platform | `bf10b78` | 50 frontend unit tests (+2), typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Refreshed the Argosy baseline to `4a5f529` / 3,090 while preserving the valid cursor, then advanced it to commit 154. Added race-hardening, light-theme semantics, save-path, save-status, and box-art candidates. RomM rating/difficulty sync remains an open decision. |
+| 2026-10-06 | `6282d11..bb3d832` (7 commits) | Privacy-safe launch diagnostics that retain useful filenames and emulator/core context while omitting private directories and raw command arguments | `e606dc6` | 50 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control remained enforced, so Rust was not run locally. Windows CI run `37493018816` passed the two new Rust tests, frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remained `4a5f529` / 3,090 and advanced the valid cursor to commit 161. Added a candidate for legacy timestamped latest-save compatibility; RomM rating/difficulty sync remains an open decision. |
 
 ## Completion rule
 
