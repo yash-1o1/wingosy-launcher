@@ -9,6 +9,7 @@ import Settings from "./components/Settings";
 import RomDownloadsView from "./components/RomDownloadsView";
 import SyncMonitor from "./components/SyncMonitor";
 import SetupWizard from "./components/SetupWizard";
+import PostUpdateDialog from "./components/PostUpdateDialog";
 import ImmersiveModeApp from "./immersive/ImmersiveModeApp";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -19,11 +20,16 @@ import WindowChrome from "./components/WindowChrome";
 import { isTauri, mousedownTargetElement } from "./utils/isTauri";
 import { filterVisibleGames, sortVisibleGames } from "./utils/gameFilters";
 import { UiSoundsProvider } from "./UiSoundsContext";
+import {
+  LAST_SEEN_APP_VERSION_KEY,
+  shouldShowPostUpdateNotice,
+} from "./utils/postUpdateNotice";
 
 const appWindow = isTauri() ? getCurrentWindow() : null;
 const getCurrent = getCurrentWindow;
 
 const DRAWER_WIDTH = 260;
+const RELEASES_URL = "https://github.com/yash-1o1/wingosy-launcher/releases";
 
 function AppShell({ children }) {
   useEffect(() => {
@@ -86,6 +92,7 @@ function App() {
   const [rommUrl, setRommUrl] = useState("");
   const [immersiveModeEnabled, setImmersiveModeEnabled] = useState(false);
   const [immersiveModeFullscreen, setImmersiveModeFullscreen] = useState(false);
+  const [postUpdateVersion, setPostUpdateVersion] = useState("");
   const [updateSnack, setUpdateSnack] = useState({
     open: false,
     url: "",
@@ -98,6 +105,7 @@ function App() {
   /** Which Settings sidebar section to show when opening Settings (desktop shell). */
   const [settingsInitialSection, setSettingsInitialSection] = useState("general");
   const startupUpdateCheckDone = useRef(false);
+  const postUpdateCheckDone = useRef(false);
   const rommSessionRestoreStarted = useRef(false);
   const gamesRequestId = useRef(0);
 
@@ -122,6 +130,27 @@ function App() {
     if (showSetup === false) {
       loadData();
     }
+  }, [showSetup]);
+
+  useEffect(() => {
+    if (showSetup !== false || postUpdateCheckDone.current) return;
+    postUpdateCheckDone.current = true;
+
+    invoke("get_app_version")
+      .then((version) => {
+        const currentVersion = String(version ?? "").trim();
+        if (!currentVersion) return;
+
+        const lastSeenVersion = localStorage.getItem(LAST_SEEN_APP_VERSION_KEY);
+        if (shouldShowPostUpdateNotice(currentVersion, lastSeenVersion)) {
+          setPostUpdateVersion(currentVersion);
+        } else if (!lastSeenVersion) {
+          localStorage.setItem(LAST_SEEN_APP_VERSION_KEY, currentVersion);
+        }
+      })
+      .catch((err) => {
+        console.warn("[Wingosy] Could not determine whether the app was updated:", err);
+      });
   }, [showSetup]);
 
   useEffect(() => {
@@ -355,6 +384,26 @@ function App() {
     }
   }
 
+  function acknowledgePostUpdate() {
+    if (postUpdateVersion) {
+      localStorage.setItem(LAST_SEEN_APP_VERSION_KEY, postUpdateVersion);
+    }
+    setPostUpdateVersion("");
+  }
+
+  function renderPostUpdateDialog() {
+    return (
+      <PostUpdateDialog
+        version={postUpdateVersion}
+        onClose={acknowledgePostUpdate}
+        onViewReleases={() => {
+          openUrl(RELEASES_URL);
+          acknowledgePostUpdate();
+        }}
+      />
+    );
+  }
+
   function wrapUiSounds(node) {
     return (
       <UiSoundsProvider immersiveActive={immersiveModeEnabled}>{node}</UiSoundsProvider>
@@ -414,6 +463,7 @@ function App() {
           }}
           requestedFullscreen={immersiveModeFullscreen}
         />
+        {renderPostUpdateDialog()}
       </AppShell>
     );
   }
@@ -629,6 +679,7 @@ function App() {
         }
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       />
+      {renderPostUpdateDialog()}
     </AppShell>
   );
 }
