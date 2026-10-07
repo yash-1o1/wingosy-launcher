@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `4a5f529a1a1698b7c433419ad550248f49d8bb01` — 2026-10-06 (2026-10-06 run)
+- Argosy baseline observed: `4a5f529a1a1698b7c433419ad550248f49d8bb01` — 2026-10-07 (2026-10-07 run)
 - Baseline history size: 3,090 commits on `origin/main`
-- Wingosy baseline observed: `e606dc6` — 2026-10-06 feature commit
+- Wingosy baseline observed: `22dbcbd` — 2026-10-07 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -99,6 +99,13 @@ commits. The chronological cursor remained valid: `f1df1da` was still commit
 154 and `6282d11` was still commit 155. Only the observation date was
 refreshed before this run's seven chronological dispositions were appended.
 
+### Baseline confirmation (2026-10-07)
+
+A fresh fetch left Argosy `origin/main` unchanged at `4a5f529` / 3,090
+commits. The chronological cursor remained valid: `bb3d832` was still commit
+161 and `b40a188` was still commit 162. Only the observation date was
+refreshed before this run's eight chronological dispositions were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -152,11 +159,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `bb3d8320621bd24f5afb5765b25f45fee4768437`
-- Next Argosy commit: `b40a188a10a73e669aebd83c85d19998fcd19d7e`
-- Audited: 161 / 3,090 baseline commits
-- Portable candidates waiting: 31
-- Last tracker update: 2026-10-06
+- Last fully audited Argosy commit: `cc54e4b28aa78fcb7fc4e4da7df9b71d83c55725`
+- Next Argosy commit: `f998a3fb64ef6ca4cd8c620d98b6bd3ebcd41e2f`
+- Audited: 169 / 3,090 baseline commits
+- Portable candidates waiting: 36
+- Last tracker update: 2026-10-07
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -327,6 +334,14 @@ must record every inspected commit before advancing this cursor.
 | 159 | `c3a9519` | 2025-12-19 | Bump version to 0.9.14-beta.1 | non-feature | Android prerelease metadata only. |
 | 160 | `c31c87c` | 2025-12-20 | Improve save state conflict resolution and logging | candidate | Wingosy already negotiates fresh state and blocks post-session upload when RomM reports a newer save. Compatibility with legacy timestamp-suffixed latest filenames and retry semantics after a rejected update need live RomM proof before changing the fragile save path. |
 | 161 | `bb3d832` | 2025-12-20 | Bump version to 0.9.14-beta.2 | non-feature | Android prerelease metadata only. |
+| 162 | `b40a188` | 2025-12-20 | Add bidirectional favorites sync with RomM Collections API | candidate | Favorites already work locally in both Wingosy shells. Roaming them through RomM is portable, but needs a verified Collections API contract, explicit opt-in, durable retry state, and conflict-safe reconciliation before local choices can be written remotely. |
+| 163 | `ad28ae8` | 2025-12-20 | Fix first favorites sync to merge instead of overwrite | candidate | Folded into `b40a188`: the first connected sync must union local and remote favorites rather than treating either side as authoritative, then record a baseline only after a successful merge. |
+| 164 | `0ac5cc1` | 2025-12-20 | Add weekly game recommendations with repeat penalty | candidate | A small rotating recommendation rail could be useful in desktop and immersive modes, but requires deterministic/testable scoring, clear installed-versus-downloadable semantics, and a privacy-preserving local history model. Argosy's Android scheduling and DAO implementation are not copied. |
+| 165 | `85f7dd5` | 2025-12-20 | Add changelog modal for post-update notifications | implemented | `22dbcbd`: Wingosy now records the first observed app version silently, then shows a desktop- and immersive-safe update dialog only after a later version change. The controller-friendly dialog links to current GitHub release notes instead of embedding Argosy-specific changelog text or Android-only required actions. |
+| 166 | `864e66a` | 2025-12-20 | Add text search to Library filter menu | already-covered | Wingosy's desktop library already has case-insensitive text search, clear/empty states, and Ctrl/Cmd+F or `/` focus shortcuts; filtered queries are also passed to the native library command. Argosy's Compose filter-sheet history UI is not needed for equivalent search behavior. |
+| 167 | `16371b9` | 2025-12-20 | Add platform selection step to setup wizard | candidate | Consolidated with the existing per-platform RomM sync candidate: initial selection is valuable for large servers, but must share the same reversible enablement model, safe cleanup rules, and setup/controller behavior rather than introducing a second source of platform state. |
+| 168 | `8115f63` | 2025-12-20 | Bump version to 0.9.14 | non-feature | Android release metadata only. |
+| 169 | `cc54e4b` | 2025-12-20 | Fix first-time recommendation generation | candidate | Folded into `0ac5cc1`: a future recommendation engine must generate an initial set when no prior schedule marker exists, while persisting the marker only after a usable result is produced. The bundled version/changelog edits are release metadata. |
 
 ## Implemented parity outside the chronological audit
 
@@ -348,7 +363,7 @@ Argosy commits must still be recorded when encountered.
 | `0e4296d` | Resumable, pausable concurrent ROM downloads | Native persistent job queue, Range-capable transfer restart, queue policy, and desktop/immersive controls. |
 | `6ecfe99` | Non-blocking cleanup after cancelling downloads | Complete this only alongside the durable transfer-job model so cancellation, partial-file cleanup, and restart recovery share one state machine. Large local-ROM deletion was resolved by `689be34`. |
 | `3de24f3`, `76e2cc7`, `c8131a1`, `d152e97` | Extend automatic path-aware RomM save sync, per-emulator path overrides, and recovery-safe sync filters | Add Windows save resolvers and override validation incrementally per emulator with live RomM negotiation proof; treat RetroArch overrides as base paths while retaining core/content subfolders; add opt-in bad-dump/hack/extension filtering and safe duplicate handling without destructive cleanup surprises. |
-| `e7641f8`, `0612991` | Per-platform RomM sync enablement and custom ROM roots | Add reversible platform toggles, migrate existing downloads safely, exclude disabled platforms from sync and orphan cleanup, and preserve current selection without copying Android storage APIs. |
+| `e7641f8`, `0612991`, `16371b9` | Per-platform RomM sync enablement, first-run selection, and custom ROM roots | Add reversible platform toggles (including an optional setup step for large servers), migrate existing downloads safely, exclude disabled platforms from sync and orphan cleanup, and preserve current selection without copying Android storage APIs. |
 | `40e8685` | Platform-context-aware archive discovery | Recognize ZIP/7z/CHD only when the configured platform or directory context is unambiguous; do not add ambiguous extensions globally to the extension-only scanner. |
 | `03261a4`, `b03791b`, `16a398c`, `4a9bda3` | Consolidated multi-disc downloads, M3U generation, and disc picker | Model sibling discs without losing RomM identity, download/repair the full set, generate valid M3U playlists where supported, and provide pointer plus immersive-controller selection. |
 | `b03791b` | User-selectable compatible RetroArch cores per platform | Expand the one-core mapping into tested compatible choices while preserving current defaults and missing-core safeguards. |
@@ -362,6 +377,8 @@ Argosy commits must still be recorded when encountered.
 | `e9b6755`, `0d93830` | Light-mode surface audit and semantic status colors | Replace dark-only overlay/status literals with theme-aware surfaces and centralized success, warning, and info roles across desktop and immersive views. |
 | `6924ef1`, `4dc32e8` | Configurable box-art styling | Persist corner radius, border, glow/shadow, badge position, and padding with a representative preview and equivalent desktop/immersive rendering. |
 | `c31c87c` | Legacy timestamped latest-save compatibility | Verify current RomM slot metadata and update-failure behavior against live data, then recognize timestamp-tagged latest filenames only where slot metadata is absent and preserve negotiated conflict safety. |
+| `b40a188`, `ad28ae8` | Opt-in bidirectional favorites sync through RomM collections | Verify the current Collections API, merge local and remote favorites on first sync, persist retryable local changes, and avoid destructive reconciliation when a device was offline or a collection is unavailable. |
+| `0ac5cc1`, `cc54e4b` | Local weekly game recommendations with repeat avoidance | Define deterministic/testable scoring from local play history, distinguish installed and downloadable suggestions, generate a useful first set, and expose the rail consistently in desktop and immersive modes. |
 
 ## Open decisions
 
@@ -405,6 +422,7 @@ chronological work can proceed safely.
 | 2026-10-04 | `35fd921..ea8b196` (10 commits) | Established RomM aliases for supported systems plus deterministic family/chronological platform ordering, with exact unknown-slug passthrough | `3d5c895` | 48 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Rust could not be compiled locally because Smart App Control remains enforced (`os error 4551`); Windows CI run `37215735027` passed frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `1d58f89` / 3,087 while preserving the valid cursor, then advanced it to commit 140. Reconciled the stale pre-run candidate total (20 stated vs. 21 ledger rows), added candidates for per-platform sync/storage controls, save-path overrides, and save-status/progress UX, and resolved the two alias/order commits for a final 23. RomM rating/difficulty sync remains an open decision. |
 | 2026-10-05 | `8fc59ff..f1df1da` (14 commits) | Context-aware desktop platform badges: visible in mixed-platform Library/Favorites views and hidden for a selected platform | `bf10b78` | 50 frontend unit tests (+2), typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Refreshed the Argosy baseline to `4a5f529` / 3,090 while preserving the valid cursor, then advanced it to commit 154. Added race-hardening, light-theme semantics, save-path, save-status, and box-art candidates. RomM rating/difficulty sync remains an open decision. |
 | 2026-10-06 | `6282d11..bb3d832` (7 commits) | Privacy-safe launch diagnostics that retain useful filenames and emulator/core context while omitting private directories and raw command arguments | `e606dc6` | 50 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control remained enforced, so Rust was not run locally. Windows CI run `37493018816` passed the two new Rust tests, frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remained `4a5f529` / 3,090 and advanced the valid cursor to commit 161. Added a candidate for legacy timestamped latest-save compatibility; RomM rating/difficulty sync remains an open decision. |
+| 2026-10-07 | `b40a188..cc54e4b` (8 commits) | First-install-safe post-update notice for desktop and immersive mode, with keyboard/controller focus and a current releases link | `22dbcbd` | 4 targeted and 54 full frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Confirmed the Argosy baseline remained `4a5f529` / 3,090 and advanced the valid cursor to commit 169. Added favorites-sync and recommendation candidates and consolidated first-run platform selection into the existing platform-sync candidate. RomM rating/difficulty sync remains an open decision. |
 
 ## Completion rule
 
