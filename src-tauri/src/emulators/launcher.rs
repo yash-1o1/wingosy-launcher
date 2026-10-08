@@ -66,6 +66,11 @@ fn launch_log_entry(timestamp: impl std::fmt::Display, command: &LaunchCommand) 
     format!("[{}] {}\n\n", timestamp, command.diagnostic_summary())
 }
 
+fn rounded_play_minutes(seconds: u64) -> i32 {
+    let minutes = seconds.saturating_add(30) / 60;
+    i32::try_from(minutes).unwrap_or(i32::MAX)
+}
+
 pub struct EmulatorLauncher {
     config: AppConfig,
     db: Database,
@@ -157,7 +162,7 @@ impl EmulatorLauncher {
         let status = child.wait().context("Failed to wait for emulator")?;
 
         let duration = start_time.elapsed();
-        let duration_minutes = (duration.as_secs() / 60) as i32;
+        let duration_minutes = rounded_play_minutes(duration.as_secs());
 
         if duration_minutes > 0 {
             self.db.record_play_session(game.id, duration_minutes)?;
@@ -322,7 +327,7 @@ impl EmulatorLauncher {
 
 #[cfg(test)]
 mod tests {
-    use super::{launch_log_entry, LaunchCommand};
+    use super::{launch_log_entry, rounded_play_minutes, LaunchCommand};
 
     fn private_path_command() -> LaunchCommand {
         LaunchCommand {
@@ -365,6 +370,15 @@ mod tests {
         assert!(!entry.contains(&command.full_command));
         assert!(!entry.contains("-L"));
         assert!(!entry.contains("player@example.com"));
+    }
+
+    #[test]
+    fn play_sessions_round_to_the_nearest_minute_after_thirty_seconds() {
+        assert_eq!(rounded_play_minutes(0), 0);
+        assert_eq!(rounded_play_minutes(29), 0);
+        assert_eq!(rounded_play_minutes(30), 1);
+        assert_eq!(rounded_play_minutes(89), 1);
+        assert_eq!(rounded_play_minutes(90), 2);
     }
 }
 
