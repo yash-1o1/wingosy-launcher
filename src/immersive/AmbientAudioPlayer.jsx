@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { isTauri } from "../utils/isTauri";
+import { ambientVolumeToGain } from "../utils/audioVolume";
 
 function toAudioUrl(path) {
   if (!path) return null;
@@ -36,7 +37,7 @@ export default function AmbientAudioPlayer({ audio }) {
   }, [tracks]);
 
   const enabled = Boolean(audio?.ambient_enabled && audio?.ambient_path);
-  const vol = typeof audio?.ambient_volume === "number" ? audio.ambient_volume : 35;
+  const vol = audio?.ambient_volume;
   const path = audio?.ambient_path || null;
   const isFolder = Boolean(audio?.ambient_is_folder);
   const shuffle = Boolean(audio?.ambient_shuffle);
@@ -76,7 +77,7 @@ export default function AmbientAudioPlayer({ audio }) {
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
-    el.volume = Math.min(1, Math.max(0, vol / 100));
+    el.volume = ambientVolumeToGain(vol);
   }, [vol]);
 
   useEffect(() => {

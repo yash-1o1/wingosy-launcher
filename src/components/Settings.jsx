@@ -68,6 +68,10 @@ import AccentHueSlider from "./AccentHueSlider";
 import BiosSettings from "./BiosSettings";
 import { open } from "@tauri-apps/plugin-dialog";
 import normalizeUrl from "../utils/normalizeUrl";
+import {
+  AMBIENT_VOLUME_MAX,
+  normalizeAmbientVolume,
+} from "../utils/audioVolume";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { formatDownloadLabel, useRomDownloads } from "../RomDownloadsContext";
 
@@ -402,7 +406,7 @@ export default function Settings({
       setUpdateChannel(ch);
       const a = cfg.audio || {};
       setAmbientEnabled(Boolean(a.ambient_enabled));
-      setAmbientVolume(typeof a.ambient_volume === "number" ? a.ambient_volume : 35);
+      setAmbientVolume(normalizeAmbientVolume(a.ambient_volume));
       setAmbientPath(a.ambient_path || null);
       setAmbientIsFolder(Boolean(a.ambient_is_folder));
       setAmbientShuffle(Boolean(a.ambient_shuffle));
@@ -647,7 +651,7 @@ export default function Settings({
       setConfig(cfg);
       const a = cfg.audio || {};
       if (typeof a.ambient_enabled === "boolean") setAmbientEnabled(a.ambient_enabled);
-      if (typeof a.ambient_volume === "number") setAmbientVolume(a.ambient_volume);
+      if (typeof a.ambient_volume === "number") setAmbientVolume(normalizeAmbientVolume(a.ambient_volume));
       if (a.ambient_path === undefined) setAmbientPath(null);
       else if (a.ambient_path === null) setAmbientPath(null);
       else setAmbientPath(a.ambient_path);
@@ -1498,14 +1502,14 @@ export default function Settings({
         ) : null}
         <Box sx={{ px: 1, maxWidth: 400 }}>
           <Typography variant="caption" color="text.secondary">
-            Music volume
+            Music volume (ambient, up to {AMBIENT_VOLUME_MAX}%)
           </Typography>
           <Slider
             size="small"
             disabled={!ambientEnabled || !ambientPath}
             value={ambientVolume}
             min={0}
-            max={100}
+            max={AMBIENT_VOLUME_MAX}
             valueLabelDisplay="auto"
             onChange={(_, v) =>
               setAmbientVolume(Array.isArray(v) ? v[0] : v)
@@ -1513,7 +1517,7 @@ export default function Settings({
             onChangeCommitted={(_, v) => {
               const value = Array.isArray(v) ? v[0] : v;
               persistAmbient({
-                ambient_volume: Math.min(100, Math.max(0, Math.round(value))),
+                ambient_volume: normalizeAmbientVolume(value),
               });
             }}
           />
