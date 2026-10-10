@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `446eae8317c19679c3f079b5121889b465d8f385` — 2026-10-09 (2026-10-09 run)
-- Baseline history size: 3,207 commits on `origin/main`
-- Wingosy baseline observed: `4290d41` — 2026-10-09 feature commit
+- Argosy baseline observed: `9b0fefb2f2f21153727f0be85a2416146cd3365a` — 2026-10-10 (2026-10-10 run)
+- Baseline history size: 3,213 commits on `origin/main`
+- Wingosy baseline observed: `49fa1c1` — 2026-10-10 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -120,6 +120,13 @@ A fresh fetch advanced Argosy `origin/main` from `2714d54` / 3,179 commits to
 `188a15f` was still commit 185 and `f1c3c3c` was still commit 186. Aggregate
 metadata was refreshed without skipping or reordering history.
 
+### Baseline refresh (2026-10-10)
+
+A fresh fetch advanced Argosy `origin/main` from `446eae8` / 3,207 commits to
+`9b0fefb` / 3,213 commits. The chronological cursor remained valid:
+`bff1f7b` was still commit 191 and `81d055d` was still commit 192. Aggregate
+metadata was refreshed without skipping or reordering history.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -173,11 +180,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `bff1f7bb4ae8e9aa8547851e008180375279a9fb`
-- Next Argosy commit: `81d055d87b0f9fb0194b644e6d47c36a385fc836`
-- Audited: 191 / 3,207 baseline commits
+- Last fully audited Argosy commit: `ab05a8777d5a4997c6883fa74fd799cbc1a85774`
+- Next Argosy commit: `8ea383aef286019282bfb52fca476785030afbd1`
+- Audited: 200 / 3,213 baseline commits
 - Portable candidates waiting: 37
-- Last tracker update: 2026-10-09
+- Last tracker update: 2026-10-10
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -378,6 +385,15 @@ must record every inspected commit before advancing this cursor.
 | 189 | `9942402` | 2025-12-23 | Fix app icon crashes for apps with undefined intrinsic dimensions | not-portable | Guards Android package drawables with invalid intrinsic dimensions before rendering them through Coil. Wingosy has no Android installed-app icon fetcher or drawable conversion path. |
 | 190 | `f23e1cd` | 2025-12-23 | Add background music feature to launcher | already-covered | Wingosy already supports optional Immersive-mode background audio from a file or folder, looping or shuffled playback, persisted enable/volume controls, and automatic playback when Immersive mode mounts. Android audio-focus and MediaPlayer lifecycle mechanics are not copied. |
 | 191 | `bff1f7b` | 2025-12-23 | Fix background music volume balance and input handling | implemented | `4290d41`: Wingosy now caps ambient music at 35%, normalizes legacy or invalid configured values for both playback and settings, labels the ceiling in the UI, and tests the gain conversion. Its web-native slider already handles pointer, keyboard, and controller-mapped directional input. |
+| 192 | `81d055d` | 2025-12-23 | Bump version to 0.9.18 | non-feature | Android release metadata only. |
+| 193 | `b99cacf` | 2025-12-23 | Add built-in file browser for folder selection | already-covered | Wingosy uses the native Windows/Tauri folder picker for setup, ROM storage, logs, emulator saves, and ambient-audio folders. Argosy's replacement exists for Android devices without a system file manager; Android storage-volume probing and Compose D-pad panes are not needed on Windows. |
+| 194 | `de10d41` | 2025-12-23 | Bump version to 0.9.19-beta.1 | non-feature | Android prerelease metadata plus static-analysis annotations and locale-stable file-size formatting for its Android-only browser; no missing Wingosy behavior. |
+| 195 | `e49f857` | 2025-12-23 | Fix crash when apps have multiple launcher activities | not-portable | Deduplicates Android package-manager launcher activities for the installed-app grid. Wingosy does not enumerate Android packages or Compose app-grid keys. |
+| 196 | `8aba31c` | 2025-12-23 | Add Steam game scanning and improve integration | not-portable | Scans Android GameHub/GameNative compatibility-layer files and Wine logs, then resolves titles through the Steam store for third-party launcher APKs. Wingosy runs on Windows with native Steam, so these mobile bridge scanners, stale-log warnings, and APK launcher selection do not map to its library model. |
+| 197 | `09c4e35` | 2025-12-23 | Bump version to 0.9.19 | non-feature | Android release metadata only. |
+| 198 | `d776a61` | 2025-12-23 | Add Android game detection and RomM APK install flow | not-portable | Android package categorization, Play Store scraping, APK installation permissions, package-added broadcasts, and app launching are outside Wingosy's Windows/Tauri architecture. |
+| 199 | `0a0226a` | 2025-12-23 | Add verbose save sync logging for ZIP container diagnosis | already-covered | Wingosy's native tracing already records save-sync phases, failures, negotiated fallbacks, and safe filename/emulator context. It intentionally omits private directory listings and raw paths from persistent diagnostics; Argosy's Android logger and ZIP-container directory dump are not copied. |
+| 200 | `ab05a87` | 2025-12-24 | Add missing platform slug aliases for regional variants | implemented | `49fa1c1`: Wingosy now maps RomM's `fc`, `fam`, `family_computer`, `sfc`, and `sfam` regional forms to its canonical NES/SNES launch IDs while preserving its existing unknown-slug passthrough. Focused Rust coverage verifies case and underscore normalization. |
 
 ## Implemented parity outside the chronological audit
 
@@ -462,6 +478,7 @@ chronological work can proceed safely.
 | 2026-10-07 | `b40a188..cc54e4b` (8 commits) | First-install-safe post-update notice for desktop and immersive mode, with keyboard/controller focus and a current releases link | `22dbcbd` | 4 targeted and 54 full frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Confirmed the Argosy baseline remained `4a5f529` / 3,090 and advanced the valid cursor to commit 169. Added favorites-sync and recommendation candidates and consolidated first-run platform selection into the existing platform-sync candidate. RomM rating/difficulty sync remains an open decision. |
 | 2026-10-08 | `f998a3f..188a15f` (16 commits) | Nearest-minute play-session accounting from 30 seconds, preserving meaningful short sessions | `e541906` | 54 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control blocked local Rust execution; Windows CI run `37805856253` passed the new boundary test, all Cargo tests, Rust lint with warnings denied, Rust coverage, frontend coverage, and artifact upload. Repository-wide `rustfmt --check` still reports pre-existing formatting drift in `launcher.rs` outside the changed hunk. | Refreshed the Argosy baseline to `2714d54` / 3,179 while preserving the valid cursor, then advanced it to commit 185. Added the distinct platform-version identity candidate. The open personal-metadata sync decision now explicitly includes completion status. |
 | 2026-10-09 | `f1c3c3c..bff1f7b` (6 commits) | Ambient background-music ceiling with normalized legacy values | `4290d41` | 3 targeted and 57 full frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Refreshed the Argosy baseline to `446eae8` / 3,207 while preserving the valid cursor, then advanced it to commit 191. No new candidate was needed; screenshot background selection remains consolidated with the existing customizable-background candidate. RomM personal-metadata sync remains an open decision. |
+| 2026-10-10 | `81d055d..ab05a87` (9 commits) | Regional Famicom/Super Famicom RomM slug normalization | `49fa1c1` | 57 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control blocked local Rust execution; Windows CI run `38065890788` passed the new Rust test, all Cargo tests, Rust lint with warnings denied, Rust coverage, frontend coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in `platform.rs`; the changed mapping and test hunks match rustfmt output. | Refreshed the Argosy baseline to `9b0fefb` / 3,213 while preserving the valid cursor, then advanced it to commit 200. No new candidate was added. RomM personal-metadata sync remains an open decision. |
 
 ## Completion rule
 
