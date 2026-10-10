@@ -100,8 +100,12 @@ pub fn map_romm_slug(slug: &str) -> String {
         | "super-nintendo"
         | "super-nintendo-entertainment-system"
         | "super-famicom"
-        | "superfamicom" => "snes".into(),
-        "nes" | "nintendo-entertainment-system" | "famicom" => "nes".into(),
+        | "superfamicom"
+        | "sfc"
+        | "sfam" => "snes".into(),
+        "nes" | "nintendo-entertainment-system" | "famicom" | "family-computer" | "fc" | "fam" => {
+            "nes".into()
+        }
         "n64" | "nintendo-64" | "nintendo64" => "n64".into(),
         "gc" | "gamecube" | "nintendo-gamecube" | "ngc" => "gc".into(),
         "wii" | "nintendo-wii" => "wii".into(),
@@ -148,6 +152,15 @@ mod tests {
         assert_eq!(map_romm_slug("nintendo64"), "n64");
         assert_eq!(map_romm_slug("playstation3"), "ps3");
         assert_eq!(map_romm_slug("final_burn_neo"), "arcade");
+    }
+
+    #[test]
+    fn slug_maps_famicom_regional_aliases() {
+        assert_eq!(map_romm_slug("fc"), "nes");
+        assert_eq!(map_romm_slug("fam"), "nes");
+        assert_eq!(map_romm_slug("family_computer"), "nes");
+        assert_eq!(map_romm_slug("sfc"), "snes");
+        assert_eq!(map_romm_slug("SFAM"), "snes");
     }
 
     #[test]
