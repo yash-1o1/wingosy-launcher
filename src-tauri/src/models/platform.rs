@@ -43,6 +43,7 @@ pub fn platform_sort_order(id: &str) -> i32 {
         "psp" => 350,
         "psvita" => 360,
         "genesis" => 400,
+        "gg" => 405,
         "saturn" => 410,
         "dreamcast" => 420,
         "xbox" => 500,
@@ -73,6 +74,7 @@ pub fn default_platforms() -> Vec<Platform> {
         Platform::new("psp", "PlayStation Portable", vec![".iso", ".cso", ".pbp"]),
         Platform::new("psvita", "PlayStation Vita", vec![".vpk"]),
         Platform::new("genesis", "Sega Genesis", vec![".md", ".gen", ".bin", ".smd"]),
+        Platform::new("gg", "Sega Game Gear", vec![".gg"]),
         Platform::new("saturn", "Sega Saturn", vec![".iso", ".bin", ".cue", ".chd"]),
         Platform::new("dreamcast", "Sega Dreamcast", vec![".gdi", ".cdi", ".chd"]),
         Platform::new("xbox", "Xbox", vec![".iso", ".xiso"]),
@@ -115,13 +117,14 @@ pub fn map_romm_slug(slug: &str) -> String {
         "gbc" | "game-boy-color" | "gameboy-color" | "gameboycolor" | "nintendo-game-boy-color" => "gbc".into(),
         "gba" | "game-boy-advance" | "gameboy-advance" | "gameboyadvance" | "nintendo-game-boy-advance" => "gba".into(),
         "nds" | "nintendo-ds" | "nintendods" => "nds".into(),
-        "3ds" | "nintendo-3ds" | "nintendo3ds" | "new-nintendo-3ds" => "3ds".into(),
+        "3ds" | "nintendo-3ds" | "nintendo3ds" | "new-nintendo-3ds" | "n3ds" => "3ds".into(),
         "psx" | "ps" | "ps1" | "playstation" | "playstation-1" | "playstation1" | "sony-playstation" => "psx".into(),
         "ps2" | "playstation-2" | "playstation2" | "sony-playstation-2" => "ps2".into(),
         "ps3" | "playstation-3" | "playstation3" | "sony-playstation-3" => "ps3".into(),
         "psp" | "playstation-portable" | "sony-psp" => "psp".into(),
         "vita" | "psvita" | "playstation-vita" | "playstationvita" | "ps-vita" | "sony-playstation-vita" => "psvita".into(),
         "genesis" | "sega-genesis" | "mega-drive" | "sega-mega-drive" | "megadrive" | "sega-mega-drive-genesis" => "genesis".into(),
+        "gg" | "game-gear" | "gamegear" | "sega-game-gear" | "sgg" => "gg".into(),
         "saturn" | "sega-saturn" => "saturn".into(),
         "dreamcast" | "sega-dreamcast" | "dc" => "dreamcast".into(),
         "xbox" | "microsoft-xbox" => "xbox".into(),
@@ -164,6 +167,15 @@ mod tests {
     }
 
     #[test]
+    fn slug_maps_game_gear_and_new_3ds_aliases() {
+        assert_eq!(map_romm_slug("gamegear"), "gg");
+        assert_eq!(map_romm_slug("sega_game_gear"), "gg");
+        assert_eq!(map_romm_slug("sgg"), "gg");
+        assert_eq!(map_romm_slug("n3ds"), "3ds");
+        assert_eq!(map_romm_slug("new_nintendo_3ds"), "3ds");
+    }
+
+    #[test]
     fn slug_passes_through_short_ids() {
         assert_eq!(map_romm_slug("snes"), "snes");
         assert_eq!(map_romm_slug("nes"), "nes");
@@ -192,6 +204,7 @@ mod tests {
         assert_eq!(detect_platform_by_extension(".nes"), Some("nes".into()));
         assert_eq!(detect_platform_by_extension(".gba"), Some("gba".into()));
         assert_eq!(detect_platform_by_extension(".nds"), Some("nds".into()));
+        assert_eq!(detect_platform_by_extension(".gg"), Some("gg".into()));
     }
 
     #[test]

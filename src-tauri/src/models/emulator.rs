@@ -378,6 +378,7 @@ pub fn retroarch_cores() -> HashMap<String, &'static str> {
     cores.insert("gba".into(), "mgba_libretro.dll");
     cores.insert("nds".into(), "melonds_libretro.dll");
     cores.insert("genesis".into(), "genesis_plus_gx_libretro.dll");
+    cores.insert("gg".into(), "genesis_plus_gx_libretro.dll");
     cores.insert("psx".into(), "pcsx_rearmed_libretro.dll");
     cores.insert("dreamcast".into(), "flycast_libretro.dll");
     cores.insert("psp".into(), "ppsspp_libretro.dll");
@@ -389,6 +390,14 @@ pub fn retroarch_cores() -> HashMap<String, &'static str> {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn game_gear_uses_genesis_plus_gx_by_default() {
+        assert_eq!(
+            retroarch_cores().get("gg").copied(),
+            Some("genesis_plus_gx_libretro.dll")
+        );
+    }
 
     #[test]
     fn azahar_metadata_and_launch_command_are_supported() {
