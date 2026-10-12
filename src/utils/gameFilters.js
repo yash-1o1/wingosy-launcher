@@ -5,14 +5,14 @@ export function filterVisibleGames(
   favoritesOnly = false,
   availability = "all"
 ) {
-  const normalizedQuery = searchQuery?.trim().toLocaleLowerCase() || "";
+  const normalizedQuery = normalizeSearchText(searchQuery);
 
   return games.filter((game) => {
     if (platformId && game.platform_id !== platformId) {
       return false;
     }
 
-    if (normalizedQuery && !game.name?.toLocaleLowerCase().includes(normalizedQuery)) {
+    if (normalizedQuery && !matchesSearch(game.name, normalizedQuery)) {
       return false;
     }
 
@@ -31,6 +31,70 @@ export function filterVisibleGames(
 
     return true;
   });
+}
+
+function matchesSearch(value, normalizedQuery) {
+  const normalizedValue = normalizeSearchText(value);
+  if (!normalizedValue) return false;
+  if (normalizedValue.includes(normalizedQuery)) return true;
+
+  const valueWords = normalizedValue.split(" ");
+  return normalizedQuery
+    .split(" ")
+    .every((queryWord) => valueWords.some((valueWord) => wordsMatch(queryWord, valueWord)));
+}
+
+function wordsMatch(queryWord, valueWord) {
+  if (valueWord.startsWith(queryWord)) return true;
+  if (queryWord.length >= 3 && valueWord.includes(queryWord)) return true;
+  if (queryWord.length >= 3 && isSubsequence(queryWord, valueWord)) return true;
+
+  const allowedEdits = queryWord.length >= 7 ? 2 : queryWord.length >= 4 ? 1 : 0;
+  return allowedEdits > 0 && editDistanceWithin(queryWord, valueWord, allowedEdits);
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function isSubsequence(query, value) {
+  let queryIndex = 0;
+  for (const character of value) {
+    if (character === query[queryIndex]) queryIndex += 1;
+    if (queryIndex === query.length) return true;
+  }
+  return false;
+}
+
+function editDistanceWithin(left, right, limit) {
+  if (Math.abs(left.length - right.length) > limit) return false;
+
+  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+    let rowMinimum = current[0];
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + substitutionCost
+      );
+      rowMinimum = Math.min(rowMinimum, current[rightIndex]);
+    }
+
+    if (rowMinimum > limit) return false;
+    previous = current;
+  }
+
+  return previous[right.length] <= limit;
 }
 
 export function sortVisibleGames(

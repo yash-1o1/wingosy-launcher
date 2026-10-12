@@ -21,6 +21,18 @@ describe("filterVisibleGames", () => {
     expect(filterVisibleGames(games, "switch", "POKÉMON")).toEqual([games[1]]);
   });
 
+  it("normalizes accents and punctuation in search terms", () => {
+    expect(filterVisibleGames(games, null, "pokemon-scarlet")).toEqual([games[1]]);
+  });
+
+  it("matches abbreviated and slightly misspelled title words", () => {
+    expect(filterVisibleGames(games, null, "spr odyssy")).toEqual([games[0]]);
+  });
+
+  it("requires every fuzzy search word to match", () => {
+    expect(filterVisibleGames(games, null, "pokemon odyssey")).toEqual([]);
+  });
+
   it("returns every game when no filters are active", () => {
     expect(filterVisibleGames(games, null, "")).toEqual(games);
   });

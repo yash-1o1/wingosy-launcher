@@ -155,9 +155,9 @@ function App() {
 
   useEffect(() => {
     if (showSetup === false) {
-      refreshGames(selectedPlatform, searchQuery, favoritesOnly);
+      refreshGames(selectedPlatform, favoritesOnly);
     }
-  }, [selectedPlatform, searchQuery, favoritesOnly, showSetup]);
+  }, [selectedPlatform, favoritesOnly, showSetup]);
 
   async function loadData() {
     const requestId = ++gamesRequestId.current;
@@ -240,14 +240,13 @@ function App() {
 
   async function refreshGames(
     platformId = selectedPlatform,
-    query = searchQuery,
     onlyFavorites = favoritesOnly
   ) {
     const requestId = ++gamesRequestId.current;
     try {
       const gamesData = await invoke("get_games_filtered", {
         platformId,
-        searchQuery: query || null,
+        searchQuery: null,
         favoritesOnly: onlyFavorites,
         sortBy: null,
       });
