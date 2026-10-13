@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use std::path::Path;
 use tauri::{AppHandle, Emitter};
 
 use crate::api::RomMClient;
@@ -26,12 +27,19 @@ async fn cache_cover(
     );
     let file_path = covers_dir.join(file_name);
 
-    if !file_path.exists() {
+    if !cached_cover_is_valid(&file_path) {
+        if file_path.exists() {
+            std::fs::remove_file(&file_path).context("Failed to remove invalid cached cover")?;
+        }
         let client = RomMClient::new(server_url).with_token(token.to_string());
         let bytes = client
             .download_cover(url)
             .await
             .context("Failed to download cover")?;
+        anyhow::ensure!(
+            cover_bytes_are_valid(&bytes),
+            "Downloaded cover is not a valid image"
+        );
         std::fs::write(&file_path, &bytes).context("Failed to write cached cover")?;
     }
 
@@ -46,6 +54,30 @@ async fn cache_cover(
     );
 
     Ok(())
+}
+
+fn cached_cover_is_valid(path: &Path) -> bool {
+    std::fs::read(path).is_ok_and(|bytes| cover_bytes_are_valid(&bytes))
+}
+
+fn cover_bytes_are_valid(bytes: &[u8]) -> bool {
+    if bytes.len() < 16 {
+        return false;
+    }
+
+    let jpeg = bytes.starts_with(&[0xff, 0xd8, 0xff]) && bytes.ends_with(&[0xff, 0xd9]);
+    let png =
+        bytes.starts_with(b"\x89PNG\r\n\x1a\n") && bytes.windows(4).any(|window| window == b"IEND");
+    let gif = bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a");
+    let webp = bytes.starts_with(b"RIFF")
+        && bytes.get(8..12) == Some(&b"WEBP"[..])
+        && bytes
+            .get(4..8)
+            .and_then(|value| value.try_into().ok())
+            .map(u32::from_le_bytes)
+            .is_some_and(|declared| declared as usize + 8 <= bytes.len());
+
+    jpeg || png || gif || webp
 }
 
 /// Fire-and-forget cover caching so sync isn't slowed down by image downloads.
@@ -103,7 +135,10 @@ mod tests {
 
     #[test]
     fn extension_defaults_to_jpg() {
-        assert_eq!(extension_for_url("https://romm.example/api/roms/1/cover"), "jpg");
+        assert_eq!(
+            extension_for_url("https://romm.example/api/roms/1/cover"),
+            "jpg"
+        );
     }
 
     #[test]
@@ -117,5 +152,44 @@ mod tests {
     #[test]
     fn extension_detects_webp() {
         assert_eq!(extension_for_url("https://romm.example/cover.webp"), "webp");
+    }
+
+    #[test]
+    fn validates_supported_image_signatures() {
+        let mut jpeg = vec![0xff, 0xd8, 0xff];
+        jpeg.extend([0; 16]);
+        jpeg.extend([0xff, 0xd9]);
+
+        let mut png = b"\x89PNG\r\n\x1a\n".to_vec();
+        png.extend([0; 16]);
+        png.extend(b"IEND");
+
+        let mut webp = b"RIFF".to_vec();
+        webp.extend(12_u32.to_le_bytes());
+        webp.extend(b"WEBP");
+        webp.extend([0; 8]);
+
+        let mut gif = b"GIF89a".to_vec();
+        gif.extend([0; 16]);
+
+        assert!(cover_bytes_are_valid(&jpeg));
+        assert!(cover_bytes_are_valid(&png));
+        assert!(cover_bytes_are_valid(&webp));
+        assert!(cover_bytes_are_valid(&gif));
+    }
+
+    #[test]
+    fn rejects_truncated_or_non_image_cover_data() {
+        assert!(!cover_bytes_are_valid(&[0xff, 0xd8, 0xff, 0x00]));
+        assert!(!cover_bytes_are_valid(b"<html>server error</html>"));
+    }
+
+    #[test]
+    fn invalid_existing_cover_is_not_reused() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("cover.jpg");
+        std::fs::write(&path, b"not an image response").unwrap();
+
+        assert!(!cached_cover_is_valid(&path));
     }
 }
