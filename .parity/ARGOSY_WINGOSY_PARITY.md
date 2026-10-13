@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `6a7efc43eb0cd957bfa91cbc8c9a0aea6749a4ba` — 2026-10-12 (2026-10-12 run)
-- Baseline history size: 3,243 commits on `origin/main`
-- Wingosy baseline observed: `a143f0b` — 2026-10-12 feature commit
+- Argosy baseline observed: `3059f5523b56ceeba42e1edf17918efdac5abfab` — 2026-10-13 (2026-10-13 run)
+- Baseline history size: 3,268 commits on `origin/main`
+- Wingosy baseline observed: `876d8f0` — 2026-10-13 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -143,6 +143,14 @@ A fresh fetch advanced Argosy `origin/main` from `f287e8a` / 3,219 commits to
 metadata was refreshed before this run's forty-five chronological dispositions
 were appended.
 
+### Baseline refresh (2026-10-13)
+
+A fresh fetch advanced Argosy `origin/main` from `6a7efc4` / 3,243 commits to
+`3059f55` / 3,268 commits. The chronological cursor remained valid:
+`19e7a03` was still commit 265 and `aafa1c3` was still commit 266. Aggregate
+metadata was refreshed before this run's fifteen chronological dispositions
+were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -196,11 +204,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `19e7a0387994398e8b4ddf875b9b644b99cb05eb`
-- Next Argosy commit: `aafa1c315130b45b51433089addbacc55c611299`
-- Audited: 265 / 3,243 baseline commits
-- Portable candidates waiting: 65
-- Last tracker update: 2026-10-12
+- Last fully audited Argosy commit: `fa58facbc1755ba161badcb3196fe7dd9f7b026d`
+- Next Argosy commit: `c05cc2ff24d3b3c0ba522650e6a1688763958994`
+- Audited: 280 / 3,268 baseline commits
+- Portable candidates waiting: 67
+- Last tracker update: 2026-10-13
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -475,6 +483,21 @@ must record every inspected commit before advancing this cursor.
 | 263 | `a1c4c64` | 2026-01-03 | Improve Collections UX and add quick menu integration | candidate | Consolidated into the collections candidate: creation, rename/delete, membership actions, and controller-complete browsing should ship as one vertical slice. |
 | 264 | `f6f02ef` | 2026-01-03 | Improve WideGameCard footer with themed styling and curved ears | already-covered | Wingosy uses its own responsive, theme-aware desktop and immersive card system; Argosy's Compose card geometry is branding-specific. |
 | 265 | `19e7a03` | 2026-01-03 | Add fuzzy search and improve Collections UX | implemented | `a143f0b`: Wingosy library search now normalizes accents/punctuation and matches multi-word prefixes, subsequences, and bounded typos locally while preserving platform, favorite, availability, and sort filters. Collection actions remain consolidated in the collections candidate. |
+| 266 | `aafa1c3` | 2026-01-03 | Use People icon for community rating in Quick Menu | already-covered | Wingosy's desktop details already distinguish the community rating with a Groups icon and explicit label; immersive mode uses an explicit text label rather than an ambiguous personal-rating star. |
+| 267 | `a6576aa` | 2026-01-03 | Bump version to 0.12.0-beta.2 | non-feature | Android prerelease metadata only. |
+| 268 | `59a713e` | 2026-01-03 | Improve startup flash, hidden games filter, and image cache reliability | already-covered | Wingosy has stable loading surfaces, restores hidden games through Settings, retries URL-addressed cover downloads during sync, and filters Recent to locally playable entries. The stronger content validation is recorded separately at commit 273. |
+| 269 | `d33a814` | 2026-01-03 | Bump version to 0.12.0 | non-feature | Android release metadata only. |
+| 270 | `2a0c931` | 2026-01-03 | Focus filtered collections in collection selection modal | candidate | Consolidated into the collections candidate: keyboard/controller focus must follow the visible filtered list rather than the unfiltered backing index. |
+| 271 | `75257f0` | 2026-01-04 | Fix Citra core, modal input, hidden labels, image cache, and focus bugs | already-covered | Wingosy handles 3DS through managed Azahar, uses pointer-native desktop dialogs, labels hidden-game actions accurately, hashes cover URLs into cache keys, and mounts one persistent gamepad mapper rather than route-scoped subscriptions. |
+| 272 | `1e35637` | 2026-01-04 | Prevent stale image cache when RomM IDs are reassigned | already-covered | Wingosy's cached filename combines the RomM ID with a hash of the cover URL, and sync stores the remote URL before recaching, so a reassigned ID cannot reuse bytes from a different URL. |
+| 273 | `5573075` | 2026-01-04 | Add comprehensive image cache validation | implemented | `876d8f0`: Wingosy now validates cached and downloaded JPEG, PNG, GIF, and WebP content; invalid existing files are removed and redownloaded, and malformed responses are rejected before the database cache path is updated. Three Rust tests cover valid signatures, truncation/non-images, and invalid-cache replacement. |
+| 274 | `2ea324b` | 2026-01-04 | Fix cold-boot focus and Continue Playing loading | already-covered | Wingosy has no Android storage-mount lifecycle; native requests complete before loading clears and Recent selection verifies real local paths. |
+| 275 | `34a47fe` | 2026-01-04 | Fix controller input on cold start | already-covered | Wingosy uses one persistent requestAnimationFrame gamepad mapper, avoiding per-route subscription timing and cold-start attachment races. |
+| 276 | `62142ae` | 2026-01-04 | Add cache-validation progress and fix first controller input | candidate | Per-file cache content validation is implemented and first controller input is already covered; a user-invoked full-cache validation action with progress remains useful and is consolidated into image-cache maintenance. |
+| 277 | `4a90369` | 2026-01-04 | Fix StatusPicker touch input | already-covered | Wingosy's MUI dialog and list controls use native pointer activation across mouse and touch input. |
+| 278 | `beb5bd8` | 2026-01-04 | Bump version to 0.12.1-beta.1 | non-feature | Android prerelease metadata only. |
+| 279 | `10078a8` | 2026-01-04 | Prevent cursor crash while hiding games | already-covered | Wingosy filters in-memory collections and does not expose an Android SQLite CursorWindow stream that can close during the mutation. |
+| 280 | `fa58fac` | 2026-01-04 | Add CCI extension to 3DS platform filter | already-covered | `.cci` is already included in Wingosy's default 3DS extension list, and managed Azahar launches the selected filesystem path directly. |
 
 ## Implemented parity outside the chronological audit
 
@@ -503,7 +526,7 @@ Argosy commits must still be recorded when encountered.
 | `362f688` | VID-based controller detection with separate A/B and X/Y icon-swap settings | Gamepad VID/PID lookup (Xbox/Nintendo/Sony), a settings UI, and icon rendering updates across desktop and immersive views. |
 | `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
 | `3e15b0f` | Cache RetroAchievements badge art for offline game details | Reuse the cover-cache origin-safety and retry patterns for locked/unlocked badges, then serve local asset paths to both desktop and immersive achievement views. |
-| `c62bb43`, `beab044` | Customizable home background, image treatment, and external image cache | Add game-art/custom-image selection plus blur, saturation, and opacity controls with readable overlays and equivalent desktop/immersive settings access; cache authorized screenshots/backgrounds safely for offline details. |
+| `c62bb43`, `beab044`, `62142ae` | Customizable home background, image treatment, and external image cache | Add game-art/custom-image selection plus blur, saturation, and opacity controls with readable overlays and equivalent desktop/immersive settings access; cache authorized screenshots/backgrounds safely for offline details, with an on-demand full-cache validation action and visible progress. |
 | `3fdd187`, `60ca11f`, `12397d9`, `884575a` | Named RomM save channels and timeline restore | Prove current RomM channel contracts live, model active-slot timestamps and duplicate handling, retain reversible backups, and expose equivalent pointer and immersive-controller controls. |
 | `ea8b196`, `8fc59ff` | Persistent save-sync status and progress UX | Surface per-game local/server state, conflicts, errors, explicit sync steps, and effective save paths without blocking launch; retain warning recovery and verify conflict semantics against a live RomM server. |
 | `5bb4358` | Single-flight launch and save-sync race protection | Serialize native launch/save-sync work so repeated desktop or controller input cannot start overlapping negotiations or emulator sessions; retain non-blocking UI feedback. |
@@ -516,7 +539,7 @@ Argosy commits must still be recorded when encountered.
 | `59c010f`, `3f33cd7`, `953070c`, `3cd1efd`, `38bb34b` | RetroArch save-state snapshots tied to local save channels | Discover configured or overridden state directories, cache state/screenshot pairs with core identity and version, restore/delete them reversibly with save-channel changes, and prove process-exit timing before considering any server sync. |
 | `c7cb490` | Opt-in inactivity dimmer for OLED/handheld displays | Dim only the launcher after configurable inactivity, wake immediately on pointer, keyboard, or controller input, and avoid changing Windows display state or active emulator windows. |
 | `a9c5669`, `2fb2cc8`, `9f028e0` | Per-platform BIOS/firmware management | Model Windows emulator firmware requirements, validate configured paths and versions, show clear missing/ready status, and only offer redistributable open firmware while guiding users to provide restricted files themselves. |
-| `7d068c4`, `a1c4c64` | RomM-backed user collections | Verify the current Collections API, retain offline-safe local membership with durable retries, and expose controller-complete create, rename, delete, membership, and browse flows in both shells. |
+| `7d068c4`, `a1c4c64`, `2a0c931` | RomM-backed user collections | Verify the current Collections API, retain offline-safe local membership with durable retries, and expose controller-complete create, rename, delete, membership, and browse flows in both shells, keeping focus indexed to the visible filtered collection list. |
 
 ## Open decisions
 
@@ -566,6 +589,7 @@ chronological work can proceed safely.
 | 2026-10-10 | `81d055d..ab05a87` (9 commits) | Regional Famicom/Super Famicom RomM slug normalization | `49fa1c1` | 57 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control blocked local Rust execution; Windows CI run `38065890788` passed the new Rust test, all Cargo tests, Rust lint with warnings denied, Rust coverage, frontend coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in `platform.rs`; the changed mapping and test hunks match rustfmt output. | Refreshed the Argosy baseline to `9b0fefb` / 3,213 while preserving the valid cursor, then advanced it to commit 200. No new candidate was added. RomM personal-metadata sync remains an open decision. |
 | 2026-10-11 | `8ea383a..cac12ec` (20 commits) | First-class Game Gear platform/core support and N3DS slug normalization | `006d21e` | 57 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control prevented local Rust execution; Windows CI run `38153735545` passed the new Rust tests, all Cargo tests, Rust lint with warnings denied, Rust coverage, frontend coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift in the touched model files. | Refreshed the Argosy baseline to `f287e8a` / 3,219 while preserving the valid cursor, then advanced it to commit 220. Seven newly audited commits remain candidates, consolidated into one new save-state backlog row and two existing recommendation/platform-identity rows, leaving 44 candidate commits waiting. RomM personal-metadata sync remains an open decision. |
 | 2026-10-12 | `beab044..19e7a03` (45 commits) | Accent-, punctuation-, abbreviation-, and typo-tolerant multi-word library search | `a143f0b` | 60 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Refreshed the Argosy baseline to `6a7efc4` / 3,243 while preserving the valid cursor, then advanced it to commit 265. Twenty-one newly audited commits remain candidates, consolidated into existing save/archive/multi-disc/background/platform-identity/state rows plus new dimmer, BIOS, and collections rows, leaving 65 waiting including the open personal-metadata sync decision. |
+| 2026-10-13 | `aafa1c3..fa58fac` (15 commits) | Validated cover-cache reuse and downloads, with automatic repair of corrupt cached files | `876d8f0` | 60 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and targeted Rust formatting passed locally. Smart App Control prevented local Rust execution; Windows CI run `38427676640` passed frontend coverage, all Cargo tests including three new cover tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `3059f55` / 3,268 while preserving the valid cursor, then advanced it to commit 280. Two newly audited commits remain candidates, consolidated into the collections and image-cache rows, leaving 67 waiting including the open personal-metadata sync decision. |
 
 ## Completion rule
 
