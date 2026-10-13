@@ -378,6 +378,31 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     let launcher = EmulatorLauncher::new(config.clone(), db.clone());
     let launch_command = launcher.build_command(&game).ok();
     let mut save_sync_warnings = Vec::new();
+    let retroarch_native_save_sync = launch_command
+        .as_ref()
+        .filter(|command| command.emulator_id == "retroarch")
+        .map(|command| {
+            crate::retroarch_cloud_sync::native_save_sync_enabled_for_executable(Path::new(
+                &command.executable,
+            ))
+        })
+        .transpose();
+    let retroarch_native_save_sync = match retroarch_native_save_sync {
+        Ok(Some(active)) => active,
+        Ok(None) => false,
+        Err(error) => {
+            tracing::warn!(
+                "[SaveSync] Could not inspect RetroArch Cloud Sync config; skipping Wingosy RetroArch sync to avoid competing writes: {error}"
+            );
+            true
+        }
+    };
+
+    if retroarch_native_save_sync {
+        tracing::info!(
+            "[SaveSync] RetroArch native Cloud Sync is active; skipping Wingosy pre/post-launch RetroArch sync"
+        );
+    }
 
     if let Some(command) = launch_command.as_ref().filter(|command| command.emulator_id == "retroarch") {
         if let Err(error) = crate::retroachievements::sync_before_launch(Path::new(&command.executable)) {
@@ -387,7 +412,9 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     }
 
     let pre_sync_result = if let Some(command) = launch_command.as_ref() {
-        if command.emulator_id == "retroarch" {
+        if command.emulator_id == "retroarch" && retroarch_native_save_sync {
+            Ok(())
+        } else if command.emulator_id == "retroarch" {
             crate::sync::retroarch_romm::pre_launch_sync(
                 &game,
                 &mut config,
@@ -419,7 +446,9 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
     match result {
         LaunchResult::Success { duration_minutes, exit_code, .. } => {
             let post_sync_result = if let Some(command) = launch_command.as_ref() {
-                if command.emulator_id == "retroarch" {
+                if command.emulator_id == "retroarch" && retroarch_native_save_sync {
+                    Ok(())
+                } else if command.emulator_id == "retroarch" {
                     crate::sync::retroarch_romm::post_launch_sync(
                         &game,
                         &mut config,
@@ -527,6 +556,28 @@ pub async fn get_config() -> Result<AppConfig, String> {
 #[tauri::command]
 pub async fn save_config(config: AppConfig) -> Result<(), String> {
     config.save().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_retroarch_cloud_sync_status(
+) -> Result<crate::retroarch_cloud_sync::RetroArchCloudSyncStatus, String> {
+    crate::retroarch_cloud_sync::status().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn configure_retroarch_cloud_sync(
+    username: String,
+    password: String,
+) -> Result<crate::retroarch_cloud_sync::RetroArchCloudSyncStatus, String> {
+    crate::retroarch_cloud_sync::configure(username, password)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn disable_retroarch_cloud_sync(
+) -> Result<crate::retroarch_cloud_sync::RetroArchCloudSyncStatus, String> {
+    crate::retroarch_cloud_sync::disable().map_err(|error| error.to_string())
 }
 
 #[tauri::command]

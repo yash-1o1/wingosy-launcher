@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::config::AppConfig;
+use crate::{config::AppConfig, retroarch_config};
 
 const CREDENTIAL_SERVICE: &str = "com.wingosy.launcher.retroachievements";
 const CREDENTIAL_ACCOUNT: &str = "current-user";
@@ -82,26 +82,8 @@ fn delete_credentials() -> Result<()> {
     Ok(())
 }
 
-fn config_path(retroarch_exe: &Path, appdata: Option<&Path>) -> Option<PathBuf> {
-    let portable = retroarch_exe.parent()?.join("retroarch.cfg");
-    if portable.is_file() {
-        return Some(portable);
-    }
-    appdata
-        .map(|dir| dir.join("retroarch.cfg"))
-        .filter(|path| path.is_file())
-}
-
 fn configured_retroarch_config() -> Result<Option<PathBuf>> {
-    let config = AppConfig::load()?;
-    let Some(exe) = config.emulators.retroarch.as_deref() else {
-        return Ok(None);
-    };
-    if !exe.is_file() {
-        return Ok(None);
-    }
-    let appdata = std::env::var_os("APPDATA").map(PathBuf::from);
-    Ok(config_path(exe, appdata.as_deref()))
+    retroarch_config::configured_path(&AppConfig::load()?)
 }
 
 pub fn status() -> Result<Status> {
@@ -190,7 +172,7 @@ pub fn sync_before_launch(retroarch_exe: &Path) -> Result<()> {
         return Ok(());
     };
     let appdata = std::env::var_os("APPDATA").map(PathBuf::from);
-    let path = config_path(retroarch_exe, appdata.as_deref()).ok_or_else(|| {
+    let path = retroarch_config::config_path(retroarch_exe, appdata.as_deref()).ok_or_else(|| {
         anyhow!("RetroArch config was not found. Start RetroArch once, then retry.")
     })?;
     sync_path(&path, &mut credentials)
@@ -220,58 +202,28 @@ fn clear_synced_configs(credentials: &Credentials) -> Result<()> {
     Ok(())
 }
 
-fn escaped(value: &str) -> Result<String> {
-    if value.chars().any(char::is_control) {
-        anyhow::bail!("RetroAchievements login contains an unsupported control character");
-    }
-    Ok(value.replace('\\', "\\\\").replace('"', "\\\""))
-}
-
-fn rewrite_config(original: &str, replacements: &[(&str, String)]) -> String {
-    let newline = if original.contains("\r\n") {
-        "\r\n"
-    } else {
-        "\n"
-    };
-    let mut seen = std::collections::HashSet::new();
-    let mut lines = Vec::new();
-    for line in original.lines() {
-        let key = line.split_once('=').map(|(key, _)| key.trim());
-        if let Some((key, value)) = replacements.iter().find(|(name, _)| Some(*name) == key) {
-            if seen.insert(*key) {
-                lines.push(format!("{key} = \"{value}\""));
-            }
-        } else {
-            lines.push(line.to_string());
-        }
-    }
-    for (key, value) in replacements {
-        if seen.insert(*key) {
-            lines.push(format!("{key} = \"{value}\""));
-        }
-    }
-    format!("{}{}", lines.join(newline), newline)
-}
-
 fn write_credentials(path: &Path, credentials: &Credentials) -> Result<()> {
-    let original = std::fs::read_to_string(path).context("Could not read RetroArch config")?;
-    let updated = rewrite_config(
+    let original = retroarch_config::read(path)?;
+    let updated = retroarch_config::rewrite(
         &original,
         &[
             ("cheevos_enable", "true".to_string()),
-            ("cheevos_username", escaped(&credentials.username)?),
-            ("cheevos_token", escaped(&credentials.token)?),
+            (
+                "cheevos_username",
+                retroarch_config::escape_value(&credentials.username, "RetroAchievements username")?,
+            ),
+            (
+                "cheevos_token",
+                retroarch_config::escape_value(&credentials.token, "RetroAchievements token")?,
+            ),
             ("cheevos_password", String::new()),
         ],
     );
-    if updated != original {
-        std::fs::write(path, updated).context("Could not update RetroArch config")?;
-    }
-    Ok(())
+    retroarch_config::write_if_changed(path, &original, updated)
 }
 
 fn clear_credentials_if_owned(path: &Path, username: &str) -> Result<()> {
-    let original = std::fs::read_to_string(path).context("Could not read RetroArch config")?;
+    let original = retroarch_config::read(path)?;
     let current_username = original.lines().find_map(|line| {
         let (key, value) = line.split_once('=')?;
         (key.trim() == "cheevos_username").then(|| value.trim().trim_matches('"').to_string())
@@ -279,7 +231,7 @@ fn clear_credentials_if_owned(path: &Path, username: &str) -> Result<()> {
     if current_username.as_deref() != Some(username) {
         return Ok(());
     }
-    let updated = rewrite_config(
+    let updated = retroarch_config::rewrite(
         &original,
         &[
             ("cheevos_enable", "false".to_string()),
@@ -288,7 +240,7 @@ fn clear_credentials_if_owned(path: &Path, username: &str) -> Result<()> {
             ("cheevos_password", String::new()),
         ],
     );
-    std::fs::write(path, updated).context("Could not clear RetroArch login")
+    retroarch_config::write_if_changed(path, &original, updated)
 }
 
 #[cfg(test)]
@@ -303,10 +255,10 @@ mod tests {
         std::fs::create_dir(&appdata).unwrap();
         let fallback = appdata.join("retroarch.cfg");
         std::fs::write(&fallback, "").unwrap();
-        assert_eq!(config_path(&exe, Some(&appdata)), Some(fallback));
+        assert_eq!(retroarch_config::config_path(&exe, Some(&appdata)), Some(fallback));
         let portable = dir.path().join("retroarch.cfg");
         std::fs::write(&portable, "").unwrap();
-        assert_eq!(config_path(&exe, Some(&appdata)), Some(portable));
+        assert_eq!(retroarch_config::config_path(&exe, Some(&appdata)), Some(portable));
     }
 
     #[test]
@@ -316,11 +268,11 @@ mod tests {
             ("cheevos_token", "new".to_string()),
             ("cheevos_enable", "true".to_string()),
         ];
-        let updated = rewrite_config(original, values);
+        let updated = retroarch_config::rewrite(original, values);
         assert!(updated.contains("# cheevos_token = \"old\"\r\n"));
         assert!(updated.contains("video_fullscreen = \"true\"\r\n"));
         assert!(updated.contains("cheevos_token = \"new\"\r\n"));
-        assert_eq!(rewrite_config(&updated, values), updated);
+        assert_eq!(retroarch_config::rewrite(&updated, values), updated);
     }
 
     #[test]

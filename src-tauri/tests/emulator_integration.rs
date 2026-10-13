@@ -175,7 +175,7 @@ mod download_workflow_tests {
         let dest_dir = temp_dir.path().to_path_buf();
         
         // RetroArch uses direct download from buildbot
-        let download_url = "https://buildbot.libretro.com/stable/1.19.1/windows/x86_64/RetroArch.7z";
+        let download_url = "https://buildbot.libretro.com/stable/1.22.1/windows/x86_64/RetroArch.7z";
         let archive_name = "RetroArch.7z";
         let archive_path = dest_dir.join(archive_name);
         
@@ -413,7 +413,7 @@ mod download_workflow_tests {
         
         // Emulators with direct download URLs
         let direct_downloads = vec![
-            ("RetroArch", "https://buildbot.libretro.com/stable/1.19.1/windows/x86_64/RetroArch.7z"),
+            ("RetroArch", "https://buildbot.libretro.com/stable/1.22.1/windows/x86_64/RetroArch.7z"),
         ];
         
         // Emulators with GitHub repos

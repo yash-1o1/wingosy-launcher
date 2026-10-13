@@ -145,6 +145,11 @@ export default function Settings({
     rommUrlProp && rommToken ? "checking" : "not-configured"
   );
   const [rommStatus, setRommStatus] = useState(null);
+  const [retroarchCloudSync, setRetroarchCloudSync] = useState(null);
+  const [retroarchCloudUsername, setRetroarchCloudUsername] = useState("");
+  const [retroarchCloudPassword, setRetroarchCloudPassword] = useState("");
+  const [retroarchCloudBusy, setRetroarchCloudBusy] = useState(false);
+  const [retroarchCloudMessage, setRetroarchCloudMessage] = useState(null);
   const [scanMessage, setScanMessage] = useState(null);
   const [emulators, setEmulators] = useState([]);
   /** platform_id → default libretro DLL from backend (for RetroArch menu labels). */
@@ -221,6 +226,7 @@ export default function Settings({
 
   useEffect(() => {
     loadConfig();
+    loadRetroarchCloudSync();
     loadRetroAchievementsLogin();
     loadEmulators();
     loadMissingCores();
@@ -892,6 +898,56 @@ export default function Settings({
       }
     } catch (err) {
       setRommStatus({ type: "error", message: err.message || String(err) });
+    }
+  }
+
+  async function loadRetroarchCloudSync() {
+    try {
+      const status = await invoke("get_retroarch_cloud_sync_status");
+      setRetroarchCloudSync(status);
+      if (status.username) setRetroarchCloudUsername(status.username);
+    } catch (err) {
+      setRetroarchCloudMessage({ type: "error", message: err?.message || String(err) });
+    }
+  }
+
+  async function handleConfigureRetroarchCloudSync(event) {
+    event.preventDefault();
+    setRetroarchCloudBusy(true);
+    setRetroarchCloudMessage(null);
+    try {
+      const status = await invoke("configure_retroarch_cloud_sync", {
+        username: retroarchCloudUsername.trim(),
+        password: retroarchCloudPassword,
+      });
+      setRetroarchCloudSync(status);
+      setRetroarchCloudPassword("");
+      setRetroarchCloudMessage({
+        type: "success",
+        message: "RetroArch now syncs saves and states directly with RomM. Wingosy will skip its RetroArch pre/post-launch sync.",
+      });
+    } catch (err) {
+      setRetroarchCloudMessage({ type: "error", message: err?.message || String(err) });
+    } finally {
+      setRetroarchCloudBusy(false);
+    }
+  }
+
+  async function handleDisableRetroarchCloudSync() {
+    setRetroarchCloudBusy(true);
+    setRetroarchCloudMessage(null);
+    try {
+      const status = await invoke("disable_retroarch_cloud_sync");
+      setRetroarchCloudSync(status);
+      setRetroarchCloudPassword("");
+      setRetroarchCloudMessage({
+        type: "success",
+        message: "RomM Cloud Sync was disabled in RetroArch and its saved WebDAV credentials were cleared.",
+      });
+    } catch (err) {
+      setRetroarchCloudMessage({ type: "error", message: err?.message || String(err) });
+    } finally {
+      setRetroarchCloudBusy(false);
     }
   }
 
@@ -1630,6 +1686,110 @@ export default function Settings({
           )}
         </Box>
         {rommStatus && <Alert severity={rommStatus.type} sx={{ mt: 2 }}>{rommStatus.message}</Alert>}
+
+        <Box sx={{ mt: 3, pt: 3, borderTop: 1, borderColor: "divider" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+            <CloudDownloadIcon color="primary" />
+            <Typography variant="h6">RetroArch Cloud Sync</Typography>
+            {retroarchCloudSync?.configured && (
+              <Chip size="small" color="success" icon={<CheckCircleIcon />} label="Native sync active" />
+            )}
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Use RomM 5.4+ as RetroArch&apos;s native WebDAV target for saves and states. While native
+            save sync is active, Wingosy automatically skips its own RetroArch pre/post-launch sync;
+            sync for other emulators is unchanged. RetroArch 1.22 or newer is required.
+          </Typography>
+
+          {retroarchCloudSync && (
+            <Alert
+              severity={retroarchCloudSync.configured ? "success" : retroarchCloudSync.native_save_sync_active ? "warning" : "info"}
+              sx={{ mb: 2 }}
+            >
+              {retroarchCloudSync.message}
+            </Alert>
+          )}
+
+          {retroarchCloudSync?.endpoint && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5, overflowWrap: "anywhere" }}>
+              Endpoint: {retroarchCloudSync.endpoint}
+            </Typography>
+          )}
+          {retroarchCloudSync?.config_path && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2, overflowWrap: "anywhere" }}>
+              RetroArch config: {retroarchCloudSync.config_path}
+            </Typography>
+          )}
+
+          <Box component="form" onSubmit={handleConfigureRetroarchCloudSync}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 1 }}>
+              <TextField
+                label="RomM username"
+                value={retroarchCloudUsername}
+                onChange={(event) => setRetroarchCloudUsername(event.target.value)}
+                size="small"
+                autoComplete="username"
+                disabled={retroarchCloudBusy}
+              />
+              <TextField
+                label={retroarchCloudSync?.configured ? "New RomM password" : "RomM password"}
+                value={retroarchCloudPassword}
+                onChange={(event) => setRetroarchCloudPassword(event.target.value)}
+                size="small"
+                type="password"
+                autoComplete="current-password"
+                disabled={retroarchCloudBusy}
+              />
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+              RetroArch requires HTTP Basic credentials and stores this password in retroarch.cfg.
+              Close RetroArch before applying changes. Wingosy verifies the endpoint but does not
+              retain a second copy of the password.
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={
+                  retroarchCloudBusy ||
+                  !retroarchCloudSync?.available ||
+                  !retroarchCloudUsername.trim() ||
+                  !retroarchCloudPassword
+                }
+              >
+                {retroarchCloudBusy
+                  ? "Checking..."
+                  : retroarchCloudSync?.configured
+                    ? "Update credentials"
+                    : "Enable native sync"}
+              </Button>
+              {retroarchCloudSync?.configured && (
+                <Button
+                  type="button"
+                  color="error"
+                  variant="outlined"
+                  disabled={retroarchCloudBusy}
+                  onClick={handleDisableRetroarchCloudSync}
+                >
+                  Disable native sync
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="text"
+                disabled={retroarchCloudBusy}
+                onClick={loadRetroarchCloudSync}
+              >
+                Refresh status
+              </Button>
+            </Box>
+          </Box>
+          {retroarchCloudMessage && (
+            <Alert severity={retroarchCloudMessage.type} sx={{ mt: 2 }}>
+              {retroarchCloudMessage.message}
+            </Alert>
+          )}
+        </Box>
       </Paper>
       )}
 

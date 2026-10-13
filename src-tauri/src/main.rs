@@ -13,6 +13,8 @@ mod database;
 mod emulators;
 mod models;
 mod romm_credentials;
+mod retroarch_config;
+mod retroarch_cloud_sync;
 mod retroachievements;
 mod scanner;
 mod storage;
@@ -93,6 +95,9 @@ fn main() {
             commands::scan_directory,
             commands::get_config,
             commands::save_config,
+            commands::get_retroarch_cloud_sync_status,
+            commands::configure_retroarch_cloud_sync,
+            commands::disable_retroarch_cloud_sync,
             storage::get_storage_overview,
             storage::change_roms_directory,
             commands::list_ambient_audio_files,
