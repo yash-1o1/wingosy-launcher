@@ -313,6 +313,10 @@ mod tests {
 
     #[test]
     fn rejects_newline_in_config_credentials() {
-        assert!(escaped("Player\ncheevos_enable = true").is_err());
+        assert!(retroarch_config::escape_value(
+            "Player\ncheevos_enable = true",
+            "RetroAchievements username"
+        )
+        .is_err());
     }
 }
