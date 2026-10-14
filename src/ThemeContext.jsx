@@ -3,6 +3,10 @@ import { createTheme, alpha, ThemeProvider as MuiThemeProvider } from "@mui/mate
 import CssBaseline from "@mui/material/CssBaseline";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  DEFAULT_COVER_APPEARANCE,
+  normalizeCoverAppearance,
+} from "./utils/coverAppearance";
 
 // Base color palette (from Argosy)
 const baseColors = {
@@ -237,8 +241,10 @@ function createAppTheme(mode, accentHue) {
 const ThemeContext = createContext({
   themeMode: "dark",
   accentHue: null,
+  coverAppearance: DEFAULT_COVER_APPEARANCE,
   setThemeMode: (_mode) => {},
   setAccentHue: (_hue) => {},
+  setCoverAppearance: (_appearance) => {},
   colors: baseColors,
 });
 
@@ -249,6 +255,7 @@ export function useAppTheme() {
 export function AppThemeProvider({ children }) {
   const [themeMode, setThemeMode] = useState("dark");
   const [accentHue, setAccentHue] = useState(null);
+  const [coverAppearance, setCoverAppearance] = useState(DEFAULT_COVER_APPEARANCE);
   const [loaded, setLoaded] = useState(false);
   
   const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
@@ -263,6 +270,7 @@ export function AppThemeProvider({ children }) {
         if (cfg.display?.accent_hue !== undefined) {
           setAccentHue(cfg.display.accent_hue);
         }
+        setCoverAppearance(normalizeCoverAppearance(cfg.display));
       } catch {
         // Config may not exist yet
       }
@@ -306,11 +314,13 @@ export function AppThemeProvider({ children }) {
     () => ({
       themeMode,
       accentHue,
+      coverAppearance,
       setThemeMode,
       setAccentHue,
+      setCoverAppearance,
       colors,
     }),
-    [themeMode, accentHue, colors]
+    [themeMode, accentHue, coverAppearance, colors]
   );
 
   if (!loaded) {

@@ -74,6 +74,12 @@ import {
 } from "../utils/audioVolume";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { formatDownloadLabel, useRomDownloads } from "../RomDownloadsContext";
+import {
+  coverAppearanceConfig,
+  coverFrameShadow,
+  normalizeCoverAppearance,
+  platformBadgeSx,
+} from "../utils/coverAppearance";
 
 /** Full-width cards in the scroll column (avoids uneven widths after flex/scroll changes). */
 const SETTINGS_CARD_SX = {
@@ -195,7 +201,15 @@ export default function Settings({
   const [libraryGridColumns, setLibraryGridColumns] = useState(5);
   
   // Theme/Appearance settings from context
-  const { themeMode, setThemeMode, accentHue, setAccentHue } = useAppTheme();
+  const {
+    themeMode,
+    setThemeMode,
+    accentHue,
+    setAccentHue,
+    colors,
+    coverAppearance,
+    setCoverAppearance,
+  } = useAppTheme();
   const {
     uiSoundsEnabled,
     uiSoundsVolume,
@@ -556,6 +570,20 @@ export default function Settings({
       setRetroachievementsEnabled(Boolean(next));
     } catch (err) {
       console.error("Failed to save RetroAchievements preference:", err);
+    }
+  }
+
+  async function persistCoverAppearance(patch) {
+    const next = normalizeCoverAppearance({ ...coverAppearance, ...patch });
+    setCoverAppearance(next);
+    try {
+      const cfg = await invoke("get_config");
+      cfg.display = cfg.display || {};
+      Object.assign(cfg.display, coverAppearanceConfig(next));
+      await invoke("save_config", { config: cfg });
+      setConfig(cfg);
+    } catch (err) {
+      console.error("Failed to save cover appearance:", err);
     }
   }
 
@@ -1453,6 +1481,109 @@ export default function Settings({
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
           Controls the number of game cards shown across the desktop library. Changes apply when you return to the library.
         </Typography>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 3 }}>
+          Cover appearance
+        </Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 180px" }, gap: 3 }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Corners</Typography>
+            <ToggleButtonGroup
+              value={coverAppearance.cornerRadius}
+              exclusive
+              onChange={(_, value) => value !== null && persistCoverAppearance({ cornerRadius: value })}
+              size="small"
+              sx={{ display: "flex", mt: 0.5, mb: 2 }}
+            >
+              <ToggleButton value={0}>Square</ToggleButton>
+              <ToggleButton value={8}>Soft</ToggleButton>
+              <ToggleButton value={16}>Rounded</ToggleButton>
+            </ToggleButtonGroup>
+
+            <Typography variant="caption" color="text.secondary">Frame</Typography>
+            <ToggleButtonGroup
+              value={coverAppearance.frameStyle}
+              exclusive
+              onChange={(_, value) => value && persistCoverAppearance({ frameStyle: value })}
+              size="small"
+              sx={{ display: "flex", mt: 0.5, mb: 2 }}
+            >
+              <ToggleButton value="minimal">Minimal</ToggleButton>
+              <ToggleButton value="border">Border</ToggleButton>
+              <ToggleButton value="glow">Glow</ToggleButton>
+            </ToggleButtonGroup>
+
+            <Typography variant="caption" color="text.secondary">Platform label</Typography>
+            <ToggleButtonGroup
+              value={coverAppearance.badgePosition}
+              exclusive
+              onChange={(_, value) => value && persistCoverAppearance({ badgePosition: value })}
+              size="small"
+              sx={{ display: "flex", mt: 0.5, mb: 1 }}
+            >
+              <ToggleButton value="hidden">Off</ToggleButton>
+              <ToggleButton value="top-left">Left</ToggleButton>
+              <ToggleButton value="top-right">Right</ToggleButton>
+            </ToggleButtonGroup>
+
+            <Typography variant="caption" color="text.secondary">
+              Label inset
+            </Typography>
+            <Slider
+              size="small"
+              value={coverAppearance.badgeInset}
+              min={0}
+              max={16}
+              step={2}
+              valueLabelDisplay="auto"
+              disabled={coverAppearance.badgePosition === "hidden"}
+              onChange={(_, value) => setCoverAppearance(normalizeCoverAppearance({ ...coverAppearance, badgeInset: value }))}
+              onChangeCommitted={(_, value) => persistCoverAppearance({ badgeInset: value })}
+              sx={{ display: "block", maxWidth: 280 }}
+            />
+          </Box>
+
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+            <Box
+              aria-label="Cover appearance preview"
+              sx={{
+                position: "relative",
+                width: 132,
+                aspectRatio: "3 / 4",
+                overflow: "hidden",
+                borderRadius: `${coverAppearance.cornerRadius}px`,
+                border: coverAppearance.frameStyle === "border"
+                  ? `2px solid ${colors.primary}80`
+                  : "2px solid transparent",
+                boxShadow: coverFrameShadow(coverAppearance, colors, false),
+                background: `linear-gradient(145deg, ${colors.primaryDark}, ${colors.primaryLight})`,
+              }}
+            >
+              <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(25deg, rgba(0,0,0,0.7), transparent 65%)" }} />
+              {coverAppearance.badgePosition !== "hidden" ? (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    ...platformBadgeSx(coverAppearance),
+                    bgcolor: "rgba(0,0,0,0.75)",
+                    color: "#fff",
+                    px: 1,
+                    py: 0.4,
+                    fontSize: "0.6rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  SNES
+                </Box>
+              ) : null}
+              <Typography sx={{ position: "absolute", left: 12, right: 12, bottom: 12, color: "#fff", fontWeight: 700 }}>
+                Preview
+              </Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary">Desktop and Immersive</Typography>
+          </Box>
+        </Box>
       </Paper>
       )}
 

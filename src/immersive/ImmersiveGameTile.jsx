@@ -10,6 +10,10 @@ import { alpha } from "@mui/material/styles";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppTheme } from "../ThemeContext";
 import { platformBadgeLabel } from "../utils/platformIcons";
+import {
+  coverFrameShadow,
+  platformBadgeSx,
+} from "../utils/coverAppearance";
 
 const PLATFORM_COLORS = {
   nes: "#e60012",
@@ -59,7 +63,7 @@ export default function ImmersiveGameTile({
   downloadProgress,
 }) {
   const [imgError, setImgError] = useState(false);
-  const { colors } = useAppTheme();
+  const { colors, coverAppearance } = useAppTheme();
   const coverSrc = useMemo(() => getCoverSrc(game.cover_path), [game.cover_path]);
   const showCover = Boolean(coverSrc) && !imgError;
   const platformColor = PLATFORM_COLORS[game.platform_id] || colors.primary;
@@ -86,13 +90,11 @@ export default function ImmersiveGameTile({
         sx={{
           position: "relative",
           aspectRatio: "3 / 4",
-          borderRadius: "8px",
+          borderRadius: `${coverAppearance.cornerRadius}px`,
           overflow: "visible",
           transition: "transform 0.18s ease, box-shadow 0.2s ease",
           transform: focused ? "scale(1.06)" : "scale(1)",
-          boxShadow: focused
-            ? `0 8px 32px rgba(0,0,0,0.55), 0 0 22px ${colors.focusGlow}`
-            : "0 2px 10px rgba(0,0,0,0.35)",
+          boxShadow: coverFrameShadow(coverAppearance, colors, focused),
           zIndex: focused ? 2 : 1,
           outline: focused ? `2px solid ${colors.primary}` : "none",
           outlineOffset: 2,
@@ -103,9 +105,13 @@ export default function ImmersiveGameTile({
             position: "relative",
             width: "100%",
             height: "100%",
-            borderRadius: "8px",
+            borderRadius: `${coverAppearance.cornerRadius}px`,
             overflow: "hidden",
-            border: focused ? `2px solid ${colors.primary}` : "2px solid transparent",
+            border: focused
+              ? `2px solid ${colors.primary}`
+              : coverAppearance.frameStyle === "border"
+                ? `2px solid ${colors.primary}80`
+                : "2px solid transparent",
             transition: "border-color 0.18s ease",
             bgcolor: "background.paper",
           }}
@@ -162,21 +168,19 @@ export default function ImmersiveGameTile({
               inset: 0,
               pointerEvents: "none",
               boxShadow: "inset 0 0 12px rgba(0,0,0,0.45)",
-              borderRadius: "6px",
+              borderRadius: `${Math.max(coverAppearance.cornerRadius - 2, 0)}px`,
             }}
           />
 
-          {platformSlug ? (
+          {platformSlug && coverAppearance.badgePosition !== "hidden" ? (
             <Box
               sx={{
                 position: "absolute",
-                top: 0,
-                left: 0,
+                ...platformBadgeSx(coverAppearance),
                 bgcolor: "rgba(0,0,0,0.75)",
                 backdropFilter: "blur(8px)",
                 px: 1,
                 py: 0.4,
-                borderBottomRightRadius: "8px",
                 minWidth: 28,
               }}
             >

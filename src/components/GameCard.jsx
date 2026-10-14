@@ -12,6 +12,10 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppTheme } from "../ThemeContext";
 import { platformBadgeLabel } from "../utils/platformIcons";
+import {
+  coverFrameShadow,
+  platformBadgeSx,
+} from "../utils/coverAppearance";
 
 const PLATFORM_COLORS = {
   // Nintendo
@@ -53,7 +57,7 @@ export default function GameCard({
 }) {
   const [imgError, setImgError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const { colors } = useAppTheme();
+  const { colors, coverAppearance } = useAppTheme();
   const platformColor = PLATFORM_COLORS[game.platform_id] || colors.primary;
   const coverSrc = getCoverSrc(game.cover_path);
   const showCover = coverSrc && !imgError;
@@ -73,14 +77,12 @@ export default function GameCard({
       sx={{
         position: "relative",
         aspectRatio: "3 / 4",
-        borderRadius: "8px",
+        borderRadius: `${coverAppearance.cornerRadius}px`,
         overflow: "visible",
         cursor: "pointer",
         transition: "transform 0.2s ease, box-shadow 0.25s ease",
         transform: isHovered ? "scale(1.08)" : "scale(1)",
-        boxShadow: isHovered
-          ? `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${colors.focusGlow}`
-          : "0 2px 8px rgba(0,0,0,0.3)",
+        boxShadow: coverFrameShadow(coverAppearance, colors, isHovered),
         zIndex: isHovered ? 10 : 1,
         "&:focus-visible": {
           outline: `2px solid ${colors.primary}`,
@@ -95,9 +97,13 @@ export default function GameCard({
           position: "relative",
           width: "100%",
           height: "100%",
-          borderRadius: "8px",
+          borderRadius: `${coverAppearance.cornerRadius}px`,
           overflow: "hidden",
-          border: isHovered ? `2px solid ${colors.primary}` : "2px solid transparent",
+          border: isHovered
+            ? `2px solid ${colors.primary}`
+            : coverAppearance.frameStyle === "border"
+              ? `2px solid ${colors.primary}80`
+              : "2px solid transparent",
           transition: "border-color 0.2s ease",
           bgcolor: "background.paper",
         }}
@@ -156,21 +162,19 @@ export default function GameCard({
             inset: 0,
             pointerEvents: "none",
             boxShadow: "inset 0 0 12px rgba(0,0,0,0.4)",
-            borderRadius: "6px",
+            borderRadius: `${Math.max(coverAppearance.cornerRadius - 2, 0)}px`,
           }}
         />
 
-        {showPlatformBadge && platformSlug ? (
+        {showPlatformBadge && platformSlug && coverAppearance.badgePosition !== "hidden" ? (
           <Box
             sx={{
               position: "absolute",
-              top: 0,
-              left: 0,
+              ...platformBadgeSx(coverAppearance),
               bgcolor: "rgba(0,0,0,0.75)",
               backdropFilter: "blur(8px)",
               px: 1,
               py: 0.4,
-              borderBottomRightRadius: "8px",
               minWidth: 32,
             }}
           >

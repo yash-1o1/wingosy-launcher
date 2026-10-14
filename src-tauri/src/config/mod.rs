@@ -244,6 +244,22 @@ pub struct DisplayConfig {
     /// When true, RetroAchievements integration is enabled app-wide (when implemented).
     #[serde(default)]
     pub retroachievements_enabled: bool,
+    /// Corner radius used by game covers in both desktop and Immersive libraries.
+    #[serde(default = "default_cover_corner_radius")]
+    pub cover_corner_radius: u8,
+    /// Resting frame treatment; focused cards always retain the accessible focus glow.
+    #[serde(default)]
+    pub cover_frame_style: CoverFrameStyle,
+    /// Optional platform label placement on game covers.
+    #[serde(default)]
+    pub platform_badge_position: PlatformBadgePosition,
+    /// Distance in pixels between the platform label and its selected cover corner.
+    #[serde(default)]
+    pub platform_badge_inset: u8,
+}
+
+fn default_cover_corner_radius() -> u8 {
+    8
 }
 
 impl Default for DisplayConfig {
@@ -258,8 +274,30 @@ impl Default for DisplayConfig {
             fullscreen: false,
             ui_sounds_enabled: false,
             retroachievements_enabled: false,
+            cover_corner_radius: default_cover_corner_radius(),
+            cover_frame_style: CoverFrameStyle::default(),
+            platform_badge_position: PlatformBadgePosition::default(),
+            platform_badge_inset: 0,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum CoverFrameStyle {
+    #[default]
+    Minimal,
+    Border,
+    Glow,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum PlatformBadgePosition {
+    Hidden,
+    #[default]
+    TopLeft,
+    TopRight,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -355,6 +393,13 @@ mod tests {
         assert!(!display.fullscreen);
         assert!(!display.ui_sounds_enabled);
         assert!(!display.retroachievements_enabled);
+        assert_eq!(display.cover_corner_radius, 8);
+        assert_eq!(display.cover_frame_style, CoverFrameStyle::Minimal);
+        assert_eq!(
+            display.platform_badge_position,
+            PlatformBadgePosition::TopLeft
+        );
+        assert_eq!(display.platform_badge_inset, 0);
     }
 
     #[test]
@@ -446,6 +491,45 @@ mod tests {
         assert_eq!(config.display.cover_aspect_ratio, CoverAspectRatio::Square);
         assert!(!config.display.big_picture);
         assert!(!config.display.fullscreen);
+        assert_eq!(config.display.cover_corner_radius, 8);
+        assert_eq!(config.display.cover_frame_style, CoverFrameStyle::Minimal);
+        assert_eq!(
+            config.display.platform_badge_position,
+            PlatformBadgePosition::TopLeft
+        );
+        assert_eq!(config.display.platform_badge_inset, 0);
+    }
+
+    #[test]
+    fn test_cover_appearance_deserialize() {
+        let toml_str = r#"
+            [romm]
+            auto_sync = false
+            sync_saves = false
+            [library]
+            scan_subdirectories = true
+            auto_extract_archives = true
+            show_hidden_games = false
+            [display]
+            theme = "Dark"
+            grid_columns = 5
+            show_platform_icons = true
+            show_play_time = true
+            cover_aspect_ratio = "Vertical"
+            cover_corner_radius = 16
+            cover_frame_style = "glow"
+            platform_badge_position = "top-right"
+            platform_badge_inset = 6
+            [emulators]
+        "#;
+        let config: AppConfig = toml::from_str(toml_str).expect("Should deserialize");
+        assert_eq!(config.display.cover_corner_radius, 16);
+        assert_eq!(config.display.cover_frame_style, CoverFrameStyle::Glow);
+        assert_eq!(
+            config.display.platform_badge_position,
+            PlatformBadgePosition::TopRight
+        );
+        assert_eq!(config.display.platform_badge_inset, 6);
     }
 
     #[test]
