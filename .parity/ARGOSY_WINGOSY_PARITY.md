@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `3059f5523b56ceeba42e1edf17918efdac5abfab` — 2026-10-13 (2026-10-13 run)
-- Baseline history size: 3,268 commits on `origin/main`
-- Wingosy baseline observed: `876d8f0` — 2026-10-13 feature commit
+- Argosy baseline observed: `65f5485516e956761ccf80f93d21e671fd8a0707` — 2026-10-14 (2026-10-14 run)
+- Baseline history size: 3,336 commits on `origin/main`
+- Wingosy baseline observed: `f5c8dc9` — 2026-10-14 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -151,6 +151,14 @@ A fresh fetch advanced Argosy `origin/main` from `6a7efc4` / 3,243 commits to
 metadata was refreshed before this run's fifteen chronological dispositions
 were appended.
 
+### Baseline refresh (2026-10-14)
+
+A fresh fetch advanced Argosy `origin/main` from `3059f55` / 3,268 commits to
+`65f5485` / 3,336 commits. The chronological cursor remained valid:
+`fa58fac` was still commit 280 and `c05cc2f` was still commit 281. Aggregate
+metadata was refreshed before this run's two chronological dispositions were
+appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -204,11 +212,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `fa58facbc1755ba161badcb3196fe7dd9f7b026d`
-- Next Argosy commit: `c05cc2ff24d3b3c0ba522650e6a1688763958994`
-- Audited: 280 / 3,268 baseline commits
-- Portable candidates waiting: 67
-- Last tracker update: 2026-10-13
+- Last fully audited Argosy commit: `ada75a7bf487962f6a7abd8fb2dbbf54c6088d79`
+- Next Argosy commit: `9162b3fef64bbfc2a02a5b3de07db66830706fed`
+- Audited: 282 / 3,336 baseline commits
+- Portable candidates waiting: 65
+- Last tracker update: 2026-10-14
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -366,9 +374,9 @@ must record every inspected commit before advancing this cursor.
 | 146 | `fd66383` | 2025-12-19 | Bump version to 0.9.11 | non-feature | Android release metadata only. |
 | 147 | `e9b6755` | 2025-12-19 | Fix light mode theme consistency across UI components | candidate | Wingosy uses MUI theme surfaces broadly, but several overlays and status treatments remain hardcoded for dark backgrounds. A focused light-mode audit is portable; Android drawer/status-bar mechanics are not. |
 | 148 | `0d93830` | 2025-12-19 | Add semantic colors for consistent theming across UI states | candidate | Consolidated with `e9b6755`: central success, warning, and info colors should replace scattered literal status colors and remain readable in both Wingosy themes. |
-| 149 | `6924ef1` | 2025-12-19 | Add box art customization and platform badges | candidate | Wingosy already shows responsive short platform badges on desktop and immersive cards. Configurable corner radius, border, glow, badge position, and padding remain a bounded appearance candidate; Argosy's settings decomposition is not copied. |
+| 149 | `6924ef1` | 2025-12-19 | Add box art customization and platform badges | implemented | `f5c8dc9`: Wingosy now persists corner shape, minimal/border/glow frame treatment, platform-label visibility/side/inset, and applies the same result in desktop and Immersive libraries with a representative settings preview. |
 | 150 | `dd872e8` | 2025-12-19 | Fix Default View setting to control B button navigation | not-portable | Argosy chooses between separate Showcase and Library roots. Wingosy's desktop and immersive homes are both library-based, so there is no equivalent competing root destination for a default-view setting. |
-| 151 | `4dc32e8` | 2025-12-19 | Add platform badge curved corners and shadow glow options | candidate | Folded into the box-art appearance candidate; the portable behavior is configurable shadow/accent treatment, not Argosy's bespoke Compose badge geometry. |
+| 151 | `4dc32e8` | 2025-12-19 | Add platform badge curved corners and shadow glow options | implemented | `f5c8dc9`: the shared cover renderer keeps edge-attached badge corners coherent, rounds inset badges, and offers persistent border/glow treatments without copying Argosy's bespoke Compose geometry. |
 | 152 | `831b37a` | 2025-12-19 | Move game info above carousel to prevent title overlap | superseded | Intermediate Argosy carousel layout immediately replaced by `4c9fb09`. |
 | 153 | `4c9fb09` | 2025-12-19 | Reposition game info as top-right overlay | already-covered | Wingosy's immersive grid keeps each title clamped inside its own cover card instead of using a detached carousel information overlay, so the overlap/clipping failure mode is absent. |
 | 154 | `f1df1da` | 2025-12-19 | Hide platform badges in single-platform views | implemented | `bf10b78`: Wingosy desktop cards now retain badges for mixed-platform Library/Favorites views and omit the repeated badge when a specific platform is selected. Immersive All/Favorites/Recent remain badged because all are mixed-platform sections. |
@@ -498,6 +506,8 @@ must record every inspected commit before advancing this cursor.
 | 278 | `beb5bd8` | 2026-01-04 | Bump version to 0.12.1-beta.1 | non-feature | Android prerelease metadata only. |
 | 279 | `10078a8` | 2026-01-04 | Prevent cursor crash while hiding games | already-covered | Wingosy filters in-memory collections and does not expose an Android SQLite CursorWindow stream that can close during the mutation. |
 | 280 | `fa58fac` | 2026-01-04 | Add CCI extension to 3DS platform filter | already-covered | `.cci` is already included in Wingosy's default 3DS extension list, and managed Azahar launches the selected filesystem path directly. |
+| 281 | `c05cc2f` | 2026-01-04 | Bump version to 0.12.2 | non-feature | Android release metadata only; no portable runtime behavior. |
+| 282 | `ada75a7` | 2026-01-05 | Add comprehensive box art styling customization | implemented | `f5c8dc9`: added validated, persisted cover corners, frame effects, platform-label placement/inset, and a live preview, shared by desktop and Immersive cards. Deliberately omits Argosy-specific glass/shine rendering and Android input mechanics. |
 
 ## Implemented parity outside the chronological audit
 
@@ -531,7 +541,6 @@ Argosy commits must still be recorded when encountered.
 | `ea8b196`, `8fc59ff` | Persistent save-sync status and progress UX | Surface per-game local/server state, conflicts, errors, explicit sync steps, and effective save paths without blocking launch; retain warning recovery and verify conflict semantics against a live RomM server. |
 | `5bb4358` | Single-flight launch and save-sync race protection | Serialize native launch/save-sync work so repeated desktop or controller input cannot start overlapping negotiations or emulator sessions; retain non-blocking UI feedback. |
 | `e9b6755`, `0d93830` | Light-mode surface audit and semantic status colors | Replace dark-only overlay/status literals with theme-aware surfaces and centralized success, warning, and info roles across desktop and immersive views. |
-| `6924ef1`, `4dc32e8` | Configurable box-art styling | Persist corner radius, border, glow/shadow, badge position, and padding with a representative preview and equivalent desktop/immersive rendering. |
 | `c31c87c` | Legacy timestamped latest-save compatibility | Verify current RomM slot metadata and update-failure behavior against live data, then recognize timestamp-tagged latest filenames only where slot metadata is absent and preserve negotiated conflict safety. |
 | `b40a188`, `ad28ae8` | Opt-in bidirectional favorites sync through RomM collections | Verify the current Collections API, merge local and remote favorites on first sync, persist retryable local changes, and avoid destructive reconciliation when a device was offline or a collection is unavailable. |
 | `0ac5cc1`, `cc54e4b`, `1b7d605`, `10112cb` | Local weekly game recommendations with repeat avoidance | Define deterministic/testable scoring from local play history, distinguish installed and downloadable suggestions, generate a larger candidate pool, exclude completed/abandoned games, de-emphasize favorites, and expose the rail consistently in desktop and immersive modes. |
@@ -590,6 +599,7 @@ chronological work can proceed safely.
 | 2026-10-11 | `8ea383a..cac12ec` (20 commits) | First-class Game Gear platform/core support and N3DS slug normalization | `006d21e` | 57 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control prevented local Rust execution; Windows CI run `38153735545` passed the new Rust tests, all Cargo tests, Rust lint with warnings denied, Rust coverage, frontend coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift in the touched model files. | Refreshed the Argosy baseline to `f287e8a` / 3,219 while preserving the valid cursor, then advanced it to commit 220. Seven newly audited commits remain candidates, consolidated into one new save-state backlog row and two existing recommendation/platform-identity rows, leaving 44 candidate commits waiting. RomM personal-metadata sync remains an open decision. |
 | 2026-10-12 | `beab044..19e7a03` (45 commits) | Accent-, punctuation-, abbreviation-, and typo-tolerant multi-word library search | `a143f0b` | 60 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. No Rust files changed. | Refreshed the Argosy baseline to `6a7efc4` / 3,243 while preserving the valid cursor, then advanced it to commit 265. Twenty-one newly audited commits remain candidates, consolidated into existing save/archive/multi-disc/background/platform-identity/state rows plus new dimmer, BIOS, and collections rows, leaving 65 waiting including the open personal-metadata sync decision. |
 | 2026-10-13 | `aafa1c3..fa58fac` (15 commits) | Validated cover-cache reuse and downloads, with automatic repair of corrupt cached files | `876d8f0` | 60 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and targeted Rust formatting passed locally. Smart App Control prevented local Rust execution; Windows CI run `38427676640` passed frontend coverage, all Cargo tests including three new cover tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `3059f55` / 3,268 while preserving the valid cursor, then advanced it to commit 280. Two newly audited commits remain candidates, consolidated into the collections and image-cache rows, leaving 67 waiting including the open personal-metadata sync decision. |
+| 2026-10-14 | `c05cc2f..ada75a7` (2 commits) | Persistent cover corners, minimal/border/glow frames, platform-label placement/inset, and a representative preview shared by desktop and Immersive libraries | `f5c8dc9` | 64 frontend unit tests (+4), typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control prevented local Rust execution; Windows CI run `38594503391` passed the repository Windows gate. Targeted `rustfmt --check` still reports pre-existing formatting drift in `config/mod.rs` outside the changed hunks. | Refreshed the Argosy baseline to `65f5485` / 3,336 while preserving the valid cursor, then advanced it to commit 282. Resolved the two older box-art candidate commits without adding a new candidate, leaving 65 waiting including the open personal-metadata sync decision. |
 
 ## Completion rule
 
