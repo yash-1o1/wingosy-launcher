@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
@@ -12,6 +13,37 @@ use crate::models::{
     default_emulators, retroarch_cores,
 };
 use crate::scanner::RomScanner;
+
+struct SingleFlight {
+    active: AtomicBool,
+}
+
+impl SingleFlight {
+    const fn new() -> Self {
+        Self {
+            active: AtomicBool::new(false),
+        }
+    }
+
+    fn try_acquire(&self) -> Option<SingleFlightGuard<'_>> {
+        self.active
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .ok()
+            .map(|_| SingleFlightGuard { single_flight: self })
+    }
+}
+
+struct SingleFlightGuard<'a> {
+    single_flight: &'a SingleFlight,
+}
+
+impl Drop for SingleFlightGuard<'_> {
+    fn drop(&mut self) {
+        self.single_flight.active.store(false, Ordering::Release);
+    }
+}
+
+static GAME_LAUNCH: SingleFlight = SingleFlight::new();
 
 /// Path saved in config (e.g. after install or browse) counts as installed when detection missed it.
 fn configured_emulator_path(config: &AppConfig, emulator_id: &str) -> Option<PathBuf> {
@@ -365,6 +397,10 @@ pub struct LaunchGameResult {
 
 #[tauri::command]
 pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
+    let _launch_guard = GAME_LAUNCH.try_acquire().ok_or_else(|| {
+        "Another game is already launching or running. Close it before starting a new game."
+            .to_string()
+    })?;
     tracing::info!("[Launch] Launching game id={}", game_id);
     
     let mut config = AppConfig::load().map_err(|e| e.to_string())?;
@@ -3094,6 +3130,19 @@ mod tests {
         };
         assert!(result.success);
         assert!(result.dry_run);
+    }
+
+    #[test]
+    fn single_flight_blocks_overlapping_launches_and_releases_after_drop() {
+        let single_flight = SingleFlight::new();
+
+        let first_launch = single_flight
+            .try_acquire()
+            .expect("first launch acquires guard");
+        assert!(single_flight.try_acquire().is_none());
+
+        drop(first_launch);
+        assert!(single_flight.try_acquire().is_some());
     }
 
     // Tests for EmulatorInfo
