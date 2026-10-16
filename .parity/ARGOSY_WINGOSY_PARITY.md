@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `9940f117eac04706397df446f17b1e389253e224` — 2026-10-15 (2026-10-15 run)
-- Baseline history size: 3,356 commits on `origin/main`
-- Wingosy baseline observed: `f0848a6` — 2026-10-15 feature commit
+- Argosy baseline observed: `56ae10b3ec6b76164d51fed82abe5ae4407ba332` — 2026-10-16 (2026-10-16 run)
+- Baseline history size: 3,361 commits on `origin/main`
+- Wingosy baseline observed: `58f88f5` — 2026-10-16 feature/fix tip
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -167,6 +167,14 @@ A fresh fetch advanced Argosy `origin/main` from `65f5485` / 3,336 commits to
 metadata was refreshed before this run's eight chronological dispositions were
 appended.
 
+### Baseline refresh (2026-10-16)
+
+A fresh fetch advanced Argosy `origin/main` from `9940f11` / 3,356 commits to
+`56ae10b` / 3,361 commits. The chronological cursor remained valid:
+`acf3d82` was still commit 290 and `79b448c` was still commit 291. Aggregate
+metadata was refreshed before this run's five chronological dispositions were
+appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -220,11 +228,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `acf3d82cb6605b7043ebca3af0c8d1c791b6700d`
-- Next Argosy commit: `79b448c87485911eb15f2f0c20998e4e26b60c82`
-- Audited: 290 / 3,356 baseline commits
+- Last fully audited Argosy commit: `d19db53e42d642d6b643b321e43804b70095dc83`
+- Next Argosy commit: `b1d09fe67b5e38d2facc2c2a54cd8bc87733690e`
+- Audited: 295 / 3,361 baseline commits
 - Portable candidates waiting: 66
-- Last tracker update: 2026-10-15
+- Last tracker update: 2026-10-16
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -524,6 +532,11 @@ must record every inspected commit before advancing this cursor.
 | 288 | `8272c13` | 2026-01-05 | Adjust game info positioning on Home screen | already-covered | Wingosy's desktop and Immersive layouts keep title metadata attached to responsive game cards/details rather than a fixed detached overlay, so the Android carousel-overlap correction is unnecessary. |
 | 289 | `c4d0c0b` | 2026-01-05 | Add pinned collections with home screen prefetching | candidate | Consolidated into RomM-backed collections: include regular and virtual pins, controller-complete pin/reorder management, prefetched membership, explicit empty/loading states, and refresh throttling after verifying the current Collections API. |
 | 290 | `acf3d82` | 2026-01-05 | Bump version to 0.13.0 | not-portable | The only functional emulator addition is an Android Cemu fork sharing the official package name; Wingosy already supports native Windows Cemu. The remaining version, default style, and Argosy branding changes are release/presentation metadata. |
+| 291 | `79b448c` | 2026-01-05 | Refine glass border+stub effect to eliminate blur seam | already-covered | Wingosy's shared cover renderer does not use Argosy's combined glass badge/frame clipping path, so the Compose blur seam is absent; existing border/glow styling stays platform-native. |
+| 292 | `b242fdd` | 2026-01-05 | Remove redundant comments and debug logs | non-feature | Comment and debug-log cleanup only; no portable user-visible behavior. |
+| 293 | `6751a75` | 2026-01-05 | Add dual-color mode with secondary accent color | implemented | `91b5b8b`: added persisted primary/secondary hue palettes, legacy-safe theme persistence, a secondary appearance control that defaults to primary, and consistent secondary color for cloud-only games plus ROM/download/library-sync progress across desktop and Immersive views. |
+| 294 | `01d65c9` | 2026-01-05 | Redesign notification popup for compact elegance | already-covered | Wingosy's MUI snackbar/alert surfaces are already compact, non-blocking, semantically colored, and positioned clear of primary content; Argosy's Compose spring/glass treatment is design-specific. |
+| 295 | `d19db53` | 2026-01-05 | Implement progressive blur falloff for glass inner effect | not-portable | Compose-specific shader/clipping refinement for Argosy's glass card effect. Wingosy deliberately uses simpler border/glow treatments and has no equivalent blur stack to repair. |
 
 ## Implemented parity outside the chronological audit
 
@@ -616,6 +629,7 @@ chronological work can proceed safely.
 | 2026-10-13 | `aafa1c3..fa58fac` (15 commits) | Validated cover-cache reuse and downloads, with automatic repair of corrupt cached files | `876d8f0` | 60 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and targeted Rust formatting passed locally. Smart App Control prevented local Rust execution; Windows CI run `38427676640` passed frontend coverage, all Cargo tests including three new cover tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `3059f55` / 3,268 while preserving the valid cursor, then advanced it to commit 280. Two newly audited commits remain candidates, consolidated into the collections and image-cache rows, leaving 67 waiting including the open personal-metadata sync decision. |
 | 2026-10-14 | `c05cc2f..ada75a7` (2 commits) | Persistent cover corners, minimal/border/glow frames, platform-label placement/inset, and a representative preview shared by desktop and Immersive libraries | `f5c8dc9` | 64 frontend unit tests (+4), typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control prevented local Rust execution; Windows CI run `38594503391` passed the repository Windows gate. Targeted `rustfmt --check` still reports pre-existing formatting drift in `config/mod.rs` outside the changed hunks. | Refreshed the Argosy baseline to `65f5485` / 3,336 while preserving the valid cursor, then advanced it to commit 282. Resolved the two older box-art candidate commits without adding a new candidate, leaving 65 waiting including the open personal-metadata sync decision. |
 | 2026-10-15 | `9162b3f..acf3d82` (8 commits) | Single-flight native game launch guard covering pre-launch sync, emulator lifetime, and post-launch sync | `f0848a6` | 64 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control prevented local Rust execution. Windows CI run `38765179621` passed frontend coverage, all Cargo tests including the new guard test, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `9940f11` / 3,356 while preserving the valid cursor, then advanced it to commit 290. Resolved `5bb4358`; added archive-collision and pinned-collection candidates, leaving 66 candidate dispositions plus the open personal-metadata sync decision. |
+| 2026-10-16 | `79b448c..d19db53` (5 commits) | Persistent primary and optional secondary cloud/progress accent, including legacy-safe theme persistence and consistent desktop/Immersive cloud-state styling | `91b5b8b`, lint fix `58f88f5` | 4 targeted and 68 full frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. The first Windows CI run `38929853607` exposed a Clippy-only test construction warning; `58f88f5` corrected it, and run `38931094094` passed frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `56ae10b` / 3,361 while preserving the valid cursor, then advanced it to commit 295. No candidate was added, leaving 66 candidate dispositions plus the open personal-metadata sync decision. |
 
 ## Completion rule
 
