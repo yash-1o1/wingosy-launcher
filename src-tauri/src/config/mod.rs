@@ -532,9 +532,11 @@ mod tests {
 
     #[test]
     fn display_accent_hues_round_trip() {
-        let mut display = DisplayConfig::default();
-        display.accent_hue = Some(120);
-        display.secondary_accent_hue = Some(280);
+        let display = DisplayConfig {
+            accent_hue: Some(120),
+            secondary_accent_hue: Some(280),
+            ..DisplayConfig::default()
+        };
 
         let serialized = toml::to_string(&display).expect("display config should serialize");
         let restored: DisplayConfig =
