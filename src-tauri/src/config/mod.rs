@@ -227,6 +227,10 @@ impl Default for LibraryConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplayConfig {
     pub theme: Theme,
+    #[serde(default)]
+    pub accent_hue: Option<u16>,
+    #[serde(default)]
+    pub secondary_accent_hue: Option<u16>,
     pub grid_columns: u8,
     pub show_platform_icons: bool,
     pub show_play_time: bool,
@@ -266,6 +270,8 @@ impl Default for DisplayConfig {
     fn default() -> Self {
         Self {
             theme: Theme::Dark,
+            accent_hue: None,
+            secondary_accent_hue: None,
             grid_columns: 5,
             show_platform_icons: true,
             show_play_time: true,
@@ -301,10 +307,14 @@ pub enum PlatformBadgePosition {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
 pub enum Theme {
+    #[serde(alias = "Light")]
     Light,
     #[default]
+    #[serde(alias = "Dark")]
     Dark,
+    #[serde(alias = "System")]
     System,
 }
 
@@ -385,6 +395,8 @@ mod tests {
     fn test_display_config_defaults() {
         let display = DisplayConfig::default();
         assert_eq!(display.theme, Theme::Dark);
+        assert!(display.accent_hue.is_none());
+        assert!(display.secondary_accent_hue.is_none());
         assert_eq!(display.grid_columns, 5);
         assert!(display.show_platform_icons);
         assert!(display.show_play_time);
@@ -498,6 +510,38 @@ mod tests {
             PlatformBadgePosition::TopLeft
         );
         assert_eq!(config.display.platform_badge_inset, 0);
+    }
+
+    #[test]
+    fn display_theme_accepts_legacy_case_and_serializes_lowercase() {
+        #[derive(Serialize, Deserialize)]
+        struct ThemeHolder {
+            theme: Theme,
+        }
+
+        let legacy: ThemeHolder =
+            toml::from_str("theme = \"Dark\"").expect("legacy theme should deserialize");
+        assert_eq!(legacy.theme, Theme::Dark);
+
+        let serialized = toml::to_string(&ThemeHolder {
+            theme: Theme::System,
+        })
+        .expect("theme should serialize");
+        assert_eq!(serialized.trim(), "theme = \"system\"");
+    }
+
+    #[test]
+    fn display_accent_hues_round_trip() {
+        let mut display = DisplayConfig::default();
+        display.accent_hue = Some(120);
+        display.secondary_accent_hue = Some(280);
+
+        let serialized = toml::to_string(&display).expect("display config should serialize");
+        let restored: DisplayConfig =
+            toml::from_str(&serialized).expect("display config should deserialize");
+
+        assert_eq!(restored.accent_hue, Some(120));
+        assert_eq!(restored.secondary_accent_hue, Some(280));
     }
 
     #[test]

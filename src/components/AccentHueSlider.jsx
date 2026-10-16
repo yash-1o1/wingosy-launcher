@@ -9,7 +9,13 @@ import { invoke } from "@tauri-apps/api/core";
  * Isolated accent hue control so dragging does not re-render the full Settings screen.
  * Batches visual updates to one setState per animation frame during drag.
  */
-function AccentHueSlider({ accentHue, setAccentHue, defaultHue = 235 }) {
+function AccentHueSlider({
+  accentHue,
+  setAccentHue,
+  defaultHue = 235,
+  configKey = "accent_hue",
+  defaultLabel = "Default (Indigo)",
+}) {
   const initial = accentHue ?? defaultHue;
   const [previewHue, setPreviewHue] = useState(initial);
   const rafRef = useRef(null);
@@ -51,13 +57,13 @@ function AccentHueSlider({ accentHue, setAccentHue, defaultHue = 235 }) {
       try {
         const cfg = await invoke("get_config");
         cfg.display = cfg.display || {};
-        cfg.display.accent_hue = hue;
+        cfg.display[configKey] = hue;
         await invoke("save_config", { config: cfg });
       } catch (err) {
         console.error("Failed to save accent hue:", err);
       }
     },
-    []
+    [configKey]
   );
 
   const handleChangeCommitted = useCallback(
@@ -85,14 +91,14 @@ function AccentHueSlider({ accentHue, setAccentHue, defaultHue = 235 }) {
     try {
       const cfg = await invoke("get_config");
       cfg.display = cfg.display || {};
-      cfg.display.accent_hue = null;
+      cfg.display[configKey] = null;
       await invoke("save_config", { config: cfg });
     } catch (err) {
       console.error("Failed to reset accent:", err);
     }
-  }, [defaultHue, setAccentHue]);
+  }, [configKey, defaultHue, setAccentHue]);
 
-  const sliderKey = accentHue === null ? "default" : `hue-${accentHue}`;
+  const sliderKey = accentHue === null ? `default-${defaultHue}` : `hue-${accentHue}`;
 
   return (
     <Box sx={{ px: 1 }}>
@@ -151,12 +157,12 @@ function AccentHueSlider({ accentHue, setAccentHue, defaultHue = 235 }) {
           />
           <Typography variant="caption" color="text.secondary">
             {accentHue === null && Math.round(previewHue) === Math.round(defaultHue)
-              ? "Default (Indigo)"
+              ? defaultLabel
               : `Hue: ${Math.round(previewHue)}°`}
           </Typography>
         </Box>
         <Button size="small" variant="text" onClick={handleReset} disabled={accentHue === null}>
-          Reset to Default
+          Reset
         </Button>
       </Box>
     </Box>

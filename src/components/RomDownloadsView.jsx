@@ -31,7 +31,7 @@ export default function RomDownloadsView({ onBack = null, immersive = false }) {
         ) : null}
         <Box {...tauriDragRegionProps()} sx={{ flex: 1, minWidth: 0, ...tauriDragRegionSx }}>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <CloudDownloadIcon color="primary" />
+            <CloudDownloadIcon color="secondary" />
             <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
               Downloads
             </Typography>
@@ -61,9 +61,9 @@ export default function RomDownloadsView({ onBack = null, immersive = false }) {
                 {formatDownloadLabel(row)}
               </Typography>
               {row.percent != null ? (
-                <LinearProgress variant="determinate" value={row.percent} sx={{ borderRadius: 1, height: 8 }} />
+                <LinearProgress color="secondary" variant="determinate" value={row.percent} sx={{ borderRadius: 1, height: 8 }} />
               ) : (
-                <LinearProgress sx={{ borderRadius: 1, height: 8 }} />
+                <LinearProgress color="secondary" sx={{ borderRadius: 1, height: 8 }} />
               )}
             </Paper>
           ))}

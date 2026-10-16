@@ -210,6 +210,7 @@ export default function SyncMonitor({
                     {row.status === "syncing" ? (
                       <Box sx={{ mt: 1 }}>
                         <LinearProgress
+                          color="secondary"
                           variant={row.total > 0 ? "determinate" : "indeterminate"}
                           value={percent}
                           sx={{ height: 7, borderRadius: 1 }}

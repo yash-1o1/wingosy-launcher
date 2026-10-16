@@ -246,7 +246,7 @@ export default function ImmersiveGameTile({
                       justifyContent: "center",
                     }}
                   >
-                    <CloudIcon sx={{ fontSize: 12, color: colors.primaryLight }} />
+                    <CloudIcon sx={{ fontSize: 12, color: colors.secondaryLight }} />
                   </Box>
                 );
               }
@@ -285,12 +285,13 @@ export default function ImmersiveGameTile({
             >
               {downloadProgress.percent != null ? (
                 <LinearProgress
+                  color="secondary"
                   variant="determinate"
                   value={downloadProgress.percent}
                   sx={{ height: 4, borderRadius: 0 }}
                 />
               ) : (
-                <LinearProgress sx={{ height: 4, borderRadius: 0 }} />
+                <LinearProgress color="secondary" sx={{ height: 4, borderRadius: 0 }} />
               )}
             </Box>
           ) : null}

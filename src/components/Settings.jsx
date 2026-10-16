@@ -206,6 +206,8 @@ export default function Settings({
     setThemeMode,
     accentHue,
     setAccentHue,
+    secondaryAccentHue,
+    setSecondaryAccentHue,
     colors,
     coverAppearance,
     setCoverAppearance,
@@ -1434,7 +1436,7 @@ export default function Settings({
             try {
               const cfg = await invoke("get_config");
               cfg.display = cfg.display || {};
-              cfg.display.theme_mode = newMode;
+              cfg.display.theme = newMode;
               await invoke("save_config", { config: cfg });
             } catch (err) {
               console.error("Failed to save theme mode:", err);
@@ -1450,9 +1452,23 @@ export default function Settings({
         
         {/* Accent Color */}
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Accent Color
+          Primary accent
         </Typography>
         <AccentHueSlider accentHue={accentHue} setAccentHue={setAccentHue} />
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 3 }}>
+          Cloud and progress accent
+        </Typography>
+        <AccentHueSlider
+          accentHue={secondaryAccentHue}
+          setAccentHue={setSecondaryAccentHue}
+          defaultHue={accentHue ?? 235}
+          configKey="secondary_accent_hue"
+          defaultLabel="Matches primary"
+        />
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+          Used for cloud-only games, downloads, and library sync progress. Reset it to follow the primary accent.
+        </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 3 }}>
           Library density

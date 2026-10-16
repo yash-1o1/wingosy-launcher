@@ -831,9 +831,9 @@ export default function GameDetails({
         {downloading && (
           <Box sx={{ mb: 2 }}>
             {romDl?.percent != null ? (
-              <LinearProgress variant="determinate" value={romDl.percent} sx={{ borderRadius: 2 }} />
+              <LinearProgress color="secondary" variant="determinate" value={romDl.percent} sx={{ borderRadius: 2 }} />
             ) : (
-              <LinearProgress sx={{ borderRadius: 2 }} />
+              <LinearProgress color="secondary" sx={{ borderRadius: 2 }} />
             )}
             {romDl ? (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>

@@ -7,6 +7,7 @@ import {
   DEFAULT_COVER_APPEARANCE,
   normalizeCoverAppearance,
 } from "./utils/coverAppearance";
+import { normalizeAccentHue, resolveAccentPalettes } from "./utils/themeAccents";
 
 // Base color palette (from Argosy)
 const baseColors = {
@@ -39,34 +40,20 @@ const baseColors = {
   trophyAmber: "#FFB300",
 };
 
-function hslToHex(h, s, l) {
-  s /= 100;
-  l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color)
-      .toString(16)
-      .padStart(2, "0");
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
+const defaultAccentPalette = {
+  main: baseColors.indigo,
+  light: baseColors.indigoLight,
+  dark: baseColors.indigoDark,
+};
 
-function createAppTheme(mode, accentHue) {
+function createAppTheme(mode, accentHue, secondaryAccentHue) {
   const isDark = mode === "dark";
-
-  // Generate accent color from hue, or use default indigo
-  let primaryMain, primaryLight, primaryDark;
-  if (accentHue !== null && accentHue !== undefined) {
-    primaryMain = hslToHex(accentHue, 70, 50);
-    primaryLight = hslToHex(accentHue, 70, 65);
-    primaryDark = hslToHex(accentHue, 70, 35);
-  } else {
-    primaryMain = baseColors.indigo;
-    primaryLight = baseColors.indigoLight;
-    primaryDark = baseColors.indigoDark;
-  }
+  const { primary, secondary } = resolveAccentPalettes(
+    accentHue,
+    secondaryAccentHue,
+    defaultAccentPalette
+  );
+  const primaryMain = primary.main;
 
   const focusGlow = alpha(primaryMain, 0.4);
 
@@ -75,14 +62,14 @@ function createAppTheme(mode, accentHue) {
       mode: isDark ? "dark" : "light",
       primary: {
         main: primaryMain,
-        light: primaryLight,
-        dark: primaryDark,
+        light: primary.light,
+        dark: primary.dark,
         contrastText: "#FFFFFF",
       },
       secondary: {
-        main: primaryMain,
-        light: primaryLight,
-        dark: primaryDark,
+        main: secondary.main,
+        light: secondary.light,
+        dark: secondary.dark,
       },
       background: {
         default: isDark ? baseColors.surfaceDark : baseColors.surfaceLight,
@@ -241,9 +228,11 @@ function createAppTheme(mode, accentHue) {
 const ThemeContext = createContext({
   themeMode: "dark",
   accentHue: null,
+  secondaryAccentHue: null,
   coverAppearance: DEFAULT_COVER_APPEARANCE,
   setThemeMode: (_mode) => {},
   setAccentHue: (_hue) => {},
+  setSecondaryAccentHue: (_hue) => {},
   setCoverAppearance: (_appearance) => {},
   colors: baseColors,
 });
@@ -255,6 +244,7 @@ export function useAppTheme() {
 export function AppThemeProvider({ children }) {
   const [themeMode, setThemeMode] = useState("dark");
   const [accentHue, setAccentHue] = useState(null);
+  const [secondaryAccentHue, setSecondaryAccentHue] = useState(null);
   const [coverAppearance, setCoverAppearance] = useState(DEFAULT_COVER_APPEARANCE);
   const [loaded, setLoaded] = useState(false);
   
@@ -264,11 +254,14 @@ export function AppThemeProvider({ children }) {
     async function loadThemeSettings() {
       try {
         const cfg = await invoke("get_config");
-        if (cfg.display?.theme_mode) {
-          setThemeMode(cfg.display.theme_mode);
+        if (cfg.display?.theme) {
+          setThemeMode(cfg.display.theme.toLowerCase());
         }
         if (cfg.display?.accent_hue !== undefined) {
-          setAccentHue(cfg.display.accent_hue);
+          setAccentHue(normalizeAccentHue(cfg.display.accent_hue));
+        }
+        if (cfg.display?.secondary_accent_hue !== undefined) {
+          setSecondaryAccentHue(normalizeAccentHue(cfg.display.secondary_accent_hue));
         }
         setCoverAppearance(normalizeCoverAppearance(cfg.display));
       } catch {
@@ -287,40 +280,40 @@ export function AppThemeProvider({ children }) {
   }, [themeMode, prefersDark]);
 
   const theme = useMemo(() => {
-    return createAppTheme(effectiveMode, accentHue);
-  }, [effectiveMode, accentHue]);
+    return createAppTheme(effectiveMode, accentHue, secondaryAccentHue);
+  }, [effectiveMode, accentHue, secondaryAccentHue]);
 
   const colors = useMemo(() => {
-    let primaryMain, primaryLight, primaryDark;
-    if (accentHue !== null && accentHue !== undefined) {
-      primaryMain = hslToHex(accentHue, 70, 50);
-      primaryLight = hslToHex(accentHue, 70, 65);
-      primaryDark = hslToHex(accentHue, 70, 35);
-    } else {
-      primaryMain = baseColors.indigo;
-      primaryLight = baseColors.indigoLight;
-      primaryDark = baseColors.indigoDark;
-    }
+    const { primary, secondary } = resolveAccentPalettes(
+      accentHue,
+      secondaryAccentHue,
+      defaultAccentPalette
+    );
     return {
       ...baseColors,
-      primary: primaryMain,
-      primaryLight,
-      primaryDark,
-      focusGlow: alpha(primaryMain, 0.4),
+      primary: primary.main,
+      primaryLight: primary.light,
+      primaryDark: primary.dark,
+      secondary: secondary.main,
+      secondaryLight: secondary.light,
+      secondaryDark: secondary.dark,
+      focusGlow: alpha(primary.main, 0.4),
     };
-  }, [accentHue]);
+  }, [accentHue, secondaryAccentHue]);
 
   const contextValue = useMemo(
     () => ({
       themeMode,
       accentHue,
+      secondaryAccentHue,
       coverAppearance,
       setThemeMode,
       setAccentHue,
+      setSecondaryAccentHue,
       setCoverAppearance,
       colors,
     }),
-    [themeMode, accentHue, coverAppearance, colors]
+    [themeMode, accentHue, secondaryAccentHue, coverAppearance, colors]
   );
 
   if (!loaded) {

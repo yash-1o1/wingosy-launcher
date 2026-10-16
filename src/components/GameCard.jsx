@@ -238,7 +238,7 @@ export default function GameCard({
                 justifyContent: "center",
               }}
             >
-              <CloudIcon sx={{ fontSize: 12, color: colors.primaryLight }} />
+              <CloudIcon sx={{ fontSize: 12, color: colors.secondaryLight }} />
             </Box>
           )}
           {game.sync_state === "synced" && (
@@ -272,12 +272,13 @@ export default function GameCard({
           >
             {downloadProgress.percent != null ? (
               <LinearProgress
+                color="secondary"
                 variant="determinate"
                 value={downloadProgress.percent}
                 sx={{ height: 5, borderRadius: 0 }}
               />
             ) : (
-              <LinearProgress sx={{ height: 5, borderRadius: 0 }} />
+              <LinearProgress color="secondary" sx={{ height: 5, borderRadius: 0 }} />
             )}
           </Box>
         ) : null}
