@@ -19,6 +19,7 @@ import MemoryIcon from "@mui/icons-material/Memory";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { subtleSurfaceColor } from "../utils/themeSurfaces";
 
 const CARD_SX = {
   p: 3,
@@ -176,7 +177,7 @@ export default function BiosSettings() {
           Download firmware from your RomM server, verify its checksum, then install it into known emulator BIOS folders. For Switch, Wingosy installs prod.keys and firmware.zip into configured Eden instances.
         </Typography>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, p: 1.5, mb: 2, bgcolor: "rgba(0,0,0,0.2)", borderRadius: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, p: 1.5, mb: 2, bgcolor: subtleSurfaceColor, borderRadius: 2 }}>
           <FolderOpenIcon color="action" />
           <Typography variant="body2" sx={{ flex: 1, fontFamily: "monospace", overflowWrap: "anywhere" }}>
             {biosDirectory || "Loading..."}

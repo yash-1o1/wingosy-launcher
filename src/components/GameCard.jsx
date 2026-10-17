@@ -254,7 +254,7 @@ export default function GameCard({
                 justifyContent: "center",
               }}
             >
-              <CheckCircleIcon sx={{ fontSize: 12, color: "#66BB6A" }} />
+              <CheckCircleIcon sx={{ fontSize: 12, color: "success.main" }} />
             </Box>
           )}
         </Box>
@@ -350,11 +350,11 @@ export default function GameCard({
                   onClick();
                 }}
                 sx={{
-                  bgcolor: "#FF7043",
-                  color: "#fff",
+                  bgcolor: "warning.main",
+                  color: "warning.contrastText",
                   width: 40,
                   height: 40,
-                  "&:hover": { bgcolor: "#FFAB91" },
+                  "&:hover": { bgcolor: "warning.dark" },
                 }}
               >
                 <CloudDownloadIcon />
@@ -368,12 +368,12 @@ export default function GameCard({
                 onToggleFavorite();
               }}
               sx={{
-                bgcolor: game.is_favorite ? "#E53935" : "rgba(255,255,255,0.15)",
+                bgcolor: game.is_favorite ? "error.main" : "rgba(255,255,255,0.15)",
                 color: "#fff",
                 width: 40,
                 height: 40,
                 "&:hover": {
-                  bgcolor: game.is_favorite ? "#E53935" : "rgba(255,255,255,0.25)",
+                  bgcolor: game.is_favorite ? "error.dark" : "rgba(255,255,255,0.25)",
                 },
               }}
             >

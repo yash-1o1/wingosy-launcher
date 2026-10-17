@@ -80,6 +80,11 @@ import {
   normalizeCoverAppearance,
   platformBadgeSx,
 } from "../utils/coverAppearance";
+import {
+  semanticSurfaceColor,
+  subtleSurfaceColor,
+  themedSurfaceGradient,
+} from "../utils/themeSurfaces";
 
 /** Full-width cards in the scroll column (avoids uneven widths after flex/scroll changes). */
 const SETTINGS_CARD_SX = {
@@ -92,7 +97,7 @@ const SETTINGS_CARD_SX = {
 };
 const SETTINGS_CARD_GRADIENT_SX = {
   ...SETTINGS_CARD_SX,
-  background: "linear-gradient(135deg, #1e1e26 0%, #252530 100%)",
+  background: themedSurfaceGradient,
 };
 
 /** Human-friendly name for a libretro DLL (e.g. `mgba_libretro.dll` → "mgba"). */
@@ -1993,7 +1998,7 @@ export default function Settings({
           gap: 2, 
           mb: 2,
           p: 1.5,
-          bgcolor: "rgba(0,0,0,0.2)",
+          bgcolor: subtleSurfaceColor,
           borderRadius: 2,
         }}>
           <FolderOpenIcon color="action" />
@@ -2163,8 +2168,10 @@ export default function Settings({
                       sx={{ 
                         borderRadius: isExpanded ? "8px 8px 0 0" : 2, 
                         mb: isExpanded ? 0 : 0.5,
-                        bgcolor: "rgba(76, 175, 80, 0.08)",
-                        "&:hover": { bgcolor: "rgba(76, 175, 80, 0.12)" },
+                        bgcolor: (theme) => semanticSurfaceColor(theme, "success", 0.08),
+                        "&:hover": {
+                          bgcolor: (theme) => semanticSurfaceColor(theme, "success", 0.12),
+                        },
                         cursor: isRetroArch && emuCores.length > 0 ? "pointer" : "default",
                         alignItems: "flex-start",
                         flexWrap: "wrap",
@@ -2296,9 +2303,10 @@ export default function Settings({
                     {isRetroArch && (
                       <Collapse in={isExpanded}>
                         <Box sx={{ 
-                          bgcolor: "rgba(255, 152, 0, 0.05)", 
+                          bgcolor: (theme) => semanticSurfaceColor(theme, "warning", 0.05),
                           borderRadius: "0 0 8px 8px",
-                          border: "1px solid rgba(255, 152, 0, 0.2)",
+                          border: "1px solid",
+                          borderColor: (theme) => semanticSurfaceColor(theme, "warning", 0.2),
                           borderTop: "none",
                           mb: 0.5,
                           p: 2
@@ -2331,8 +2339,10 @@ export default function Settings({
                                 }
                                 disabled={downloadingCore !== null}
                                 sx={{ 
-                                  bgcolor: "rgba(255, 152, 0, 0.1)",
-                                  "&:hover": { bgcolor: "rgba(255, 152, 0, 0.2)" },
+                                  bgcolor: (theme) => semanticSurfaceColor(theme, "warning", 0.1),
+                                  "&:hover": {
+                                    bgcolor: (theme) => semanticSurfaceColor(theme, "warning", 0.2),
+                                  },
                                   "& .MuiChip-deleteIcon": { color: "warning.main" }
                                 }}
                                 size="small"

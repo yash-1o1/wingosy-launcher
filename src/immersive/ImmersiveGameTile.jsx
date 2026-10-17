@@ -264,7 +264,7 @@ export default function ImmersiveGameTile({
                       justifyContent: "center",
                     }}
                   >
-                    <CheckCircleIcon sx={{ fontSize: 12, color: "#66BB6A" }} />
+                    <CheckCircleIcon sx={{ fontSize: 12, color: "success.main" }} />
                   </Box>
                 );
               }

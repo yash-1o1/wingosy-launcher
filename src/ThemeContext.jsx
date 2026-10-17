@@ -56,6 +56,10 @@ function createAppTheme(mode, accentHue, secondaryAccentHue) {
   const primaryMain = primary.main;
 
   const focusGlow = alpha(primaryMain, 0.4);
+  const scrollbarThumb = alpha(
+    isDark ? baseColors.onSurfaceDark : baseColors.onSurfaceLight,
+    0.22
+  );
 
   return createTheme({
     palette: {
@@ -107,7 +111,7 @@ function createAppTheme(mode, accentHue, secondaryAccentHue) {
       MuiCssBaseline: {
         styleOverrides: {
           body: {
-            scrollbarColor: `${baseColors.surfaceElevated} transparent`,
+            scrollbarColor: `${scrollbarThumb} transparent`,
             "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
               width: 8,
               height: 8,
@@ -116,7 +120,7 @@ function createAppTheme(mode, accentHue, secondaryAccentHue) {
               background: "transparent",
             },
             "&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb": {
-              backgroundColor: baseColors.surfaceElevated,
+              backgroundColor: scrollbarThumb,
               borderRadius: 4,
               border: "2px solid transparent",
               backgroundClip: "content-box",

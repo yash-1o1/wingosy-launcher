@@ -57,6 +57,7 @@ import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { useRomDownloads, formatDownloadLabel } from "../RomDownloadsContext";
+import { themedSurfaceGradient } from "../utils/themeSurfaces";
 
 function isLocalPath(path) {
   if (!path) return false;
@@ -504,7 +505,7 @@ export default function GameDetails({
         sx={{
           p: 4,
           borderRadius: 3,
-          background: "linear-gradient(135deg, #1e1e26 0%, #252530 100%)",
+          background: themedSurfaceGradient,
         }}
       >
         <Box
