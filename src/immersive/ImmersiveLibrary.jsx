@@ -15,7 +15,7 @@ import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import Badge from "@mui/material/Badge";
 import { scrollFocusedTileIntoView } from "./scrollFocusedTile";
-import { selectRecentPlayableGames } from "../utils/gameFilters";
+import { prioritizeInstalledGames, selectRecentPlayableGames } from "../utils/gameFilters";
 
 const DEFAULT_COLUMNS = 6;
 
@@ -50,7 +50,7 @@ export default function ImmersiveLibrary({
   const { getProgress, activeCount } = useRomDownloads();
 
   const favorites = useMemo(
-    () => games.filter((g) => g.is_favorite),
+    () => prioritizeInstalledGames(games.filter((g) => g.is_favorite)),
     [games]
   );
 

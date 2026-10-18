@@ -18,7 +18,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { setFullscreenReliable } from "./windowFullscreen";
 import WindowChrome from "./components/WindowChrome";
 import { isTauri, mousedownTargetElement } from "./utils/isTauri";
-import { filterVisibleGames, sortVisibleGames } from "./utils/gameFilters";
+import {
+  filterVisibleGames,
+  prioritizeInstalledGames,
+  sortVisibleGames,
+} from "./utils/gameFilters";
 import { UiSoundsProvider } from "./UiSoundsContext";
 import {
   LAST_SEEN_APP_VERSION_KEY,
@@ -467,7 +471,7 @@ function App() {
     );
   }
 
-  const visibleGames = sortVisibleGames(
+  const sortedVisibleGames = sortVisibleGames(
     filterVisibleGames(
       games,
       selectedPlatform,
@@ -478,6 +482,9 @@ function App() {
     librarySort,
     librarySortDescending
   );
+  const visibleGames = favoritesOnly
+    ? prioritizeInstalledGames(sortedVisibleGames)
+    : sortedVisibleGames;
 
   return wrapUiSounds(
     <AppShell>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   filterVisibleGames,
+  prioritizeInstalledGames,
   selectRecentPlayableGames,
   sortVisibleGames,
 } from "./gameFilters";
@@ -107,5 +108,19 @@ describe("selectRecentPlayableGames", () => {
     ];
 
     expect(selectRecentPlayableGames(recentGames, 1).map((game) => game.id)).toEqual([2]);
+  });
+});
+
+describe("prioritizeInstalledGames", () => {
+  it("places installed favorites first while preserving each group's sort order", () => {
+    const favoriteGames = [
+      { id: 1, name: "Alpha Cloud", local_file_path: null },
+      { id: 2, name: "Bravo Installed", local_file_path: "C:\\ROMs\\bravo.gba" },
+      { id: 3, name: "Charlie Cloud", local_file_path: "" },
+      { id: 4, name: "Delta Installed", local_file_path: "C:\\ROMs\\delta.gba" },
+    ];
+
+    expect(prioritizeInstalledGames(favoriteGames).map((game) => game.id)).toEqual([2, 4, 1, 3]);
+    expect(favoriteGames.map((game) => game.id)).toEqual([1, 2, 3, 4]);
   });
 });

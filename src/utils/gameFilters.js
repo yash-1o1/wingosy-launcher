@@ -124,6 +124,19 @@ export function sortVisibleGames(
   return sorted;
 }
 
+export function prioritizeInstalledGames(games) {
+  const installed = [];
+  const cloudOnly = [];
+
+  for (const game of games) {
+    const hasLocalFile =
+      typeof game.local_file_path === "string" && game.local_file_path.trim().length > 0;
+    (hasLocalFile ? installed : cloudOnly).push(game);
+  }
+
+  return [...installed, ...cloudOnly];
+}
+
 export function selectRecentPlayableGames(games, limit = 24) {
   return games
     .filter((game) => game.last_played_at && game.local_file_path)
