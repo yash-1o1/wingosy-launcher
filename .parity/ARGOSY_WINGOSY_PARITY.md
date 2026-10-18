@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `98562a1e7c6679eaa1edf91ce440655479520eaa` — 2026-10-17 (2026-10-17 run)
+- Argosy baseline observed: `98562a1e7c6679eaa1edf91ce440655479520eaa` — 2026-10-18 (2026-10-18 run)
 - Baseline history size: 3,366 commits on `origin/main`
-- Wingosy baseline observed: `5993169` — 2026-10-17 feature commit
+- Wingosy baseline observed: `037c999` — 2026-10-18 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -183,6 +183,15 @@ A fresh fetch advanced Argosy `origin/main` from `56ae10b` / 3,361 commits to
 metadata was refreshed before this run's ten chronological dispositions were
 appended.
 
+### Baseline confirmation (2026-10-18)
+
+A fresh fetch left Argosy `origin/main` unchanged at `98562a1` / 3,366
+commits. The chronological cursor remained valid: `0f232e8` was still commit
+305 and `4edbbfa` was still commit 306. Only the observation date was
+refreshed before this run's twenty-eight chronological dispositions were
+appended. The stored candidate total was also reconciled from 66 to the 65
+candidate ledger rows actually present before this run; adding ten leaves 75.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -236,11 +245,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `0f232e8b7a2d36f7c12787508fec59ffeb1bab0d`
-- Next Argosy commit: `4edbbfab6e6b44d35fc20b6010968c8315c1080f`
-- Audited: 305 / 3,366 baseline commits
-- Portable candidates waiting: 66
-- Last tracker update: 2026-10-17
+- Last fully audited Argosy commit: `db43178cc2827147b497d131c30b879f124c5fc4`
+- Next Argosy commit: `5a92044d67c1b41c8bb615e20983232e63f9731d`
+- Audited: 333 / 3,366 baseline commits
+- Portable candidates waiting: 75
+- Last tracker update: 2026-10-18
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -555,6 +564,34 @@ must record every inspected commit before advancing this cursor.
 | 303 | `13669c2` | 2026-01-06 | Bump version to 0.13.2-beta.2 | non-feature | Android beta release metadata only. |
 | 304 | `bf78c24` | 2026-01-07 | Improve save path detection fallbacks | already-covered | Wingosy probes core-specific and flat RetroArch save layouts across portable, AppData, and LocalAppData locations; its launcher supplies the resolved emulator/core, and its Switch resolver already validates profiles and title IDs. |
 | 305 | `0f232e8` | 2026-01-07 | Fix game-specific core settings not persisting | already-covered | Wingosy's per-game emulator setter always replaces or inserts the complete emulator/core override row, and launch resolution reads that row before platform defaults. |
+| 306 | `4edbbfa` | 2026-01-07 | Fix Dolphin launch failing with scoped storage | not-portable | Android content-URI permissions and Dolphin intent extras do not apply to Wingosy's native Windows process launch, which passes a filesystem path directly. |
+| 307 | `e9c674d` | 2026-01-07 | Improve save path detection fallbacks | already-covered | Wingosy already checks configured, core-specific, and flat RetroArch save/state layouts and resolves the selected emulator before sync. The commit's intermediate same-slug migration was replaced by Argosy's numeric-ID-only fix at `28e9098`, tracked separately below. |
+| 308 | `2887503` | 2026-01-07 | Use RomM-provided platform names instead of canonical names | candidate | Consolidated into distinct RomM platform-version identity: retain the remote display name with the numeric platform ID while keeping Wingosy's canonical slug for emulator selection and local paths. |
+| 309 | `fe0e6f9` | 2026-01-07 | Fix Continue Playing not populating on cold boot | already-covered | Wingosy does not invalidate recent entries during startup from an Android-style delayed storage mount. Desktop Recent selection is derived after the library loads and requires a stored local path without destructively rewriting the row on a transient volume state. |
+| 310 | `edcee9f` | 2026-01-07 | Fix null safety issues in API response and DB operations | already-covered | Wingosy's Rust API and database paths use `Result`/`Option` checks and return explicit errors for absent response bodies or rows rather than relying on Kotlin-style non-null assertions. |
+| 311 | `93e629d` | 2026-01-07 | Fix APK files being extracted instead of kept for installation | not-portable | Wingosy does not download or install Android APKs; its archive handling is scoped to Windows ROM and emulator packages. |
+| 312 | `e616d81` | 2026-01-07 | Bump version to 0.13.2-beta.3 | non-feature | Android beta release metadata only. |
+| 313 | `b136580` | 2026-01-07 | Change UI sounds to prevent BGM ducking | not-portable | Android `AudioAttributes` usage categories have no browser/WebView equivalent. Wingosy mixes its UI sounds and ambient audio inside the same Web Audio graph with independent persisted levels. |
+| 314 | `395a5f2` | 2026-01-07 | Fix extracting border animation to rotate gradient instead of shape | superseded | Intermediate Compose extraction-border treatment replaced by `838f8f8` eleven commits later; Wingosy does not use this rotating border. |
+| 315 | `28e9098` | 2026-01-07 | Fix platforms with same slug being merged during sync | candidate | Consolidated into distinct RomM platform-version identity: numeric RomM IDs must own remote identity and cleanup scope, while the canonical slug remains a separate launch/path field. |
+| 316 | `65361aa` | 2026-01-07 | Add Reset Library option to Storage settings | candidate | Add a separately confirmed recovery action that clears Wingosy metadata and derived image cache while preserving downloaded ROMs, configuration, credentials, and save data; verification must prove the preserved paths before any destructive operation. |
+| 317 | `466bfa5` | 2026-01-07 | Use displayName for library header platform name | candidate | Consolidated into distinct RomM platform-version identity so remote names can be shown consistently without using display labels as launch or storage keys. |
+| 318 | `caa0b47` | 2026-01-07 | Use RomM platform names consistently everywhere | candidate | Consolidated into distinct RomM platform-version identity; use the remote name across library surfaces after the schema safely separates it from the canonical emulator slug. |
+| 319 | `309f461` | 2026-01-07 | Log error body on save upload failure | already-covered | Wingosy reports save-sync operation context and HTTP failure status while deliberately avoiding raw server bodies that may contain private paths, tokens, or untrusted content. |
+| 320 | `032f6cf` | 2026-01-07 | Use platform slug for game card badge | already-covered | Wingosy's desktop and Immersive cards use the shared bounded canonical platform badge label rather than a full display name. |
+| 321 | `f4981b8` | 2026-01-07 | Add device performance and fan controls to Quick Settings | not-portable | AYN PServerBinder, Android system settings, and device-specific sysfs fan paths do not map to a general Windows launcher; speculative OEM control is intentionally out of scope. |
+| 322 | `7769b0c` | 2026-01-07 | Force platform badge slugs to uppercase | already-covered | Wingosy's shared `platformBadgeLabel` returns compact uppercase labels in both desktop and Immersive cards. |
+| 323 | `b5c9dd1` | 2026-01-07 | Improve save sync logging and title ID detection | candidate | Consolidated into path-aware save sync: retain privacy-safe structured diagnostics, minimum-content validation, and newest valid title/profile discovery, with live RomM negotiation proof before changing restore behavior. Wingosy already handles 16/32-character Switch profiles. |
+| 324 | `cfd55c4` | 2026-01-07 | Map collection Options action to SELECT instead of START | candidate | Consolidated into RomM-backed collections: reserve global settings input, choose a controller-complete collection action mapping, and keep on-screen hints aligned when collections are implemented in both shells. |
+| 325 | `838f8f8` | 2026-01-07 | Fix spinning border to show single color section | not-portable | Compose-specific extraction-border animation polish; Wingosy uses ordinary transfer progress indicators rather than a rotating gradient border. |
+| 326 | `5c10aa2` | 2026-01-07 | Bump version to 0.13.2-beta.4 | non-feature | Android beta release metadata only. |
+| 327 | `814b671` | 2026-01-08 | Fix save sync download failing when emulatorId is default | already-covered | Wingosy's launch path resolves the effective per-game or per-platform emulator before pre/post-launch sync and passes that concrete Windows emulator identity into its save resolver. |
+| 328 | `ce4db53` | 2026-01-08 | Block gamepad input briefly after wake | not-portable | Workaround for a spurious Odin 3 Android wake event. Wingosy has no evidence of the hardware-specific phantom input and should not add latency to every Windows focus regain. |
+| 329 | `e976464` | 2026-01-08 | Comprehensive save sync reliability improvements | candidate | Consolidated into path-aware save sync and recovery hardening: validate free space and response bodies, preserve backups before overwrite, retry transient downloads, normalize title IDs, and keep emulator resolution single-sourced, with live RomM negotiate/no-op proof for the fragile save paths. |
+| 330 | `e9b9f82` | 2026-01-08 | Prevent auto-state from overwriting restored timeline saves | candidate | Consolidated into RetroArch state snapshots tied to save channels: a non-latest restore must suppress stale auto-state replay, while returning to latest restores the matching core/channel state reversibly. |
+| 331 | `5b1b256` | 2026-01-08 | Add Platform Filters modal to Sync Settings | candidate | Consolidated into per-platform RomM enablement: expose reversible toggles and counts in desktop and Immersive settings, use live platforms with cached fallback, and exclude disabled platforms from both sync and orphan cleanup. |
+| 332 | `ddb02a7` | 2026-01-08 | Add cemu_dualscreen save config to fix Wii U save sync | not-portable | The duplicate Android package-ID ambiguity does not exist for Wingosy's native Windows Cemu executable; Windows Wii U save discovery belongs to emulator-specific path work rather than an Android registry alias. |
+| 333 | `db43178` | 2026-01-08 | Sort favorites with installed games first | implemented | `037c999`: desktop and Immersive favorites now stable-partition installed games ahead of cloud-only entries while preserving the user's selected sort order within each group. |
 
 ## Implemented parity outside the chronological audit
 
@@ -575,8 +612,8 @@ Argosy commits must still be recorded when encountered.
 |---|---|---|
 | `0e4296d` | Resumable, pausable concurrent ROM downloads | Native persistent job queue, Range-capable transfer restart, queue policy, and desktop/immersive controls. |
 | `6ecfe99` | Non-blocking cleanup after cancelling downloads | Complete this only alongside the durable transfer-job model so cancellation, partial-file cleanup, and restart recovery share one state machine. Large local-ROM deletion was resolved by `689be34`. |
-| `3de24f3`, `76e2cc7`, `c8131a1`, `d152e97`, `ae55b79`, `e610a1f`, `a9aa0b6` | Extend automatic path-aware RomM save sync, per-emulator path overrides, and recovery-safe sync filters | Add Windows save resolvers and override validation incrementally per emulator with live RomM negotiation proof; use server filenames as a safe restore fallback only after identity and destination validation; treat RetroArch overrides as base paths while retaining core/content subfolders; add opt-in bad-dump/hack/extension filtering without treating ordinary punctuation as proof of a bad ROM. |
-| `e7641f8`, `0612991`, `16371b9` | Per-platform RomM sync enablement, first-run selection, and custom ROM roots | Add reversible platform toggles (including an optional setup step for large servers), migrate existing downloads safely, exclude disabled platforms from sync and orphan cleanup, and preserve current selection without copying Android storage APIs. |
+| `3de24f3`, `76e2cc7`, `c8131a1`, `d152e97`, `ae55b79`, `e610a1f`, `a9aa0b6`, `b5c9dd1`, `e976464` | Extend automatic path-aware RomM save sync, per-emulator path overrides, and recovery-safe sync filters | Add Windows save resolvers and override validation incrementally per emulator with live RomM negotiation proof; use server filenames as a safe restore fallback only after identity and destination validation; treat RetroArch overrides as base paths while retaining core/content subfolders; validate responses, free space, minimum content and reversible backups; add opt-in bad-dump/hack/extension filtering without treating ordinary punctuation as proof of a bad ROM. |
+| `e7641f8`, `0612991`, `16371b9`, `5b1b256` | Per-platform RomM sync enablement, first-run selection, and custom ROM roots | Add reversible platform toggles (including an optional setup step for large servers), migrate existing downloads safely, exclude disabled platforms from sync and orphan cleanup, preserve current selection, and show live/cached platform counts without copying Android storage APIs. |
 | `40e8685`, `226907d`, `755cad8`, `2489792`, `09f6b15`, `f96d18e`, `c4fc69a`, `f6397cb` | Platform-context-aware archive discovery and multi-file installation | Recognize ZIP/7z/CHD only when platform context is unambiguous; extract safely with progress/recovery and collision-free paths, preserve folder-ROM identity, and model base games, updates, and DLC without importing Android emulator mechanics. |
 | `03261a4`, `b03791b`, `16a398c`, `4a9bda3`, `90384ea`, `007c667`, `2fb2cc8` | Consolidated multi-disc downloads, M3U generation, and disc picker | Model sibling discs without losing RomM identity, download/repair the full set, generate root-disc-only M3U playlists where supported, and provide pointer plus immersive-controller fallback selection. |
 | `b03791b` | User-selectable compatible RetroArch cores per platform | Expand the one-core mapping into tested compatible choices while preserving current defaults and missing-core safeguards. |
@@ -589,11 +626,12 @@ Argosy commits must still be recorded when encountered.
 | `c31c87c` | Legacy timestamped latest-save compatibility | Verify current RomM slot metadata and update-failure behavior against live data, then recognize timestamp-tagged latest filenames only where slot metadata is absent and preserve negotiated conflict safety. |
 | `b40a188`, `ad28ae8` | Opt-in bidirectional favorites sync through RomM collections | Verify the current Collections API, merge local and remote favorites on first sync, persist retryable local changes, and avoid destructive reconciliation when a device was offline or a collection is unavailable. |
 | `0ac5cc1`, `cc54e4b`, `1b7d605`, `10112cb` | Local weekly game recommendations with repeat avoidance | Define deterministic/testable scoring from local play history, distinguish installed and downloadable suggestions, generate a larger candidate pool, exclude completed/abandoned games, de-emphasize favorites, and expose the rail consistently in desktop and immersive modes. |
-| `13c7946`, `cf81ce9`, `beabc08`, `ff73788`, `2726a12`, `df21c09` | Preserve distinct RomM platform-version identity | Store the remote numeric platform ID separately from Wingosy's canonical emulator slug, migrate existing games and dependent rows without destructive guessing or foreign-key gaps, use the slug for local paths, scope per-platform cleanup so same-slug versions cannot affect one another, and show full remote names where short labels collide. |
-| `59c010f`, `3f33cd7`, `953070c`, `3cd1efd`, `38bb34b` | RetroArch save-state snapshots tied to local save channels | Discover configured or overridden state directories, cache state/screenshot pairs with core identity and version, restore/delete them reversibly with save-channel changes, and prove process-exit timing before considering any server sync. |
+| `13c7946`, `cf81ce9`, `beabc08`, `ff73788`, `2726a12`, `df21c09`, `2887503`, `28e9098`, `466bfa5`, `caa0b47` | Preserve distinct RomM platform-version identity | Store the remote numeric platform ID and display name separately from Wingosy's canonical emulator slug, migrate existing games and dependent rows without destructive guessing or foreign-key gaps, use the slug for local paths, scope per-platform cleanup so same-slug versions cannot affect one another, and show full remote names consistently where short labels collide. |
+| `59c010f`, `3f33cd7`, `953070c`, `3cd1efd`, `38bb34b`, `e9b9f82` | RetroArch save-state snapshots tied to local save channels | Discover configured or overridden state directories, cache state/screenshot pairs with core identity and version, suppress stale auto-state replay after non-latest restores, restore/delete state reversibly with save-channel changes, and prove process-exit timing before considering any server sync. |
 | `c7cb490` | Opt-in inactivity dimmer for OLED/handheld displays | Dim only the launcher after configurable inactivity, wake immediately on pointer, keyboard, or controller input, and avoid changing Windows display state or active emulator windows. |
 | `a9c5669`, `2fb2cc8`, `9f028e0` | Per-platform BIOS/firmware management | Model Windows emulator firmware requirements, validate configured paths and versions, show clear missing/ready status, and only offer redistributable open firmware while guiding users to provide restricted files themselves. |
-| `7d068c4`, `a1c4c64`, `2a0c931`, `c4d0c0b` | RomM-backed user collections | Verify the current Collections API, retain offline-safe local membership with durable retries, and expose controller-complete create, rename, delete, membership, pin/reorder, and browse flows in both shells, keeping focus indexed to the visible filtered collection list and prefetching pinned membership. |
+| `7d068c4`, `a1c4c64`, `2a0c931`, `c4d0c0b`, `cfd55c4` | RomM-backed user collections | Verify the current Collections API, retain offline-safe local membership with durable retries, and expose controller-complete create, rename, delete, membership, pin/reorder, and browse flows in both shells, reserving global settings input and keeping focus indexed to the visible filtered collection list. |
+| `65361aa` | Recovery-safe library metadata reset | Add an explicitly confirmed reset that clears the local metadata database and derived image cache while proving downloaded ROMs, emulator configuration, credentials, and save data are preserved; restart or resync into a valid empty state. |
 
 ## Open decisions
 
@@ -648,6 +686,7 @@ chronological work can proceed safely.
 | 2026-10-15 | `9162b3f..acf3d82` (8 commits) | Single-flight native game launch guard covering pre-launch sync, emulator lifetime, and post-launch sync | `f0848a6` | 64 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), and production build passed locally. Smart App Control prevented local Rust execution. Windows CI run `38765179621` passed frontend coverage, all Cargo tests including the new guard test, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `9940f11` / 3,356 while preserving the valid cursor, then advanced it to commit 290. Resolved `5bb4358`; added archive-collision and pinned-collection candidates, leaving 66 candidate dispositions plus the open personal-metadata sync decision. |
 | 2026-10-16 | `79b448c..d19db53` (5 commits) | Persistent primary and optional secondary cloud/progress accent, including legacy-safe theme persistence and consistent desktop/Immersive cloud-state styling | `91b5b8b`, lint fix `58f88f5` | 4 targeted and 68 full frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. The first Windows CI run `38929853607` exposed a Clippy-only test construction warning; `58f88f5` corrected it, and run `38931094094` passed frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `56ae10b` / 3,361 while preserving the valid cursor, then advanced it to commit 295. No candidate was added, leaving 66 candidate dispositions plus the open personal-metadata sync decision. |
 | 2026-10-17 | `b1d09fe..0f232e8` (10 commits) | Theme-aware raised/subtle surfaces, scrollbar contrast, and centralized semantic status tints across desktop and Immersive views | `5993169` | 4 targeted and 72 full frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. No Rust files changed. Windows CI run `39047361722` passed frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `98562a1` / 3,366 while preserving the valid cursor, then advanced it to commit 305. Resolved two older theme candidates and added two platform/save candidates, leaving 66 candidate dispositions plus the open personal-metadata sync decision. |
+| 2026-10-18 | `4edbbfa..db43178` (28 commits) | Installed favorites before cloud-only favorites in desktop and Immersive views, preserving each view's existing sort order within both groups | `037c999` | 15 targeted and 73 full frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. No Rust files changed. Windows CI run `39143401332` passed frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remained `98562a1` / 3,366 and advanced the valid cursor to commit 333. Reconciled the stale candidate total from 66 stated to 65 ledger rows, then added ten dispositions across platform identity, save/state reliability, per-platform sync, collections, and recovery-safe library reset, leaving 75 plus the open personal-metadata sync decision. |
 
 ## Completion rule
 
