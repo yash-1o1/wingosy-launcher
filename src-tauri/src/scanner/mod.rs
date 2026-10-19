@@ -5,6 +5,12 @@ use walkdir::WalkDir;
 
 use crate::models::{detect_platform_by_extension, Game, Platform};
 
+pub(crate) fn is_macos_resource_fork(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.starts_with("._"))
+}
+
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum ScanEvent {
@@ -103,6 +109,7 @@ impl RomScanner {
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
+            .filter(|e| !is_macos_resource_fork(e.path()))
             .filter(|e| {
                 if let Some(ext) = e.path().extension() {
                     let ext_str = format!(".{}", ext.to_string_lossy().to_lowercase());
@@ -118,6 +125,10 @@ impl RomScanner {
     }
 
     fn process_file(&self, file_path: &Path) -> Result<Option<Game>> {
+        if is_macos_resource_fork(file_path) {
+            return Ok(None);
+        }
+
         let extension = file_path
             .extension()
             .and_then(|e| e.to_str())
@@ -313,5 +324,23 @@ mod tests {
         ];
         let scanner = RomScanner::new(platforms);
         assert_eq!(scanner.platforms.len(), 1);
+    }
+
+    #[test]
+    fn macos_resource_forks_are_not_scanned_as_roms() {
+        let scanner = RomScanner::new(vec![Platform::new(
+            "nes",
+            "Nintendo Entertainment System",
+            vec![".nes"],
+        )]);
+
+        assert!(scanner
+            .scan_single(Path::new("._Super Mario Bros.nes"))
+            .unwrap()
+            .is_none());
+        assert!(scanner
+            .scan_single(Path::new("Super Mario Bros.nes"))
+            .unwrap()
+            .is_some());
     }
 }

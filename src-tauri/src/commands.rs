@@ -284,7 +284,7 @@ fn discover_rom_file(game: &Game, config: &AppConfig) -> Option<String> {
     if let Ok(entries) = std::fs::read_dir(&platform_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.is_file() {
+            if path.is_file() && !crate::scanner::is_macos_resource_fork(&path) {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                     let normalized_stem = normalize_for_match(stem);
                     
