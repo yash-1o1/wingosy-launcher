@@ -259,7 +259,7 @@ code paths still relies on CI on `windows-latest`.
 - Next Argosy commit: `b645f4554fd8c2e874838d829be90e02f08616c7`
 - Audited: 343 / 3,366 baseline commits
 - Portable candidates waiting: 80
-- Last tracker update: 2026-10-18
+- Last tracker update: 2026-10-20
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
