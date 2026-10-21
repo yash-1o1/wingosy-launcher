@@ -35,6 +35,7 @@ pub struct Game {
     pub personal_rating: i32,
     /// Personal difficulty 1–5; `0` means unset.
     pub personal_difficulty: i32,
+    pub created_at: Option<DateTime<Utc>>,
     pub last_played_at: Option<DateTime<Utc>>,
     pub play_count: i32,
     pub play_time_minutes: i32,
@@ -67,6 +68,7 @@ impl Game {
             library_status: None,
             personal_rating: 0,
             personal_difficulty: 0,
+            created_at: Some(Utc::now()),
             last_played_at: None,
             play_count: 0,
             play_time_minutes: 0,

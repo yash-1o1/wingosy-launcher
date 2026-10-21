@@ -1164,6 +1164,7 @@ impl RomMRom {
             library_status: None,
             personal_rating: 0,
             personal_difficulty: 0,
+            created_at: Some(chrono::Utc::now()),
             last_played_at: None,
             play_count: 0,
             play_time_minutes: 0,

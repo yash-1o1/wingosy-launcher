@@ -12,10 +12,12 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppTheme } from "../ThemeContext";
 import { platformBadgeLabel } from "../utils/platformIcons";
+import { isRecentlyAddedUnplayed } from "../utils/gameBadges";
 import {
   coverFrameShadow,
   platformBadgeSx,
 } from "../utils/coverAppearance";
+import NewGameBadge from "./NewGameBadge";
 
 const PLATFORM_COLORS = {
   // Nintendo
@@ -67,6 +69,10 @@ export default function GameCard({
   const canPlay = hasLocalFile || (!isRemoteOnly && game.source !== "RomM");
 
   const platformSlug = platformBadgeLabel(game.platform_id);
+  const showNewBadge = isRecentlyAddedUnplayed(game);
+  const newBadgeSide = showPlatformBadge && platformSlug && coverAppearance.badgePosition === "top-left"
+    ? "right"
+    : "left";
 
   return (
     <Box
@@ -191,6 +197,8 @@ export default function GameCard({
             </Typography>
           </Box>
         ) : null}
+
+        {showNewBadge ? <NewGameBadge side={newBadgeSide} /> : null}
 
         {/* Status badges - bottom row */}
         <Box

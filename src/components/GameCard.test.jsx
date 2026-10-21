@@ -26,7 +26,10 @@ function renderCard(showPlatformBadge) {
   );
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  vi.useRealTimers();
+  cleanup();
+});
 
 describe("GameCard platform badge", () => {
   it("shows the platform in mixed-platform views", () => {
@@ -37,5 +40,23 @@ describe("GameCard platform badge", () => {
   it("hides the platform in a single-platform view", () => {
     renderCard(false);
     expect(screen.queryByText("SNES")).not.toBeInTheDocument();
+  });
+});
+
+describe("GameCard new badge", () => {
+  it("shows NEW for an installed, newly added, unplayed game", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-21T16:00:00Z"));
+    render(
+      <MuiTestProvider>
+        <GameCard
+          game={{ ...game, created_at: "2026-10-21T04:00:00Z", play_count: 0, last_played_at: null }}
+          onClick={vi.fn()}
+          onToggleFavorite={vi.fn()}
+          onLaunch={vi.fn()}
+        />
+      </MuiTestProvider>
+    );
+    expect(screen.getByLabelText("New game")).toBeInTheDocument();
   });
 });

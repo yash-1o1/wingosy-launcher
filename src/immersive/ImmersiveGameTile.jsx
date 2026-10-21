@@ -10,10 +10,12 @@ import { alpha } from "@mui/material/styles";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppTheme } from "../ThemeContext";
 import { platformBadgeLabel } from "../utils/platformIcons";
+import { isRecentlyAddedUnplayed } from "../utils/gameBadges";
 import {
   coverFrameShadow,
   platformBadgeSx,
 } from "../utils/coverAppearance";
+import NewGameBadge from "../components/NewGameBadge";
 
 const PLATFORM_COLORS = {
   nes: "#e60012",
@@ -68,6 +70,10 @@ export default function ImmersiveGameTile({
   const showCover = Boolean(coverSrc) && !imgError;
   const platformColor = PLATFORM_COLORS[game.platform_id] || colors.primary;
   const platformSlug = platformBadgeLabel(game.platform_id);
+  const showNewBadge = isRecentlyAddedUnplayed(game);
+  const newBadgeSide = platformSlug && coverAppearance.badgePosition === "top-left"
+    ? "right"
+    : "left";
 
   return (
     <Box
@@ -197,6 +203,8 @@ export default function ImmersiveGameTile({
               </Typography>
             </Box>
           ) : null}
+
+          {showNewBadge ? <NewGameBadge side={newBadgeSide} /> : null}
 
           <Box
             sx={{

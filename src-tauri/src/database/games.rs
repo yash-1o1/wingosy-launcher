@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use rusqlite::{params, Row};
 
 use super::Database;
@@ -366,6 +366,17 @@ impl Database {
 
         let last_played_str: Option<String> = row.get("last_played_at")?;
         let last_played_at = last_played_str.and_then(|s: String| DateTime::parse_from_rfc3339(&s).ok().map(|d| d.with_timezone(&Utc)));
+        let created_at_str: Option<String> = row.get("created_at")?;
+        let created_at = created_at_str.and_then(|value| {
+            DateTime::parse_from_rfc3339(&value)
+                .map(|timestamp| timestamp.with_timezone(&Utc))
+                .ok()
+                .or_else(|| {
+                    NaiveDateTime::parse_from_str(&value, "%Y-%m-%d %H:%M:%S")
+                        .ok()
+                        .map(|timestamp| timestamp.and_utc())
+                })
+        });
 
         let library_status: Option<String> = row.get::<_, Option<String>>("library_status")?;
         let personal_rating: i32 = row
@@ -396,6 +407,7 @@ impl Database {
             library_status,
             personal_rating,
             personal_difficulty,
+            created_at,
             last_played_at,
             play_count: row.get("play_count")?,
             play_time_minutes: row.get("play_time_minutes")?,
@@ -608,6 +620,7 @@ mod tests {
             library_status: None,
             personal_rating: 0,
             personal_difficulty: 0,
+            created_at: Some(Utc::now()),
             last_played_at: None,
             play_count: 0,
             play_time_minutes: 0,
@@ -648,6 +661,17 @@ mod tests {
         assert!(!game.is_favorite);
         assert!(!game.is_hidden);
         assert_eq!(game.play_count, 0);
+    }
+
+    #[test]
+    fn inserted_game_exposes_database_creation_time() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"]))
+            .unwrap();
+        let id = db.insert_game(&create_test_game("New Game")).unwrap();
+
+        let stored = db.get_game(id).unwrap().unwrap();
+        assert!(stored.created_at.is_some());
     }
 
     #[test]
