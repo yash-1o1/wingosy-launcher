@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `98562a1e7c6679eaa1edf91ce440655479520eaa` — 2026-10-21 (2026-10-21 run)
+- Argosy baseline observed: `98562a1e7c6679eaa1edf91ce440655479520eaa` — 2026-10-22 (2026-10-22 run)
 - Baseline history size: 3,366 commits on `origin/main`
-- Wingosy baseline observed: `bff4bbc` — 2026-10-21 feature commit
+- Wingosy baseline observed: `a0a26ed` — 2026-10-22 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -210,6 +210,13 @@ commits. The chronological cursor remained valid: `eca7d1a` was still commit
 refreshed before this run's twenty-one chronological dispositions were
 appended.
 
+### Baseline confirmation (2026-10-22)
+
+A fresh fetch left Argosy `origin/main` unchanged at `98562a1` / 3,366
+commits. The chronological cursor remained valid: `21cf9df` was still commit
+364 and `b8b2206` was still commit 365. Only the observation date was
+refreshed before this run's four chronological dispositions were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -263,11 +270,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `21cf9df1e364e1e8cc2c7eb9cc4f8afae4179962`
-- Next Argosy commit: `b8b2206e280bc3f459c6b62be3a3ad7320c59667`
-- Audited: 364 / 3,366 baseline commits
-- Portable candidates waiting: 84
-- Last tracker update: 2026-10-21
+- Last fully audited Argosy commit: `8b41f18d639c8c5e203e913a9eceb8e28a875402`
+- Next Argosy commit: `f73a6a7ddbfe1eae7f74e15c8350269bc66a829e`
+- Audited: 368 / 3,366 baseline commits
+- Portable candidates waiting: 85
+- Last tracker update: 2026-10-22
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -641,6 +648,10 @@ must record every inspected commit before advancing this cursor.
 | 362 | `b5212ff` | 2026-01-11 | Fix video preview not stopping when app loses focus | candidate | Consolidated into opt-in trailer previews: stop and release embedded media on window blur, navigation, launch, and teardown, then require fresh user navigation before autoplay can resume. Android lifecycle dependencies are not copied. |
 | 363 | `a6ecd17` | 2026-01-11 | Bump version to 0.14.7 | non-feature | Android release metadata only. |
 | 364 | `21cf9df` | 2026-01-11 | Add NEW badge for recently added unplayed games | implemented | `bff4bbc`: desktop and Immersive cards now mark installed, unplayed games added within the previous 24 hours, backed by Wingosy's persisted database creation timestamp and shared eligibility tests. |
+| 365 | `b8b2206` | 2026-01-11 | Add PS2 disc selection and fix video preview restart | candidate | Consolidated into the existing multi-disc and opt-in trailer candidates: emulators that cannot launch M3U playlists need an accessible disc choice in both shells, while preview media must not restart merely because focus returns after launch. Android intents and Compose lifecycle mechanics are not copied. |
+| 366 | `32aadbc` | 2026-01-11 | Bump version to 0.14.8 | non-feature | Android release metadata only. |
+| 367 | `da004d8` | 2026-01-11 | Add CHD support for PSP games | implemented | `a0a26ed`: Wingosy now recognizes `.chd` as a supported PSP image format, with focused registry coverage. |
+| 368 | `8b41f18` | 2026-01-11 | Bump version to 0.14.9 | non-feature | Android release metadata only. |
 
 ## Implemented parity outside the chronological audit
 
@@ -664,7 +675,7 @@ Argosy commits must still be recorded when encountered.
 | `3de24f3`, `76e2cc7`, `c8131a1`, `d152e97`, `ae55b79`, `e610a1f`, `a9aa0b6`, `b5c9dd1`, `e976464` | Extend automatic path-aware RomM save sync, per-emulator path overrides, and recovery-safe sync filters | Add Windows save resolvers and override validation incrementally per emulator with live RomM negotiation proof; use server filenames as a safe restore fallback only after identity and destination validation; treat RetroArch overrides as base paths while retaining core/content subfolders; validate responses, free space, minimum content and reversible backups; add opt-in bad-dump/hack/extension filtering without treating ordinary punctuation as proof of a bad ROM. |
 | `e7641f8`, `0612991`, `16371b9`, `5b1b256` | Per-platform RomM sync enablement, first-run selection, and custom ROM roots | Add reversible platform toggles (including an optional setup step for large servers), migrate existing downloads safely, exclude disabled platforms from sync and orphan cleanup, preserve current selection, and show live/cached platform counts without copying Android storage APIs. |
 | `40e8685`, `226907d`, `755cad8`, `2489792`, `09f6b15`, `f96d18e`, `c4fc69a`, `f6397cb`, `f6d1cdc`, `d0a29e4` | Platform-context-aware archive discovery and multi-file installation | Recognize ZIP/7z/CHD only when platform context is unambiguous; validate completeness and readability before extraction; extract safely with progress/recovery and collision-free paths; preserve folder-ROM identity; model base games, updates, and DLC; surface missing content in both shells; and migrate flat-disc records only after preserving aggregated user metadata and validating local paths. |
-| `03261a4`, `b03791b`, `16a398c`, `4a9bda3`, `90384ea`, `007c667`, `2fb2cc8`, `7799087` | Consolidated multi-disc downloads, M3U generation, and disc picker | Model sibling discs without losing RomM identity, download/repair the full set into one game folder, discover nested disc files, regenerate root-disc-only M3U playlists after retry, and provide pointer plus immersive-controller fallback selection without deleting recoverable local data. |
+| `03261a4`, `b03791b`, `16a398c`, `4a9bda3`, `90384ea`, `007c667`, `2fb2cc8`, `7799087`, `b8b2206` | Consolidated multi-disc downloads, M3U generation, and disc picker | Model sibling discs without losing RomM identity, download/repair the full set into one game folder, discover nested disc files, regenerate root-disc-only M3U playlists after retry, and provide pointer plus immersive-controller fallback selection without deleting recoverable local data. |
 | `b03791b` | User-selectable compatible RetroArch cores per platform | Expand the one-core mapping into tested compatible choices while preserving current defaults and missing-core safeguards. |
 | `362f688`, `450c761` | Controller detection with explicit layout and icon-swap settings | Use Windows gamepad identity where available, fall back predictably, provide Auto/Xbox/Nintendo display overrides plus separate A/B and X/Y swaps, and update control glyphs consistently across desktop and Immersive views. |
 | `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
@@ -683,7 +694,7 @@ Argosy commits must still be recorded when encountered.
 | `65361aa` | Recovery-safe library metadata reset | Add an explicitly confirmed reset that clears the local metadata database and derived image cache while proving downloaded ROMs, emulator configuration, credentials, and save data are preserved; restart or resync into a valid empty state. |
 | `b998d78` | Controller-complete Immersive settings focus and scrolling | Give Immersive settings explicit D-pad focus ownership, A activation, section-aware visibility, expansion-safe index updates, and accurate hints while retaining native pointer/keyboard controls on desktop. |
 | `54dba02` | Artwork-derived vibrant cover-frame colors | Cache bounded color extraction from cover art, apply readable theme-aware gradients only when opted in, fall back safely for muted or invalid art, and render the same treatment in desktop and Immersive cards. |
-| `f29a975`, `b5212ff` | Opt-in RomM trailer previews | Verify RomM video identifiers, expose explicit network/privacy and mute/data controls, cancel and release media immediately on blur, navigation, launch, or teardown, require fresh navigation before resuming autoplay, and keep both shells usable when embedding fails or no trailer exists. |
+| `f29a975`, `b5212ff`, `b8b2206` | Opt-in RomM trailer previews | Verify RomM video identifiers, expose explicit network/privacy and mute/data controls, cancel and release media immediately on blur, navigation, launch, or teardown, require fresh navigation before resuming autoplay, and keep both shells usable when embedding fails or no trailer exists. |
 | `bf9dfc6` | Bounded recent library searches | Persist a deduplicated ten-query history, expose it without obscuring live results, and provide keyboard/pointer plus controller-complete Immersive navigation and clearing controls. |
 
 ## Open decisions
@@ -742,6 +753,7 @@ chronological work can proceed safely.
 | 2026-10-18 | `4edbbfa..db43178` (28 commits) | Installed favorites before cloud-only favorites in desktop and Immersive views, preserving each view's existing sort order within both groups | `037c999` | 15 targeted and 73 full frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. No Rust files changed. Windows CI run `39143401332` passed frontend coverage, Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remained `98562a1` / 3,366 and advanced the valid cursor to commit 333. Reconciled the stale candidate total from 66 stated to 65 ledger rows, then added ten dispositions across platform identity, save/state reliability, per-platform sync, collections, and recovery-safe library reset, leaving 75 plus the open personal-metadata sync decision. |
 | 2026-10-20 | `5a92044..eca7d1a` (10 commits) | Ignore macOS AppleDouble `._*` ROM sidecars during scan and rediscovery | `b0b8a8e` | 73 frontend unit tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution; Windows CI run `39282965458` passed frontend coverage, Cargo tests including the new scanner coverage, Rust lint with warnings denied, Rust coverage, and artifact upload. | The feature was pushed on 2026-10-19, but the tracker advance waited for GitHub's delayed Actions result. Confirmed the baseline remains `98562a1` / 3,366, advanced the cursor to commit 343, and added five candidate dispositions for controller settings, vibrant covers, multi-disc/multi-file handling, and opt-in trailer previews, leaving 80 plus the open personal-metadata sync decision. |
 | 2026-10-21 | `b645f45..21cf9df` (21 commits) | NEW badges for installed, unplayed games added within 24 hours in desktop and Immersive views | `bff4bbc` | 6 targeted and 77 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution; Windows CI run `39631646170` passed frontend coverage, all Cargo tests including database timestamp coverage, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `98562a1` / 3,366, advanced the cursor to commit 364, and added four candidate dispositions for controller layout detection, recent searches, archive validation, and trailer lifecycle, leaving 84 plus the open personal-metadata sync decision. |
+| 2026-10-22 | `b8b2206..8b41f18` (4 commits) | PSP CHD image recognition in the platform registry | `a0a26ed` | 77 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `39811068710` passed the new PSP registry test, frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in `platform.rs`. | Confirmed the Argosy baseline remains `98562a1` / 3,366, advanced the cursor to commit 368, and consolidated the PS2 disc picker/video restart work into existing multi-disc and trailer candidates, leaving 85 plus the open personal-metadata sync decision. |
 
 ## Completion rule
 
