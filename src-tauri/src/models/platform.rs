@@ -71,7 +71,7 @@ pub fn default_platforms() -> Vec<Platform> {
         Platform::new("psx", "PlayStation", vec![".bin", ".cue", ".iso", ".chd", ".pbp"]),
         Platform::new("ps2", "PlayStation 2", vec![".iso", ".bin", ".chd"]),
         Platform::new("ps3", "PlayStation 3", vec![".iso", ".pkg"]),
-        Platform::new("psp", "PlayStation Portable", vec![".iso", ".cso", ".pbp"]),
+        Platform::new("psp", "PlayStation Portable", vec![".iso", ".cso", ".chd", ".pbp"]),
         Platform::new("psvita", "PlayStation Vita", vec![".vpk"]),
         Platform::new("genesis", "Sega Genesis", vec![".md", ".gen", ".bin", ".smd"]),
         Platform::new("gg", "Sega Game Gear", vec![".gg"]),
@@ -211,6 +211,16 @@ mod tests {
     fn extension_case_insensitive() {
         assert_eq!(detect_platform_by_extension(".SFC"), Some("snes".into()));
         assert_eq!(detect_platform_by_extension(".GBA"), Some("gba".into()));
+    }
+
+    #[test]
+    fn psp_accepts_chd_images() {
+        let psp = default_platforms()
+            .into_iter()
+            .find(|platform| platform.id == "psp")
+            .unwrap();
+
+        assert!(psp.extensions.contains(&".chd".to_string()));
     }
 
     #[test]
