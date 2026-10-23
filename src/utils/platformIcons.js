@@ -29,6 +29,7 @@ export const PLATFORM_COLORS = {
   dreamcast: "#f47920",
   xbox: "#107c10",
   xbox360: "#107c10",
+  c64: "#40318d",
   arcade: "#ff6b00",
   pc: "#00bcf2",
   default: "#6366f1",
@@ -60,6 +61,7 @@ export const PLATFORM_INITIALS = {
   dreamcast: "DC",
   xbox: "XB",
   xbox360: "360",
+  c64: "C64",
   arcade: "ARC",
   pc: "PC",
 };

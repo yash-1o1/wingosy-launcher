@@ -382,6 +382,7 @@ pub fn retroarch_cores() -> HashMap<String, &'static str> {
     cores.insert("psx".into(), "pcsx_rearmed_libretro.dll");
     cores.insert("dreamcast".into(), "flycast_libretro.dll");
     cores.insert("psp".into(), "ppsspp_libretro.dll");
+    cores.insert("c64".into(), "vice_x64_libretro.dll");
     cores.insert("arcade".into(), "mame_libretro.dll");
     cores
 }
@@ -396,6 +397,14 @@ mod tests {
         assert_eq!(
             retroarch_cores().get("gg").copied(),
             Some("genesis_plus_gx_libretro.dll")
+        );
+    }
+
+    #[test]
+    fn commodore_64_uses_vice_x64_by_default() {
+        assert_eq!(
+            retroarch_cores().get("c64").copied(),
+            Some("vice_x64_libretro.dll")
         );
     }
 

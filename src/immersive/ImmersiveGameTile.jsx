@@ -42,6 +42,7 @@ const PLATFORM_COLORS = {
   dreamcast: "#f47920",
   xbox: "#107c10",
   xbox360: "#107c10",
+  c64: "#40318d",
   arcade: "#ff6b00",
   pc: "#00ACC1",
 };

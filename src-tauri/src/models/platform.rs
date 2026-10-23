@@ -48,6 +48,7 @@ pub fn platform_sort_order(id: &str) -> i32 {
         "dreamcast" => 420,
         "xbox" => 500,
         "xbox360" => 510,
+        "c64" => 600,
         "arcade" => 900,
         "pc" => 1_000,
         _ => 10_000,
@@ -79,6 +80,14 @@ pub fn default_platforms() -> Vec<Platform> {
         Platform::new("dreamcast", "Sega Dreamcast", vec![".gdi", ".cdi", ".chd"]),
         Platform::new("xbox", "Xbox", vec![".iso", ".xiso"]),
         Platform::new("xbox360", "Xbox 360", vec![".iso", ".xex"]),
+        Platform::new(
+            "c64",
+            "Commodore 64",
+            vec![
+                ".d64", ".d81", ".g64", ".x64", ".nib", ".t64", ".tap", ".prg", ".p00",
+                ".crt",
+            ],
+        ),
         Platform::new("arcade", "Arcade", vec![".zip"]),
         Platform::new("pc", "PC Games", vec![".exe"]),
     ]
@@ -129,6 +138,7 @@ pub fn map_romm_slug(slug: &str) -> String {
         "dreamcast" | "sega-dreamcast" | "dc" => "dreamcast".into(),
         "xbox" | "microsoft-xbox" => "xbox".into(),
         "xbox360" | "xbox-360" | "microsoft-xbox-360" | "x360" => "xbox360".into(),
+        "c64" | "commodore-64" | "commodore64" => "c64".into(),
         "arcade" | "mame" | "fbneo" | "final-burn-neo" => "arcade".into(),
         "pc" | "dos" | "ms-dos" | "windows" | "microsoft-windows" => "pc".into(),
         _ => slug.to_string(),
@@ -155,6 +165,7 @@ mod tests {
         assert_eq!(map_romm_slug("nintendo64"), "n64");
         assert_eq!(map_romm_slug("playstation3"), "ps3");
         assert_eq!(map_romm_slug("final_burn_neo"), "arcade");
+        assert_eq!(map_romm_slug("commodore-64"), "c64");
     }
 
     #[test]
@@ -221,6 +232,19 @@ mod tests {
             .unwrap();
 
         assert!(psp.extensions.contains(&".chd".to_string()));
+    }
+
+    #[test]
+    fn c64_accepts_disk_tape_and_cartridge_images() {
+        let c64 = default_platforms()
+            .into_iter()
+            .find(|platform| platform.id == "c64")
+            .unwrap();
+
+        for extension in [".d64", ".t64", ".tap", ".prg", ".crt"] {
+            assert!(c64.extensions.contains(&extension.to_string()));
+        }
+        assert!(!c64.extensions.contains(&".zip".to_string()));
     }
 
     #[test]
