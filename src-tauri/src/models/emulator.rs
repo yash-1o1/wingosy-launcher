@@ -382,6 +382,7 @@ pub fn retroarch_cores() -> HashMap<String, &'static str> {
     cores.insert("psx".into(), "pcsx_rearmed_libretro.dll");
     cores.insert("dreamcast".into(), "flycast_libretro.dll");
     cores.insert("psp".into(), "ppsspp_libretro.dll");
+    cores.insert("vic20".into(), "vice_xvic_libretro.dll");
     cores.insert("c64".into(), "vice_x64_libretro.dll");
     cores.insert("arcade".into(), "mame_libretro.dll");
     cores
@@ -405,6 +406,14 @@ mod tests {
         assert_eq!(
             retroarch_cores().get("c64").copied(),
             Some("vice_x64_libretro.dll")
+        );
+    }
+
+    #[test]
+    fn vic20_uses_vice_xvic_by_default() {
+        assert_eq!(
+            retroarch_cores().get("vic20").copied(),
+            Some("vice_xvic_libretro.dll")
         );
     }
 

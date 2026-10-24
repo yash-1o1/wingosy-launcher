@@ -12,6 +12,7 @@ describe("platformBadgeLabel", () => {
     expect(platformBadgeLabel("psvita")).toBe("Vita");
     expect(platformBadgeLabel("switch")).toBe("NS");
     expect(platformBadgeLabel("c64")).toBe("C64");
+    expect(platformBadgeLabel("vic20")).toBe("VIC-20");
   });
 
   it("falls back to a compact uppercase id for unknown platforms", () => {

@@ -33,7 +33,7 @@ const PLATFORM_COLORS = {
   // Xbox
   xbox: "#107c10", xbox360: "#107c10",
   // Other
-  c64: "#40318d", arcade: "#ff6b00", pc: "#00ACC1",
+  vic20: "#8c6e4b", c64: "#40318d", arcade: "#ff6b00", pc: "#00ACC1",
 };
 
 function isLocalPath(path) {

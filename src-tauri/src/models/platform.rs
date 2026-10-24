@@ -48,7 +48,8 @@ pub fn platform_sort_order(id: &str) -> i32 {
         "dreamcast" => 420,
         "xbox" => 500,
         "xbox360" => 510,
-        "c64" => 600,
+        "vic20" => 600,
+        "c64" => 610,
         "arcade" => 900,
         "pc" => 1_000,
         _ => 10_000,
@@ -80,6 +81,11 @@ pub fn default_platforms() -> Vec<Platform> {
         Platform::new("dreamcast", "Sega Dreamcast", vec![".gdi", ".cdi", ".chd"]),
         Platform::new("xbox", "Xbox", vec![".iso", ".xiso"]),
         Platform::new("xbox360", "Xbox 360", vec![".iso", ".xex"]),
+        Platform::new(
+            "vic20",
+            "Commodore VIC-20",
+            vec![".20", ".40", ".60", ".a0", ".b0", ".rom"],
+        ),
         Platform::new(
             "c64",
             "Commodore 64",
@@ -138,6 +144,7 @@ pub fn map_romm_slug(slug: &str) -> String {
         "dreamcast" | "sega-dreamcast" | "dc" => "dreamcast".into(),
         "xbox" | "microsoft-xbox" => "xbox".into(),
         "xbox360" | "xbox-360" | "microsoft-xbox-360" | "x360" => "xbox360".into(),
+        "vic20" | "vic-20" | "commodore-vic20" | "commodore-vic-20" => "vic20".into(),
         "c64" | "commodore-64" | "commodore64" => "c64".into(),
         "arcade" | "mame" | "fbneo" | "final-burn-neo" => "arcade".into(),
         "pc" | "dos" | "ms-dos" | "windows" | "microsoft-windows" => "pc".into(),
@@ -166,6 +173,7 @@ mod tests {
         assert_eq!(map_romm_slug("playstation3"), "ps3");
         assert_eq!(map_romm_slug("final_burn_neo"), "arcade");
         assert_eq!(map_romm_slug("commodore-64"), "c64");
+        assert_eq!(map_romm_slug("commodore-vic-20"), "vic20");
     }
 
     #[test]
@@ -245,6 +253,23 @@ mod tests {
             assert!(c64.extensions.contains(&extension.to_string()));
         }
         assert!(!c64.extensions.contains(&".zip".to_string()));
+    }
+
+    #[test]
+    fn vic20_auto_detection_uses_only_unambiguous_extensions() {
+        let vic20 = default_platforms()
+            .into_iter()
+            .find(|platform| platform.id == "vic20")
+            .unwrap();
+
+        for extension in [".20", ".40", ".60", ".a0", ".b0", ".rom"] {
+            assert!(vic20.extensions.contains(&extension.to_string()));
+            assert_eq!(
+                detect_platform_by_extension(extension),
+                Some("vic20".into())
+            );
+        }
+        assert_eq!(detect_platform_by_extension(".prg"), Some("c64".into()));
     }
 
     #[test]
