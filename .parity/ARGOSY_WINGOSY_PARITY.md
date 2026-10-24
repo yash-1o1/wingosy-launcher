@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `98562a1e7c6679eaa1edf91ce440655479520eaa` — 2026-10-23 (2026-10-23 run)
-- Baseline history size: 3,366 commits on `origin/main`
-- Wingosy baseline observed: `7db590e` — 2026-10-23 feature commit
+- Argosy baseline observed: `422ace4b894925f15739c2710a34b74c391ccdd9` — 2026-10-24 (2026-10-24 run)
+- Baseline history size: 3,436 commits on `origin/main`
+- Wingosy baseline observed: `2215516` — 2026-10-24 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -225,6 +225,14 @@ commits. The chronological cursor remained valid: `8b41f18` was still commit
 previous 24 hours. Only the observation date was refreshed before this run's
 thirteen chronological dispositions were appended.
 
+### Baseline refresh (2026-10-24)
+
+A fresh fetch advanced Argosy `origin/main` from `98562a1` / 3,366 commits to
+`422ace4` / 3,436 commits. The chronological cursor remained valid:
+`7a5ece6` was still commit 381 and `20b2f37` was still commit 382. Aggregate
+metadata was refreshed without skipping the newer commits before this run's
+single chronological disposition was appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -278,11 +286,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `7a5ece668fffa9abf9a6cc2cd516e6980d21658e`
-- Next Argosy commit: `20b2f37b22414c8fa668f59968b49c4247779e52`
-- Audited: 381 / 3,366 baseline commits
+- Last fully audited Argosy commit: `20b2f37b22414c8fa668f59968b49c4247779e52`
+- Next Argosy commit: `25d1ad044f0f187b22760ec216cb816e782311ee`
+- Audited: 382 / 3,436 baseline commits
 - Portable candidates waiting: 90
-- Last tracker update: 2026-10-23
+- Last tracker update: 2026-10-24
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -673,6 +681,7 @@ must record every inspected commit before advancing this cursor.
 | 379 | `7b9d4c1` | 2026-01-12 | Bump version to 0.14.13 | non-feature | Android release metadata only. |
 | 380 | `1ea1a2e` | 2026-01-12 | Fix VICE x64sc core display name | implemented | `7db590e`: Wingosy uses a single explicit default mapping to the current VICE x64 core; it does not expose Argosy's mislabeled x64sc choice. Future selectable core labels remain covered by the existing compatible-core candidate. |
 | 381 | `7a5ece6` | 2026-01-12 | Add missing C64 file extensions | implemented | `7db590e`: added the upstream-supported C64 disk, tape, program, and cartridge extensions while intentionally withholding ambiguous archive formats until platform-aware archive discovery is implemented. |
+| 382 | `20b2f37` | 2026-01-12 | Fix input handling gaps and add VIC-20 support | implemented | `2215516`: added the verified VICE xvic Windows core, RomM VIC-20 aliases, chronological platform ordering, distinctive desktop/Immersive presentation, and automatic local detection for VIC-20-only extensions. Shared VICE formats remain conservatively assigned to C64 during extension-only scans while explicit RomM VIC-20 identity routes them correctly. Compose click-indication and Kotlin modulo changes are Android-specific and were not copied. |
 
 ## Implemented parity outside the chronological audit
 
@@ -777,6 +786,7 @@ chronological work can proceed safely.
 | 2026-10-21 | `b645f45..21cf9df` (21 commits) | NEW badges for installed, unplayed games added within 24 hours in desktop and Immersive views | `bff4bbc` | 6 targeted and 77 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution; Windows CI run `39631646170` passed frontend coverage, all Cargo tests including database timestamp coverage, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `98562a1` / 3,366, advanced the cursor to commit 364, and added four candidate dispositions for controller layout detection, recent searches, archive validation, and trailer lifecycle, leaving 84 plus the open personal-metadata sync decision. |
 | 2026-10-22 | `b8b2206..8b41f18` (4 commits) | PSP CHD image recognition in the platform registry | `a0a26ed` | 77 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `39811068710` passed the new PSP registry test, frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in `platform.rs`. | Confirmed the Argosy baseline remains `98562a1` / 3,366, advanced the cursor to commit 368, and consolidated the PS2 disc picker/video restart work into existing multi-disc and trailer candidates, leaving 85 plus the open personal-metadata sync decision. |
 | 2026-10-23 | `f73a6a7..7a5ece6` (13 commits) | First-class Commodore 64 platform discovery, RomM aliases, VICE x64 RetroArch launch mapping, and consistent desktop/Immersive presentation | `7db590e` | 77 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `39983774342` passed the new C64 registry/core tests, frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in the two touched model files. | Confirmed the Argosy baseline remains `98562a1` / 3,366 with no commits from the previous 24 hours, advanced the cursor to commit 381, and added five candidate dispositions for cached cover palettes, install-time NEW semantics, and trailer lifecycle/audio policy, leaving 90 plus the open personal-metadata sync decision. VIC-20 remains next because its overlapping C64 extensions require an explicit local-detection policy. |
+| 2026-10-24 | `20b2f37` (1 commit) | First-class VIC-20 platform support with conservative extension-only detection and VICE xvic launch mapping | `2215516` | 77 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `40109396642` passed the new VIC-20 registry/core tests, frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in the two touched model files; the changed test hunk matches rustfmt output. | Refreshed the Argosy baseline to `422ace4` / 3,436 while preserving the valid cursor, then advanced it to commit 382. The explicit policy recognizes only VIC-20-specific extensions during generic local scans, leaving shared VICE extensions assigned to C64 unless RomM supplies the VIC-20 platform identity. No candidate disposition was added, leaving 90 plus the open personal-metadata sync decision. |
 
 ## Completion rule
 
