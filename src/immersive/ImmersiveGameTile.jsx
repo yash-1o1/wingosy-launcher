@@ -12,6 +12,7 @@ import { useAppTheme } from "../ThemeContext";
 import { platformBadgeLabel } from "../utils/platformIcons";
 import { isRecentlyAddedUnplayed } from "../utils/gameBadges";
 import {
+  coverAspectRatioCss,
   coverFrameShadow,
   platformBadgeSx,
 } from "../utils/coverAppearance";
@@ -97,7 +98,7 @@ export default function ImmersiveGameTile({
       <Box
         sx={{
           position: "relative",
-          aspectRatio: "3 / 4",
+          aspectRatio: coverAspectRatioCss(coverAppearance),
           borderRadius: `${coverAppearance.cornerRadius}px`,
           overflow: "visible",
           transition: "transform 0.18s ease, box-shadow 0.2s ease",

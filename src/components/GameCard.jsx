@@ -14,6 +14,7 @@ import { useAppTheme } from "../ThemeContext";
 import { platformBadgeLabel } from "../utils/platformIcons";
 import { isRecentlyAddedUnplayed } from "../utils/gameBadges";
 import {
+  coverAspectRatioCss,
   coverFrameShadow,
   platformBadgeSx,
 } from "../utils/coverAppearance";
@@ -82,7 +83,7 @@ export default function GameCard({
       onMouseLeave={() => setIsHovered(false)}
       sx={{
         position: "relative",
-        aspectRatio: "3 / 4",
+        aspectRatio: coverAspectRatioCss(coverAppearance),
         borderRadius: `${coverAppearance.cornerRadius}px`,
         overflow: "visible",
         cursor: "pointer",

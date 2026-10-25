@@ -75,6 +75,7 @@ import {
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { formatDownloadLabel, useRomDownloads } from "../RomDownloadsContext";
 import {
+  coverAspectRatioCss,
   coverAppearanceConfig,
   coverFrameShadow,
   normalizeCoverAppearance,
@@ -1508,6 +1509,19 @@ export default function Settings({
         </Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 180px" }, gap: 3 }}>
           <Box>
+            <Typography variant="caption" color="text.secondary">Shape</Typography>
+            <ToggleButtonGroup
+              value={coverAppearance.aspectRatio}
+              exclusive
+              onChange={(_, value) => value && persistCoverAppearance({ aspectRatio: value })}
+              size="small"
+              sx={{ display: "flex", mt: 0.5, mb: 2 }}
+            >
+              <ToggleButton value="vertical">Vertical</ToggleButton>
+              <ToggleButton value="square">Square</ToggleButton>
+              <ToggleButton value="horizontal">Horizontal</ToggleButton>
+            </ToggleButtonGroup>
+
             <Typography variant="caption" color="text.secondary">Corners</Typography>
             <ToggleButtonGroup
               value={coverAppearance.cornerRadius}
@@ -1570,7 +1584,7 @@ export default function Settings({
               sx={{
                 position: "relative",
                 width: 132,
-                aspectRatio: "3 / 4",
+                aspectRatio: coverAspectRatioCss(coverAppearance),
                 overflow: "hidden",
                 borderRadius: `${coverAppearance.cornerRadius}px`,
                 border: coverAppearance.frameStyle === "border"
