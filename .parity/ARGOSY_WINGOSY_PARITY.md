@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `422ace4b894925f15739c2710a34b74c391ccdd9` — 2026-10-24 (2026-10-24 run)
+- Argosy baseline observed: `422ace4b894925f15739c2710a34b74c391ccdd9` — 2026-10-25 (2026-10-25 run)
 - Baseline history size: 3,436 commits on `origin/main`
-- Wingosy baseline observed: `2215516` — 2026-10-24 feature commit
+- Wingosy baseline observed: `650b929` — 2026-10-25 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -233,6 +233,13 @@ A fresh fetch advanced Argosy `origin/main` from `98562a1` / 3,366 commits to
 metadata was refreshed without skipping the newer commits before this run's
 single chronological disposition was appended.
 
+### Baseline confirmation (2026-10-25)
+
+A fresh fetch left Argosy `origin/main` unchanged at `422ace4` / 3,436
+commits. The chronological cursor remained valid: `20b2f37` was still commit
+382 and `25d1ad0` was still commit 383. Only the observation date was
+refreshed before this run's eight chronological dispositions were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -286,11 +293,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `20b2f37b22414c8fa668f59968b49c4247779e52`
-- Next Argosy commit: `25d1ad044f0f187b22760ec216cb816e782311ee`
-- Audited: 382 / 3,436 baseline commits
-- Portable candidates waiting: 90
-- Last tracker update: 2026-10-24
+- Last fully audited Argosy commit: `76622f47f0d0707b46500f5230f44a89c8ab8874`
+- Next Argosy commit: `c873b697af58d5172a0b8abbca4fc386a0a0b156`
+- Audited: 390 / 3,436 baseline commits
+- Portable candidates waiting: 93
+- Last tracker update: 2026-10-25
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -682,6 +689,14 @@ must record every inspected commit before advancing this cursor.
 | 380 | `1ea1a2e` | 2026-01-12 | Fix VICE x64sc core display name | implemented | `7db590e`: Wingosy uses a single explicit default mapping to the current VICE x64 core; it does not expose Argosy's mislabeled x64sc choice. Future selectable core labels remain covered by the existing compatible-core candidate. |
 | 381 | `7a5ece6` | 2026-01-12 | Add missing C64 file extensions | implemented | `7db590e`: added the upstream-supported C64 disk, tape, program, and cartridge extensions while intentionally withholding ambiguous archive formats until platform-aware archive discovery is implemented. |
 | 382 | `20b2f37` | 2026-01-12 | Fix input handling gaps and add VIC-20 support | implemented | `2215516`: added the verified VICE xvic Windows core, RomM VIC-20 aliases, chronological platform ordering, distinctive desktop/Immersive presentation, and automatic local detection for VIC-20-only extensions. Shared VICE formats remain conservatively assigned to C64 during extension-only scans while explicit RomM VIC-20 identity routes them correctly. Compose click-indication and Kotlin modulo changes are Android-specific and were not copied. |
+| 383 | `25d1ad0` | 2026-01-12 | Add gradient extraction debug UI for testing algorithm parameters | superseded | Temporary, deliberately non-persisted tuning controls and metrics were replaced by the bounded preset model in `02a79b9`. The durable artwork-derived frame candidate captures the portable outcome without exposing implementation diagnostics. |
+| 384 | `37c4c3e` | 2026-01-12 | Bump version to 0.14.14-beta.1 | non-feature | Android prerelease metadata only. |
+| 385 | `ebec187` | 2026-01-12 | Use gradient colors for outer glow effect when border style is Gradient | candidate | Consolidated into artwork-derived vibrant cover frames: the same bounded palette should drive both border and resting glow consistently across desktop and Immersive cards. |
+| 386 | `9de7aa3` | 2026-01-12 | Bump version to 0.14.14-beta.2 | non-feature | Android prerelease metadata only. |
+| 387 | `afb4c0b` | 2026-01-12 | Add glow intensity setting for outer glow effect | candidate | Add a small persisted Off/Low/Medium/High intensity choice to Wingosy's existing glow frame, reflected in the settings preview and both card surfaces while preserving the stronger accessible focus treatment. |
+| 388 | `f95368a` | 2026-01-12 | Bump version to 0.14.14-beta.3 | non-feature | Android prerelease metadata only. |
+| 389 | `02a79b9` | 2026-01-12 | Add gradient preset system with runtime extraction | candidate | Consolidated into artwork-derived vibrant cover frames: prefer a bounded user-facing preset and memory/disk caching over raw extraction parameters, with safe fallback for low-color or invalid artwork. Android database migration and gamepad footer mechanics are not copied. |
+| 390 | `76622f4` | 2026-01-12 | Add box art shape setting with global persistence | implemented | `650b929`: exposed Wingosy's existing persisted Vertical/Square/Horizontal cover ratio, normalized legacy config casing, and applied the selected shape to the preview plus desktop and Immersive cards. |
 
 ## Implemented parity outside the chronological audit
 
@@ -723,7 +738,8 @@ Argosy commits must still be recorded when encountered.
 | `7d068c4`, `a1c4c64`, `2a0c931`, `c4d0c0b`, `cfd55c4` | RomM-backed user collections | Verify the current Collections API, retain offline-safe local membership with durable retries, and expose controller-complete create, rename, delete, membership, pin/reorder, and browse flows in both shells, reserving global settings input and keeping focus indexed to the visible filtered collection list. |
 | `65361aa` | Recovery-safe library metadata reset | Add an explicitly confirmed reset that clears the local metadata database and derived image cache while proving downloaded ROMs, emulator configuration, credentials, and save data are preserved; restart or resync into a valid empty state. |
 | `b998d78` | Controller-complete Immersive settings focus and scrolling | Give Immersive settings explicit D-pad focus ownership, A activation, section-aware visibility, expansion-safe index updates, and accurate hints while retaining native pointer/keyboard controls on desktop. |
-| `54dba02`, `f73a6a7`, `fd82e70` | Artwork-derived vibrant cover-frame colors | Cache bounded color extraction from cover art, apply readable theme-aware gradients only when opted in, fall back safely for muted or invalid art, and render the same treatment in desktop and Immersive cards. |
+| `54dba02`, `f73a6a7`, `fd82e70`, `ebec187`, `02a79b9` | Artwork-derived vibrant cover-frame colors | Cache bounded color extraction from cover art, offer a simple preset instead of raw algorithm controls, apply readable theme-aware gradients to borders and resting glow only when opted in, fall back safely for muted or invalid art, and render the same treatment in desktop and Immersive cards. |
+| `afb4c0b` | Adjustable cover-glow intensity | Persist a bounded Off/Low/Medium/High resting-glow choice, reflect it in the cover preview and both card surfaces, and retain a stronger accessible focus glow regardless of the resting level. |
 | `f29a975`, `b5212ff`, `b8b2206`, `47a75e8`, `e852c5c` | Opt-in RomM trailer previews | Verify RomM video identifiers, expose explicit network/privacy and mute/data controls, cancel and release media immediately on blur, navigation, launch, or teardown, require fresh navigation before resuming autoplay or after wake, mute previews while ambient audio owns the mix, and keep both shells usable when embedding fails or no trailer exists. |
 | `bf9dfc6` | Bounded recent library searches | Persist a deduplicated ten-query history, expose it without obscuring live results, and provide keyboard/pointer plus controller-complete Immersive navigation and clearing controls. |
 | `1bee156` | Install-time NEW badge semantics | Add a distinct persisted `installed_at` timestamp set only after successful download or validated local discovery, preserve the original library creation time, migrate existing rows conservatively, and use install time for the shared desktop/Immersive NEW badge. |
@@ -787,6 +803,7 @@ chronological work can proceed safely.
 | 2026-10-22 | `b8b2206..8b41f18` (4 commits) | PSP CHD image recognition in the platform registry | `a0a26ed` | 77 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `39811068710` passed the new PSP registry test, frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in `platform.rs`. | Confirmed the Argosy baseline remains `98562a1` / 3,366, advanced the cursor to commit 368, and consolidated the PS2 disc picker/video restart work into existing multi-disc and trailer candidates, leaving 85 plus the open personal-metadata sync decision. |
 | 2026-10-23 | `f73a6a7..7a5ece6` (13 commits) | First-class Commodore 64 platform discovery, RomM aliases, VICE x64 RetroArch launch mapping, and consistent desktop/Immersive presentation | `7db590e` | 77 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `39983774342` passed the new C64 registry/core tests, frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in the two touched model files. | Confirmed the Argosy baseline remains `98562a1` / 3,366 with no commits from the previous 24 hours, advanced the cursor to commit 381, and added five candidate dispositions for cached cover palettes, install-time NEW semantics, and trailer lifecycle/audio policy, leaving 90 plus the open personal-metadata sync decision. VIC-20 remains next because its overlapping C64 extensions require an explicit local-detection policy. |
 | 2026-10-24 | `20b2f37` (1 commit) | First-class VIC-20 platform support with conservative extension-only detection and VICE xvic launch mapping | `2215516` | 77 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `40109396642` passed the new VIC-20 registry/core tests, frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in the two touched model files; the changed test hunk matches rustfmt output. | Refreshed the Argosy baseline to `422ace4` / 3,436 while preserving the valid cursor, then advanced it to commit 382. The explicit policy recognizes only VIC-20-specific extensions during generic local scans, leaving shared VICE extensions assigned to C64 unless RomM supplies the VIC-20 platform identity. No candidate disposition was added, leaving 90 plus the open personal-metadata sync decision. |
+| 2026-10-25 | `25d1ad0..76622f4` (8 commits) | Persistent Vertical, Square, or Horizontal cover shape applied to the settings preview and all desktop/Immersive library cards | `650b929` | 8 targeted and 78 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. No Rust files changed. Windows CI run `40209743411` passed frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `422ace4` / 3,436 and advanced the cursor to commit 390. Consolidated gradient-border/glow and preset work into the existing artwork-derived frame candidate and added adjustable glow intensity, leaving 93 candidate dispositions plus the open personal-metadata sync decision. |
 
 ## Completion rule
 
