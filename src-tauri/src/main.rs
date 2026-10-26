@@ -107,6 +107,7 @@ fn main() {
             commands::poll_romm_device_auth,
             commands::has_saved_romm_session,
             commands::check_romm_connection,
+            commands::get_romm_server_version,
             commands::disconnect_romm,
             commands::restore_romm_session,
             commands::sync_romm_library,

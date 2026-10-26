@@ -234,6 +234,7 @@ export default function Settings({
     normalizeSettingsSection(initialSection)
   );
   const [appVersion, setAppVersion] = useState("");
+  const [rommServerVersion, setRommServerVersion] = useState("");
   const [checkOnStartup, setCheckOnStartup] = useState(true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(false);
   const [updateChannel, setUpdateChannel] = useState("stable");
@@ -359,6 +360,26 @@ export default function Settings({
       .then((v) => setAppVersion(String(v)))
       .catch(() => setAppVersion(""));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (rommConnectionStatus !== "online" || !rommUrl) {
+      setRommServerVersion("");
+      return undefined;
+    }
+
+    invoke("get_romm_server_version", { serverUrl: rommUrl })
+      .then((version) => {
+        if (!cancelled) setRommServerVersion(String(version || ""));
+      })
+      .catch(() => {
+        if (!cancelled) setRommServerVersion("");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rommConnectionStatus, rommUrl]);
 
   useEffect(() => {
     invoke("get_default_romm_device_name")
@@ -2673,12 +2694,16 @@ export default function Settings({
           <strong>Download &amp; install</strong> for an in-place update (Windows restarts the app when the installer
           finishes). You can still open the release page for installers or release notes.
         </Typography>
-        <Typography variant="body2" sx={{ mb: 2 }}>
-          Current version:{" "}
-          <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "max-content max-content", columnGap: 2, rowGap: 0.5, mb: 2 }}>
+          <Typography variant="body2" color="text.secondary">Wingosy</Typography>
+          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
             {appVersion || "—"}
-          </Box>
-        </Typography>
+          </Typography>
+          <Typography variant="body2" color="text.secondary">RomM server</Typography>
+          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
+            {rommServerVersion || "—"}
+          </Typography>
+        </Box>
 
         <FormControlLabel
           control={

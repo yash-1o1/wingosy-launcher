@@ -12,6 +12,18 @@ pub struct RomMClient {
     token: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct HeartbeatResponse {
+    #[serde(rename = "SYSTEM")]
+    system: HeartbeatSystem,
+}
+
+#[derive(Debug, Deserialize)]
+struct HeartbeatSystem {
+    #[serde(rename = "VERSION")]
+    version: String,
+}
+
 impl RomMClient {
     pub fn new(base_url: impl Into<String>) -> Self {
         let client = Client::builder()
@@ -250,6 +262,23 @@ impl RomMClient {
 
     fn auth_header(&self) -> Option<String> {
         self.token.as_ref().map(|t| format!("Bearer {}", t))
+    }
+
+    /// Return the RomM server version advertised by its public heartbeat endpoint.
+    pub async fn get_server_version(&self) -> Result<String> {
+        let response = self
+            .client
+            .get(format!("{}/api/heartbeat", self.base_url))
+            .send()
+            .await
+            .context("Failed to connect to RomM heartbeat")?;
+        let heartbeat: HeartbeatResponse =
+            parse_json_response(response, "RomM heartbeat could not be read").await?;
+        let version = heartbeat.system.version.trim();
+        if version.is_empty() {
+            anyhow::bail!("RomM heartbeat returned an empty version");
+        }
+        Ok(version.to_string())
     }
 
     pub async fn get_platforms(&self) -> Result<Vec<RomMPlatform>> {
@@ -1338,6 +1367,18 @@ mod tests {
             .with_token("test_token".into());
         assert!(client.is_authenticated());
         assert_eq!(client.token(), Some("test_token"));
+    }
+
+    #[test]
+    fn heartbeat_version_matches_romm_schema() {
+        let heartbeat: HeartbeatResponse = serde_json::from_value(serde_json::json!({
+            "SYSTEM": {
+                "VERSION": "5.4.0",
+                "SHOW_SETUP_WIZARD": false
+            }
+        }))
+        .expect("heartbeat schema should deserialize");
+        assert_eq!(heartbeat.system.version, "5.4.0");
     }
 
     #[test]

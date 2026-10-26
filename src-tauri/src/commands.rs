@@ -795,6 +795,24 @@ pub async fn check_romm_connection(server_url: String, token: String) -> String 
     }
 }
 
+/// Read the RomM version from the public heartbeat endpoint. This is separate
+/// from the authenticated connection check so it cannot affect session state.
+#[tauri::command]
+pub async fn get_romm_server_version(server_url: String) -> Result<String, String> {
+    if server_url.trim().is_empty() {
+        return Err("RomM server URL is required".to_string());
+    }
+
+    let client = RomMClient::new(&server_url);
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        client.get_server_version(),
+    )
+    .await
+    .map_err(|_| "RomM heartbeat timed out".to_string())?
+    .map_err(|error| error.to_string())
+}
+
 fn default_windows_device_name() -> String {
     #[cfg(target_os = "windows")]
     {
