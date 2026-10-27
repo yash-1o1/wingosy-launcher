@@ -12,10 +12,15 @@ import Alert from "@mui/material/Alert";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import { useRomDownloads, formatDownloadLabel } from "../RomDownloadsContext";
+import { formatDownloadSpeed } from "../utils/downloadProgress";
 import { tauriDragRegionProps, tauriDragRegionSx } from "../utils/isTauri";
 
 export default function RomDownloadsView({ onBack = null, immersive = false }) {
   const { activeDownloads, recentDownloads } = useRomDownloads();
+  const totalSpeed = activeDownloads.reduce(
+    (sum, download) => sum + (Number(download.bytesPerSecond) || 0),
+    0
+  );
 
   return (
     <Box sx={{ p: 3, maxWidth: 900, mx: "auto", width: "100%" }}>
@@ -42,9 +47,16 @@ export default function RomDownloadsView({ onBack = null, immersive = false }) {
         </Box>
       </Stack>
 
-      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
-        Active
-      </Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
+          Active
+        </Typography>
+        {totalSpeed > 0 ? (
+          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+            {formatDownloadSpeed(totalSpeed)} total
+          </Typography>
+        ) : null}
+      </Stack>
       {activeDownloads.length === 0 ? (
         <Alert severity="info" sx={{ mt: 1, mb: 3 }}>
           No downloads in progress. Start a download from a game&apos;s details page or a cloud

@@ -9,6 +9,11 @@ import {
 } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "./utils/isTauri";
+import {
+  calculateDownloadSpeed,
+  formatDownloadBytes,
+  formatDownloadSpeed,
+} from "./utils/downloadProgress";
 
 const RomDownloadsContext = createContext({
   activeByGameId: {},
@@ -22,23 +27,18 @@ export function useRomDownloads() {
   return useContext(RomDownloadsContext);
 }
 
-function formatBytes(n) {
-  if (n == null || Number.isNaN(n)) return "";
-  const x = Number(n);
-  if (x < 1024) return `${x} B`;
-  if (x < 1024 * 1024) return `${(x / 1024).toFixed(1)} KB`;
-  if (x < 1024 * 1024 * 1024) return `${(x / (1024 * 1024)).toFixed(2)} MB`;
-  return `${(x / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
 export function formatDownloadLabel(progress) {
   if (!progress) return "";
-  const { downloaded, total, percent } = progress;
+  const { downloaded, total, percent, bytesPerSecond } = progress;
+  const speed = formatDownloadSpeed(bytesPerSecond);
+  let progressLabel;
   if (total != null && total > 0) {
     const pct = percent != null ? `${percent}% · ` : "";
-    return `${pct}${formatBytes(downloaded)} / ${formatBytes(total)}`;
+    progressLabel = `${pct}${formatDownloadBytes(downloaded)} / ${formatDownloadBytes(total)}`;
+  } else {
+    progressLabel = formatDownloadBytes(downloaded);
   }
-  return formatBytes(downloaded);
+  return speed ? `${progressLabel} · ${speed}` : progressLabel;
 }
 
 export function RomDownloadsProvider({ children }) {
@@ -68,6 +68,7 @@ export function RomDownloadsProvider({ children }) {
 
       await safeListen("rom-download-started", (event) => {
         const { game_id, game_name } = event.payload;
+        const now = Date.now();
         setActiveByGameId((prev) => ({
           ...prev,
           [game_id]: {
@@ -76,12 +77,16 @@ export function RomDownloadsProvider({ children }) {
             downloaded: 0,
             total: null,
             percent: null,
+            bytesPerSecond: 0,
+            speedSampleAt: now,
+            speedSampleBytes: 0,
           },
         }));
       });
 
       await safeListen("rom-download-progress", (event) => {
         const { game_id, game_name, downloaded, total, percent } = event.payload;
+        const now = Date.now();
         setActiveByGameId((prev) => {
           const cur = prev[game_id];
           if (!cur) {
@@ -93,12 +98,29 @@ export function RomDownloadsProvider({ children }) {
                 downloaded,
                 total,
                 percent,
+                bytesPerSecond: 0,
+                speedSampleAt: now,
+                speedSampleBytes: downloaded,
               },
             };
           }
+          const speed = calculateDownloadSpeed(
+            cur.speedSampleBytes ?? cur.downloaded ?? 0,
+            downloaded,
+            now - (cur.speedSampleAt ?? now)
+          );
           return {
             ...prev,
-            [game_id]: { ...cur, downloaded, total, percent },
+            [game_id]: {
+              ...cur,
+              downloaded,
+              total,
+              percent,
+              bytesPerSecond: speed ?? cur.bytesPerSecond ?? 0,
+              speedSampleAt: speed == null ? cur.speedSampleAt ?? now : now,
+              speedSampleBytes:
+                speed == null ? cur.speedSampleBytes ?? cur.downloaded ?? 0 : downloaded,
+            },
           };
         });
       });
