@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `8d663b4cd9eb3ec84f19c2fc9190d39004c8d7d4` — 2026-10-26 (2026-10-26 run)
-- Baseline history size: 3,469 commits on `origin/main`
-- Wingosy baseline observed: `59e52fc` — 2026-10-26 feature commit
+- Argosy baseline observed: `e7f529585f04c65b844d4180ee11b803b72ec976` — 2026-10-27 (2026-10-27 run)
+- Baseline history size: 3,526 commits on `origin/main`
+- Wingosy baseline observed: `a30699b` — 2026-10-27 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -248,6 +248,14 @@ A fresh fetch advanced Argosy `origin/main` from `422ace4` / 3,436 commits to
 metadata was refreshed without skipping or reordering history before this
 run's nine chronological dispositions were appended.
 
+### Baseline refresh (2026-10-27)
+
+A fresh fetch advanced Argosy `origin/main` from `8d663b4` / 3,469 commits to
+`e7f5295` / 3,526 commits. The chronological cursor remained valid:
+`50f024a` was still commit 399 and `76d3188` was still commit 400. Aggregate
+metadata was refreshed without skipping or reordering history before this
+run's twelve chronological dispositions were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -301,11 +309,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `50f024ad8ae00dd6a7975ae34b33153ccadc32ba`
-- Next Argosy commit: `76d3188f9be333529f407799793c32b873ea5073`
-- Audited: 399 / 3,469 baseline commits
-- Portable candidates waiting: 96
-- Last tracker update: 2026-10-26
+- Last fully audited Argosy commit: `87e44a2b29d2765e91bb7b0a8c70a44db1f30d3c`
+- Next Argosy commit: `74202613ee68a9568cbb418f1fe4f4de38776eb3`
+- Audited: 411 / 3,526 baseline commits
+- Portable candidates waiting: 101
+- Last tracker update: 2026-10-27
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -714,6 +722,18 @@ must record every inspected commit before advancing this cursor.
 | 397 | `c4cb0eb` | 2026-01-13 | Fix ANR on startup from synchronous gradient extraction | candidate | Consolidated into artwork-derived vibrant cover frames: palette extraction must happen off the launch/render path, be cached with validated cover assets, and degrade safely rather than blocking startup. |
 | 398 | `f2644e0` | 2026-01-13 | Fix BoxArt settings navigation off-by-one error | not-portable | Corrects an Argosy Compose focus-index table. Wingosy's pointer settings and existing shared Immersive focus helpers do not use that hard-coded section index. |
 | 399 | `50f024a` | 2026-01-13 | Add RomM API version to About section | implemented | `59e52fc`: Wingosy reads the public `/api/heartbeat` `SYSTEM.VERSION` contract through a timeout-bounded Tauri command and shows the connected RomM server version alongside the Wingosy version in Updates without altering authentication state. |
+| 400 | `76d3188` | 2026-01-13 | Bump version to 0.15.1 | non-feature | Android release metadata only. |
+| 401 | `7d4b616` | 2026-01-13 | Bump version to 0.15.2 | candidate | The release bump is non-feature work; its portable gradient extraction fix is consolidated into artwork-derived vibrant cover frames, which must populate every desktop and Immersive game-card surface from one bounded cached palette pipeline. |
+| 402 | `1c09169` | 2026-01-13 | Add Video Wallpaper settings and rename Showcase to Home | candidate | Consolidated into opt-in RomM trailer previews: provide an off-by-default enable switch, bounded playback delay, explicit mute control, and ambient-audio ownership across both shells. Wingosy already calls its primary route Home, so Argosy's rename is irrelevant. |
+| 403 | `203fd34` | 2026-01-13 | Bump version to 0.15.3 | not-portable | Android release metadata plus a correction to Argosy's hard-coded Compose About-section focus indices; Wingosy's DOM controls do not share that index table. |
+| 404 | `671e2ac` | 2026-01-13 | Fix BGM resuming on silent device wakes | candidate | Pause Immersive ambient audio when Wingosy loses visibility/focus and require fresh keyboard, pointer, or controller input before resuming, so Windows wake or task switching cannot restart music silently. |
+| 405 | `4567358` | 2026-01-13 | Restructure README with user-focused content | non-feature | Documentation-only change. |
+| 406 | `63b6f79` | 2026-01-14 | Add 7z archive extraction support | candidate | Consolidated into platform-context-aware archive installation: Wingosy already extracts managed-emulator 7z packages, but ROM archives need validated, traversal-safe extraction, progress, collision-safe paths, recovery, and platform-aware retain-versus-extract policy without adding an unreviewed dependency. |
+| 407 | `393b195` | 2026-01-14 | Bump version to 0.16.0-beta.1 | non-feature | Android prerelease metadata only. |
+| 408 | `3ea7f3a` | 2026-01-14 | Skip zip extraction for PS Vita games | already-covered | Wingosy preserves downloaded ROM archives verbatim instead of applying Argosy's extraction path, and Vita3K launch resolution can read a title ID directly from a ZIP entry. |
+| 409 | `058572f` | 2026-01-14 | Bump version to 0.16.0 | non-feature | Android release metadata only. |
+| 410 | `0737701` | 2026-01-16 | Add M64Pro FZX Plus+ as N64 emulator option | not-portable | Android package detection plus mobile-emulator save/state directories do not apply to Wingosy's native Windows N64 launch path. |
+| 411 | `87e44a2` | 2026-01-17 | Add download features, fix delete cleanup, and improve save sync | candidate | `a30699b` implements the portable transfer-rate slice with sampled per-download speeds on every active progress surface plus an aggregate Downloads rate. Collection-wide download with cooldown/skip policy and recovery-safe ownership of extracted folders remain consolidated candidates; Android package save paths are not copied, and Wingosy's playable filtering already composes the selected platform with local-playability checks. |
 
 ## Implemented parity outside the chronological audit
 
@@ -736,7 +756,7 @@ Argosy commits must still be recorded when encountered.
 | `6ecfe99` | Non-blocking cleanup after cancelling downloads | Complete this only alongside the durable transfer-job model so cancellation, partial-file cleanup, and restart recovery share one state machine. Large local-ROM deletion was resolved by `689be34`. |
 | `3de24f3`, `76e2cc7`, `c8131a1`, `d152e97`, `ae55b79`, `e610a1f`, `a9aa0b6`, `b5c9dd1`, `e976464` | Extend automatic path-aware RomM save sync, per-emulator path overrides, and recovery-safe sync filters | Add Windows save resolvers and override validation incrementally per emulator with live RomM negotiation proof; use server filenames as a safe restore fallback only after identity and destination validation; treat RetroArch overrides as base paths while retaining core/content subfolders; validate responses, free space, minimum content and reversible backups; add opt-in bad-dump/hack/extension filtering without treating ordinary punctuation as proof of a bad ROM. |
 | `e7641f8`, `0612991`, `16371b9`, `5b1b256` | Per-platform RomM sync enablement, first-run selection, and custom ROM roots | Add reversible platform toggles (including an optional setup step for large servers), migrate existing downloads safely, exclude disabled platforms from sync and orphan cleanup, preserve current selection, and show live/cached platform counts without copying Android storage APIs. |
-| `40e8685`, `226907d`, `755cad8`, `2489792`, `09f6b15`, `f96d18e`, `c4fc69a`, `f6397cb`, `f6d1cdc`, `d0a29e4`, `7490c48` | Platform-context-aware archive discovery and multi-file installation | Recognize ZIP/7z/CHD only when platform context is unambiguous; validate completeness and readability before extraction; extract safely with progress/recovery and collision-free paths; preserve folder-ROM identity; model base games, updates, and DLC; surface missing content in both shells; and migrate flat-disc records only after preserving aggregated user metadata and validating local paths. |
+| `40e8685`, `226907d`, `755cad8`, `2489792`, `09f6b15`, `f96d18e`, `c4fc69a`, `f6397cb`, `f6d1cdc`, `d0a29e4`, `7490c48`, `63b6f79`, `87e44a2` | Platform-context-aware archive discovery and multi-file installation | Recognize ZIP/7z/CHD only when platform context is unambiguous; validate completeness, readability, and traversal-safe destinations before extraction; extract with progress/recovery and collision-free paths; preserve folder-ROM identity and ownership for reversible cleanup; model base games, updates, and DLC; surface missing content in both shells; and migrate flat-disc records only after preserving aggregated user metadata and validating local paths. |
 | `03261a4`, `b03791b`, `16a398c`, `4a9bda3`, `90384ea`, `007c667`, `2fb2cc8`, `7799087`, `b8b2206` | Consolidated multi-disc downloads, M3U generation, and disc picker | Model sibling discs without losing RomM identity, download/repair the full set into one game folder, discover nested disc files, regenerate root-disc-only M3U playlists after retry, and provide pointer plus immersive-controller fallback selection without deleting recoverable local data. |
 | `b03791b` | User-selectable compatible RetroArch cores per platform | Expand the one-core mapping into tested compatible choices while preserving current defaults and missing-core safeguards. |
 | `362f688`, `450c761` | Controller detection with explicit layout and icon-swap settings | Use Windows gamepad identity where available, fall back predictably, provide Auto/Xbox/Nintendo display overrides plus separate A/B and X/Y swaps, and update control glyphs consistently across desktop and Immersive views. |
@@ -752,12 +772,13 @@ Argosy commits must still be recorded when encountered.
 | `59c010f`, `3f33cd7`, `953070c`, `3cd1efd`, `38bb34b`, `e9b9f82` | RetroArch save-state snapshots tied to local save channels | Discover configured or overridden state directories, cache state/screenshot pairs with core identity and version, suppress stale auto-state replay after non-latest restores, restore/delete state reversibly with save-channel changes, and prove process-exit timing before considering any server sync. |
 | `c7cb490` | Opt-in inactivity dimmer for OLED/handheld displays | Dim only the launcher after configurable inactivity, wake immediately on pointer, keyboard, or controller input, and avoid changing Windows display state or active emulator windows. |
 | `a9c5669`, `2fb2cc8`, `9f028e0` | Per-platform BIOS/firmware management | Model Windows emulator firmware requirements, validate configured paths and versions, show clear missing/ready status, and only offer redistributable open firmware while guiding users to provide restricted files themselves. |
-| `7d068c4`, `a1c4c64`, `2a0c931`, `c4d0c0b`, `cfd55c4` | RomM-backed user collections | Verify the current Collections API, retain offline-safe local membership with durable retries, and expose controller-complete create, rename, delete, membership, pin/reorder, and browse flows in both shells, reserving global settings input and keeping focus indexed to the visible filtered collection list. |
+| `7d068c4`, `a1c4c64`, `2a0c931`, `c4d0c0b`, `cfd55c4`, `87e44a2` | RomM-backed user collections | Verify the current Collections API, retain offline-safe local membership with durable retries, and expose controller-complete create, rename, delete, membership, pin/reorder, browse, and download-missing flows in both shells; bulk downloads must skip installed games, show progress, and prevent accidental repeat submission. |
 | `65361aa` | Recovery-safe library metadata reset | Add an explicitly confirmed reset that clears the local metadata database and derived image cache while proving downloaded ROMs, emulator configuration, credentials, and save data are preserved; restart or resync into a valid empty state. |
 | `b998d78` | Controller-complete Immersive settings focus and scrolling | Give Immersive settings explicit D-pad focus ownership, A activation, section-aware visibility, expansion-safe index updates, and accurate hints while retaining native pointer/keyboard controls on desktop. |
-| `54dba02`, `f73a6a7`, `fd82e70`, `ebec187`, `02a79b9`, `d79ba4c`, `c4cb0eb` | Artwork-derived vibrant cover-frame colors | Cache bounded color extraction from cover art off the startup/render path, offer a predictable preset instead of raw algorithm controls, apply the selected readable theme-aware gradients to borders and resting glow in preview plus desktop and Immersive cards, and fall back safely for muted or invalid art. |
+| `54dba02`, `f73a6a7`, `fd82e70`, `ebec187`, `02a79b9`, `d79ba4c`, `c4cb0eb`, `7d4b616` | Artwork-derived vibrant cover-frame colors | Cache bounded color extraction from cover art off the startup/render path, offer a predictable preset instead of raw algorithm controls, apply the selected readable theme-aware gradients to borders and resting glow in preview plus every desktop and Immersive card surface, and fall back safely for muted or invalid art. |
 | `afb4c0b` | Adjustable cover-glow intensity | Persist a bounded Off/Low/Medium/High resting-glow choice, reflect it in the cover preview and both card surfaces, and retain a stronger accessible focus glow regardless of the resting level. |
-| `f29a975`, `b5212ff`, `b8b2206`, `47a75e8`, `e852c5c` | Opt-in RomM trailer previews | Verify RomM video identifiers, expose explicit network/privacy and mute/data controls, cancel and release media immediately on blur, navigation, launch, or teardown, require fresh navigation before resuming autoplay or after wake, mute previews while ambient audio owns the mix, and keep both shells usable when embedding fails or no trailer exists. |
+| `f29a975`, `b5212ff`, `b8b2206`, `47a75e8`, `e852c5c`, `1c09169` | Opt-in RomM trailer previews | Verify RomM video identifiers, expose an off-by-default enable switch plus bounded delay and explicit network/privacy, mute, and data controls; cancel and release media immediately on blur, navigation, launch, or teardown; require fresh navigation before resuming autoplay or after wake; mute previews while ambient audio owns the mix; and keep both shells usable when embedding fails or no trailer exists. |
+| `671e2ac` | Input-gated ambient-audio resume | Pause Immersive ambient audio when the window loses visibility or focus, resume only after a fresh keyboard, pointer, or controller action, preserve the user's enabled/volume/playlist state, and cover focus/wake transitions without affecting emulator audio. |
 | `bf9dfc6` | Bounded recent library searches | Persist a deduplicated ten-query history, expose it without obscuring live results, and provide keyboard/pointer plus controller-complete Immersive navigation and clearing controls. |
 | `1bee156` | Install-time NEW badge semantics | Add a distinct persisted `installed_at` timestamp set only after successful download or validated local discovery, preserve the original library creation time, migrate existing rows conservatively, and use install time for the shared desktop/Immersive NEW badge. |
 
@@ -822,6 +843,7 @@ chronological work can proceed safely.
 | 2026-10-24 | `20b2f37` (1 commit) | First-class VIC-20 platform support with conservative extension-only detection and VICE xvic launch mapping | `2215516` | 77 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `40109396642` passed the new VIC-20 registry/core tests, frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. Targeted `rustfmt --check` still reports pre-existing formatting drift elsewhere in the two touched model files; the changed test hunk matches rustfmt output. | Refreshed the Argosy baseline to `422ace4` / 3,436 while preserving the valid cursor, then advanced it to commit 382. The explicit policy recognizes only VIC-20-specific extensions during generic local scans, leaving shared VICE extensions assigned to C64 unless RomM supplies the VIC-20 platform identity. No candidate disposition was added, leaving 90 plus the open personal-metadata sync decision. |
 | 2026-10-25 | `25d1ad0..76622f4` (8 commits) | Persistent Vertical, Square, or Horizontal cover shape applied to the settings preview and all desktop/Immersive library cards | `650b929` | 8 targeted and 78 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. No Rust files changed. Windows CI run `40209743411` passed frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `422ace4` / 3,436 and advanced the cursor to commit 390. Consolidated gradient-border/glow and preset work into the existing artwork-derived frame candidate and added adjustable glow intensity, leaving 93 candidate dispositions plus the open personal-metadata sync decision. |
 | 2026-10-26 | `c873b69..50f024a` (9 commits) | RomM server version from the public heartbeat displayed beside the Wingosy version in Updates | `59e52fc` | 78 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution; repository-wide `rustfmt --check` still reports pre-existing drift. Windows CI run `40355423329` passed frontend coverage, all Cargo tests including the heartbeat schema test, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `8d663b4` / 3,469 while preserving the valid cursor, then advanced it to commit 399. Added three candidate dispositions for durable download-result actions and non-blocking, predictable cover-gradient presets, leaving 96 plus the open personal-metadata sync decision. |
+| 2026-10-27 | `76d3188..87e44a2` (12 commits) | Sampled per-download transfer rates on all active-progress surfaces and aggregate rate in Downloads | `a30699b` | 3 targeted and 81 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. No Rust files changed; Smart App Control remains the known local Rust limitation. Windows CI run `40537173424` passed frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `e7f5295` / 3,526 while preserving the valid cursor, then advanced it to commit 411. Added five candidate dispositions covering complete gradient surfaces, opt-in trailer controls, input-gated ambient resume, platform-aware 7z ROM installation, and collection bulk-download/extracted-folder lifecycle, leaving 101 plus the open personal-metadata sync decision. |
 
 ## Completion rule
 
