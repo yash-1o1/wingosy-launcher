@@ -350,6 +350,10 @@ pub struct EmulatorPaths {
     /// Per-platform default emulator ID (e.g., "gba" -> "mgba")
     #[serde(default)]
     pub platform_defaults: std::collections::HashMap<String, String>,
+    /// Optional per-platform libretro DLL override. Only known, installed cores
+    /// are accepted by the command layer; missing legacy values fall back safely.
+    #[serde(default)]
+    pub platform_retroarch_cores: std::collections::HashMap<String, String>,
 }
 
 #[cfg(test)]
@@ -443,6 +447,7 @@ mod tests {
         assert!(paths.dolphin.is_none());
         assert!(paths.pcsx2.is_none());
         assert!(paths.eden.is_none());
+        assert!(paths.platform_retroarch_cores.is_empty());
     }
 
     #[test]

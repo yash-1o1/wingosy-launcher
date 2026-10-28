@@ -168,6 +168,10 @@ export default function Settings({
   const [retroarchCoreDllByPlatform, setRetroarchCoreDllByPlatform] = useState({});
   /** Platforms where the mapped RetroArch core exists on disk (see `retroarch_cores`). */
   const [retroarchCoreReadyPlatformIds, setRetroarchCoreReadyPlatformIds] = useState([]);
+  /** Known installed libretro DLL choices in backend preference order. */
+  const [installedRetroarchCoresByPlatform, setInstalledRetroarchCoresByPlatform] = useState({});
+  /** User-selected libretro DLL per platform; absent means backend preference order. */
+  const [platformRetroarchCoreOverrides, setPlatformRetroarchCoreOverrides] = useState({});
   /** Per-emulator install progress (`emulator_id` → phase + optional bytes); allows parallel installs. */
   const [emuInstallProgress, setEmuInstallProgress] = useState({});
   const emuDownloadInflightRef = useRef(new Set());
@@ -761,14 +765,22 @@ export default function Settings({
 
   async function loadEmulators() {
     try {
-      const [emus, raCores, coreReady] = await Promise.all([
+      const [emus, raCores, coreReady, installedCoreChoices, coreOverrides] = await Promise.all([
         invoke("get_all_emulators"),
         invoke("get_retroarch_default_core_dlls"),
         invoke("get_platform_ids_with_installed_retroarch_core"),
+        invoke("get_installed_retroarch_cores_by_platform"),
+        invoke("get_platform_retroarch_core_overrides"),
       ]);
       setEmulators(emus);
       setRetroarchCoreDllByPlatform(raCores && typeof raCores === "object" ? raCores : {});
       setRetroarchCoreReadyPlatformIds(Array.isArray(coreReady) ? coreReady : []);
+      setInstalledRetroarchCoresByPlatform(
+        installedCoreChoices && typeof installedCoreChoices === "object" ? installedCoreChoices : {},
+      );
+      setPlatformRetroarchCoreOverrides(
+        coreOverrides && typeof coreOverrides === "object" ? coreOverrides : {},
+      );
     } catch (err) {
       console.error("Failed to load emulators:", err);
     }
@@ -815,6 +827,25 @@ export default function Settings({
         return next;
       });
       setEmuMessage({ type: "success", message: `Default emulator updated for ${platformId.toUpperCase()}` });
+    } catch (err) {
+      setEmuMessage({ type: "error", message: err.message || String(err) });
+    }
+  }
+
+  async function handleSetRetroarchCore(platformId, coreName) {
+    try {
+      const selected = coreName || null;
+      await invoke("set_platform_retroarch_core", {
+        platformId,
+        coreName: selected,
+      });
+      setPlatformRetroarchCoreOverrides((prev) => {
+        const next = { ...prev };
+        if (selected) next[platformId] = selected;
+        else delete next[platformId];
+        return next;
+      });
+      setEmuMessage({ type: "success", message: `RetroArch core updated for ${platformId.toUpperCase()}` });
     } catch (err) {
       setEmuMessage({ type: "error", message: err.message || String(err) });
     }
@@ -1134,6 +1165,7 @@ export default function Settings({
       setEmuMessage({ type: "info", message: `Downloading core ${coreFilename}...` });
       await invoke("download_retroarch_core", { coreName: coreFilename });
       setEmuMessage({ type: "success", message: `Installed core ${coreFilename}` });
+      await loadEmulators();
       await loadMissingCores();
     } catch (err) {
       setEmuMessage({ type: "error", message: err.message || String(err) });
@@ -2577,6 +2609,13 @@ export default function Settings({
               const currentDefault = platformDefaults[platform.id] || "";
               const selectValue = compatibleEmus.some((e) => e.id === currentDefault) ? currentDefault : "";
               const raDll = retroarchCoreDllByPlatform[platform.id];
+              const installedCoreChoices = installedRetroarchCoresByPlatform[platform.id] || [];
+              const selectedCoreOverride = installedCoreChoices.includes(
+                platformRetroarchCoreOverrides[platform.id],
+              )
+                ? platformRetroarchCoreOverrides[platform.id]
+                : "";
+              const effectiveRaCore = selectedCoreOverride || installedCoreChoices[0] || raDll;
 
               return (
                 <Box key={platform.id} sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
@@ -2600,13 +2639,32 @@ export default function Settings({
                       </MenuItem>
                       {compatibleEmus.map((emu) => (
                         <MenuItem key={emu.id} value={emu.id}>
-                          {emu.id === "retroarch" && raDll
-                            ? `${emu.name} (${formatLibretroDllLabel(raDll)} core)`
+                          {emu.id === "retroarch" && effectiveRaCore
+                            ? `${emu.name} (${formatLibretroDllLabel(effectiveRaCore)} core)`
                             : emu.name}
                         </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
+                  {selectValue === "retroarch" && installedCoreChoices.length > 1 ? (
+                    <FormControl size="small" sx={{ minWidth: 200, flex: 1 }}>
+                      <InputLabel>RetroArch core</InputLabel>
+                      <Select
+                        value={selectedCoreOverride}
+                        label="RetroArch core"
+                        onChange={(event) => handleSetRetroarchCore(platform.id, event.target.value)}
+                      >
+                        <MenuItem value="">
+                          <em>Auto ({formatLibretroDllLabel(installedCoreChoices[0])})</em>
+                        </MenuItem>
+                        {installedCoreChoices.map((core) => (
+                          <MenuItem key={core} value={core}>
+                            {formatLibretroDllLabel(core)}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  ) : null}
                 </Box>
               );
             })}

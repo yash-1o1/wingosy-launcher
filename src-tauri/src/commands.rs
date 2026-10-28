@@ -10,7 +10,7 @@ use crate::emulators::{EmulatorLauncher, LaunchCommand, LaunchResult};
 use crate::emulators::detection::{detect_installed_emulators, find_retroarch_cores};
 use crate::models::{
     Collection, Game, GameFilter, GameSort, Platform, THREE_DS_EXECUTABLES, VITA3K_EXECUTABLES,
-    default_emulators, retroarch_cores,
+    default_emulators, retroarch_core_candidates, retroarch_cores,
 };
 use crate::scanner::RomScanner;
 
@@ -77,21 +77,31 @@ fn emulator_supports_platform(supported: &[String], platform_id: &str) -> bool {
     supported.contains(&platform_id.to_string()) || supported.contains(&"*".to_string())
 }
 
-/// True if `retroarch_exe` resolves to a RetroArch install whose cores folder contains
-/// the libretro DLL mapped for `platform_id` in [`retroarch_cores()`].
-fn retroarch_core_installed_for_platform(retroarch_exe: &Path, platform_id: &str) -> bool {
-    let Some(dll) = retroarch_cores().get(platform_id).copied() else {
-        return false;
+fn installed_retroarch_core_candidates(
+    retroarch_exe: &Path,
+    platform_id: &str,
+) -> Vec<String> {
+    let Some(candidates) = retroarch_core_candidates().remove(platform_id) else {
+        return Vec::new();
     };
-    let core_filename = dll.to_string();
     let pb = retroarch_exe.to_path_buf();
     let installed = find_retroarch_cores(&pb);
-    installed.iter().any(|c| {
-        c.path
-            .file_name()
-            .map(|n| n.to_string_lossy() == core_filename)
-            .unwrap_or(false)
-    })
+    candidates
+        .into_iter()
+        .filter(|candidate| {
+            installed.iter().any(|core| {
+                core.path
+                    .file_name()
+                    .is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case(candidate))
+            })
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+/// True when at least one compatible libretro core for the platform exists.
+fn retroarch_core_installed_for_platform(retroarch_exe: &Path, platform_id: &str) -> bool {
+    !installed_retroarch_core_candidates(retroarch_exe, platform_id).is_empty()
 }
 
 fn retroarch_has_core_ready_for_platform(platform_id: &str) -> Result<bool, String> {
@@ -1771,6 +1781,35 @@ pub fn get_retroarch_default_core_dlls() -> std::collections::HashMap<String, St
 }
 
 #[tauri::command]
+pub fn get_installed_retroarch_cores_by_platform(
+) -> Result<std::collections::HashMap<String, Vec<String>>, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let Some(ref retroarch_exe) = config.emulators.retroarch else {
+        return Ok(std::collections::HashMap::new());
+    };
+    if !retroarch_exe.exists() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    Ok(retroarch_core_candidates()
+        .keys()
+        .filter_map(|platform_id| {
+            let installed = installed_retroarch_core_candidates(retroarch_exe, platform_id);
+            (!installed.is_empty()).then(|| (platform_id.clone(), installed))
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub fn get_platform_retroarch_core_overrides(
+) -> Result<std::collections::HashMap<String, String>, String> {
+    Ok(AppConfig::load()
+        .map_err(|e| e.to_string())?
+        .emulators
+        .platform_retroarch_cores)
+}
+
+#[tauri::command]
 pub async fn detect_emulators() -> Result<Vec<EmulatorInfo>, String> {
     tracing::info!("[Emulators] Starting emulator detection");
     
@@ -2353,7 +2392,6 @@ pub async fn get_missing_cores() -> Result<Vec<MissingCore>, String> {
     
     let platforms = db.get_platforms_with_games().map_err(|e| e.to_string())?;
     let cores_map = retroarch_cores();
-    let installed_cores = find_retroarch_cores(retroarch_path);
     
     let mut missing = Vec::new();
     
@@ -2362,11 +2400,7 @@ pub async fn get_missing_cores() -> Result<Vec<MissingCore>, String> {
         
         if let Some(core_dll) = cores_map.get(&platform.id).copied() {
             let core_filename = core_dll.to_string();
-            let is_installed = installed_cores.iter().any(|c| {
-                c.path.file_name()
-                    .map(|n| n.to_string_lossy() == core_filename)
-                    .unwrap_or(false)
-            });
+            let is_installed = retroarch_core_installed_for_platform(retroarch_path, &platform.id);
             
             if !is_installed {
                 missing.push(MissingCore {
@@ -2380,7 +2414,7 @@ pub async fn get_missing_cores() -> Result<Vec<MissingCore>, String> {
     Ok(missing)
 }
 
-/// Platforms for which RetroArch's **mapped** libretro core DLL is present on disk (`retroarch_cores()` keys only).
+/// Platforms for which at least one known compatible libretro core is present on disk.
 #[tauri::command]
 pub fn get_platform_ids_with_installed_retroarch_core() -> Result<Vec<String>, String> {
     let config = AppConfig::load().map_err(|e| e.to_string())?;
@@ -2391,7 +2425,7 @@ pub fn get_platform_ids_with_installed_retroarch_core() -> Result<Vec<String>, S
         return Ok(Vec::new());
     }
 
-    let mut ready: Vec<String> = retroarch_cores()
+    let mut ready: Vec<String> = retroarch_core_candidates()
         .keys()
         .filter(|pid| retroarch_core_installed_for_platform(ra_exe, pid))
         .cloned()
@@ -2506,6 +2540,47 @@ pub async fn set_platform_default_emulator(
     
     config.save().map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn set_platform_retroarch_core(
+    platform_id: String,
+    core_name: Option<String>,
+) -> Result<(), String> {
+    let mut config = AppConfig::load().map_err(|e| e.to_string())?;
+
+    if let Some(core_name) = core_name {
+        let known = retroarch_core_candidates()
+            .remove(&platform_id)
+            .is_some_and(|candidates| candidates.contains(&core_name.as_str()));
+        if !known {
+            return Err(format!("Unsupported RetroArch core for {platform_id}: {core_name}"));
+        }
+
+        let retroarch_exe = config
+            .emulators
+            .retroarch
+            .as_ref()
+            .ok_or("RetroArch not configured")?;
+        if !installed_retroarch_core_candidates(retroarch_exe, &platform_id)
+            .iter()
+            .any(|installed| installed.eq_ignore_ascii_case(&core_name))
+        {
+            return Err(format!("RetroArch core is not installed: {core_name}"));
+        }
+
+        config
+            .emulators
+            .platform_retroarch_cores
+            .insert(platform_id, core_name);
+    } else {
+        config
+            .emulators
+            .platform_retroarch_cores
+            .remove(&platform_id);
+    }
+
+    config.save().map_err(|e| e.to_string())
 }
 
 #[tauri::command]

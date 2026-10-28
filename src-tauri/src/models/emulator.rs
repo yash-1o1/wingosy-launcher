@@ -388,6 +388,25 @@ pub fn retroarch_cores() -> HashMap<String, &'static str> {
     cores
 }
 
+/// Compatible libretro DLLs in preference order for each platform.
+///
+/// The first entry remains Wingosy's default. Additional entries are only
+/// selected when they are already installed or explicitly chosen by the user.
+pub fn retroarch_core_candidates() -> HashMap<String, Vec<&'static str>> {
+    let mut cores: HashMap<String, Vec<&'static str>> = retroarch_cores()
+        .into_iter()
+        .map(|(platform, core)| (platform, vec![core]))
+        .collect();
+    cores.insert(
+        "n64".into(),
+        vec![
+            "mupen64plus_next_libretro.dll",
+            "parallel_n64_libretro.dll",
+        ],
+    );
+    cores
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -414,6 +433,21 @@ mod tests {
         assert_eq!(
             retroarch_cores().get("vic20").copied(),
             Some("vice_xvic_libretro.dll")
+        );
+    }
+
+    #[test]
+    fn n64_offers_parallel_without_changing_the_default() {
+        assert_eq!(
+            retroarch_core_candidates().get("n64"),
+            Some(&vec![
+                "mupen64plus_next_libretro.dll",
+                "parallel_n64_libretro.dll",
+            ])
+        );
+        assert_eq!(
+            retroarch_cores().get("n64").copied(),
+            Some("mupen64plus_next_libretro.dll")
         );
     }
 

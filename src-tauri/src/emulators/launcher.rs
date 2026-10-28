@@ -9,7 +9,25 @@ use std::time::Instant;
 
 use crate::config::AppConfig;
 use crate::database::Database;
-use crate::models::{Emulator, Game, retroarch_cores};
+use crate::models::{Emulator, Game, retroarch_core_candidates};
+
+fn select_retroarch_core(
+    retroarch_exe: &Path,
+    platform_id: &str,
+    preferred: &[&str],
+) -> Option<String> {
+    let candidates = retroarch_core_candidates().remove(platform_id)?;
+    let cores_dir = crate::emulators::cores::get_cores_dir(retroarch_exe);
+    let installed = |core: &str| cores_dir.join(core).is_file();
+
+    preferred
+        .iter()
+        .copied()
+        .find(|core| candidates.contains(core) && installed(core))
+        .or_else(|| candidates.iter().copied().find(|core| installed(core)))
+        .or_else(|| candidates.first().copied())
+        .map(str::to_string)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LaunchCommand {
@@ -218,7 +236,15 @@ impl EmulatorLauncher {
             
             if let Some(mut emu) = emulators.into_iter().find(|e| e.id == config.emulator_id) {
                 emu.executable_path = self.get_emulator_path(&emu.id);
-                emu.core_name = config.core_name;
+                if emu.is_retroarch {
+                    self.configure_retroarch_core(
+                        &mut emu,
+                        &game.platform_id,
+                        config.core_name.as_deref(),
+                    );
+                } else {
+                    emu.core_name = config.core_name;
+                }
                 return Ok(emu);
             }
         }
@@ -231,11 +257,7 @@ impl EmulatorLauncher {
                 emu.executable_path = self.get_emulator_path(&emu.id);
                 
                 if emu.is_retroarch {
-                    if let Some(core) = retroarch_cores().get(&game.platform_id) {
-                        emu.core_name = Some(core.to_string());
-                    } else {
-                        emu.executable_path = None;
-                    }
+                    self.configure_retroarch_core(&mut emu, &game.platform_id, None);
                 }
                 
                 if emu.executable_path.is_some() {
@@ -255,11 +277,7 @@ impl EmulatorLauncher {
                 emu.executable_path = self.get_emulator_path(&emu.id);
                 
                 if emu.is_retroarch {
-                    if let Some(core) = retroarch_cores().get(&game.platform_id) {
-                        emu.core_name = Some(core.to_string());
-                    } else {
-                        emu.executable_path = None;
-                    }
+                    self.configure_retroarch_core(emu, &game.platform_id, None);
                 }
                 
                 if emu.executable_path.is_some() {
@@ -271,11 +289,9 @@ impl EmulatorLauncher {
         // 4. Fallback to RetroArch if available
         if let Some(retroarch) = emulators.iter_mut().find(|e| e.id == "retroarch") {
             retroarch.executable_path = self.get_emulator_path("retroarch");
-            if let Some(core) = retroarch_cores().get(&game.platform_id) {
-                retroarch.core_name = Some(core.to_string());
-                if retroarch.executable_path.is_some() {
-                    return Ok(retroarch.clone());
-                }
+            self.configure_retroarch_core(retroarch, &game.platform_id, None);
+            if retroarch.executable_path.is_some() {
+                return Ok(retroarch.clone());
             }
         }
 
@@ -283,6 +299,32 @@ impl EmulatorLauncher {
             "No emulator configured for platform: {}",
             game.platform_id
         )
+    }
+
+    fn configure_retroarch_core(
+        &self,
+        emulator: &mut Emulator,
+        platform_id: &str,
+        game_preference: Option<&str>,
+    ) {
+        let Some(retroarch_exe) = emulator.executable_path.as_deref() else {
+            emulator.core_name = None;
+            return;
+        };
+        let platform_preference = self
+            .config
+            .emulators
+            .platform_retroarch_cores
+            .get(platform_id)
+            .map(String::as_str);
+        let preferred: Vec<&str> = [game_preference, platform_preference]
+            .into_iter()
+            .flatten()
+            .collect();
+        emulator.core_name = select_retroarch_core(retroarch_exe, platform_id, &preferred);
+        if emulator.core_name.is_none() {
+            emulator.executable_path = None;
+        }
     }
 
     fn get_emulator_path(&self, emulator_id: &str) -> Option<std::path::PathBuf> {
@@ -327,7 +369,8 @@ impl EmulatorLauncher {
 
 #[cfg(test)]
 mod tests {
-    use super::{launch_log_entry, rounded_play_minutes, LaunchCommand};
+    use super::{launch_log_entry, rounded_play_minutes, select_retroarch_core, LaunchCommand};
+    use std::fs;
 
     fn private_path_command() -> LaunchCommand {
         LaunchCommand {
@@ -344,6 +387,41 @@ mod tests {
             game_name: "Super Mario\nAdvance".to_string(),
             rom_path: "C:\\Users\\player@example.com\\ROMs\\mario.gba".to_string(),
         }
+    }
+
+    #[test]
+    fn installed_n64_alternative_is_used_when_the_default_is_missing() {
+        let temp = tempfile::tempdir().unwrap();
+        let retroarch = temp.path().join("retroarch.exe");
+        let cores = temp.path().join("cores");
+        fs::write(&retroarch, b"").unwrap();
+        fs::create_dir(&cores).unwrap();
+        fs::write(cores.join("parallel_n64_libretro.dll"), b"").unwrap();
+
+        assert_eq!(
+            select_retroarch_core(&retroarch, "n64", &[]).as_deref(),
+            Some("parallel_n64_libretro.dll")
+        );
+    }
+
+    #[test]
+    fn missing_stored_core_falls_back_to_an_installed_candidate() {
+        let temp = tempfile::tempdir().unwrap();
+        let retroarch = temp.path().join("retroarch.exe");
+        let cores = temp.path().join("cores");
+        fs::write(&retroarch, b"").unwrap();
+        fs::create_dir(&cores).unwrap();
+        fs::write(cores.join("mupen64plus_next_libretro.dll"), b"").unwrap();
+
+        assert_eq!(
+            select_retroarch_core(
+                &retroarch,
+                "n64",
+                &["parallel_n64_libretro.dll"],
+            )
+            .as_deref(),
+            Some("mupen64plus_next_libretro.dll")
+        );
     }
 
     #[test]
