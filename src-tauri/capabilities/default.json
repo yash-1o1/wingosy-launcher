@@ -12,6 +12,7 @@
     "core:window:allow-close",
     "core:window:allow-set-fullscreen",
     "core:window:allow-toggle-maximize",
+    "core:webview:allow-set-webview-zoom",
     "shell:default",
     "shell:allow-open",
     "dialog:default",

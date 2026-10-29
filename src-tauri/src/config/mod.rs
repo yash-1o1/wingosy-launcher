@@ -227,6 +227,9 @@ impl Default for LibraryConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplayConfig {
     pub theme: Theme,
+    /// Whole-webview scale percentage. Kept within 75–150 by the settings UI.
+    #[serde(default = "default_ui_scale")]
+    pub ui_scale: u8,
     #[serde(default)]
     pub accent_hue: Option<u16>,
     #[serde(default)]
@@ -266,10 +269,15 @@ fn default_cover_corner_radius() -> u8 {
     8
 }
 
+fn default_ui_scale() -> u8 {
+    100
+}
+
 impl Default for DisplayConfig {
     fn default() -> Self {
         Self {
             theme: Theme::Dark,
+            ui_scale: default_ui_scale(),
             accent_hue: None,
             secondary_accent_hue: None,
             grid_columns: 5,
@@ -399,6 +407,7 @@ mod tests {
     fn test_display_config_defaults() {
         let display = DisplayConfig::default();
         assert_eq!(display.theme, Theme::Dark);
+        assert_eq!(display.ui_scale, 100);
         assert!(display.accent_hue.is_none());
         assert!(display.secondary_accent_hue.is_none());
         assert_eq!(display.grid_columns, 5);
@@ -505,6 +514,7 @@ mod tests {
         assert!(!config.library.auto_extract_archives);
         assert!(config.library.show_hidden_games);
         assert_eq!(config.display.grid_columns, 6);
+        assert_eq!(config.display.ui_scale, 100);
         assert_eq!(config.display.cover_aspect_ratio, CoverAspectRatio::Square);
         assert!(!config.display.big_picture);
         assert!(!config.display.fullscreen);

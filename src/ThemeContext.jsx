@@ -3,11 +3,13 @@ import { createTheme, alpha, ThemeProvider as MuiThemeProvider } from "@mui/mate
 import CssBaseline from "@mui/material/CssBaseline";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import {
   DEFAULT_COVER_APPEARANCE,
   normalizeCoverAppearance,
 } from "./utils/coverAppearance";
 import { normalizeAccentHue, resolveAccentPalettes } from "./utils/themeAccents";
+import { DEFAULT_UI_SCALE, normalizeUiScale, uiScaleFactor } from "./utils/uiScale";
 
 // Base color palette (from Argosy)
 const baseColors = {
@@ -233,10 +235,12 @@ const ThemeContext = createContext({
   themeMode: "dark",
   accentHue: null,
   secondaryAccentHue: null,
+  uiScale: DEFAULT_UI_SCALE,
   coverAppearance: DEFAULT_COVER_APPEARANCE,
   setThemeMode: (_mode) => {},
   setAccentHue: (_hue) => {},
   setSecondaryAccentHue: (_hue) => {},
+  setUiScale: (_scale) => {},
   setCoverAppearance: (_appearance) => {},
   colors: baseColors,
 });
@@ -249,6 +253,7 @@ export function AppThemeProvider({ children }) {
   const [themeMode, setThemeMode] = useState("dark");
   const [accentHue, setAccentHue] = useState(null);
   const [secondaryAccentHue, setSecondaryAccentHue] = useState(null);
+  const [uiScale, setUiScale] = useState(DEFAULT_UI_SCALE);
   const [coverAppearance, setCoverAppearance] = useState(DEFAULT_COVER_APPEARANCE);
   const [loaded, setLoaded] = useState(false);
   
@@ -267,6 +272,7 @@ export function AppThemeProvider({ children }) {
         if (cfg.display?.secondary_accent_hue !== undefined) {
           setSecondaryAccentHue(normalizeAccentHue(cfg.display.secondary_accent_hue));
         }
+        setUiScale(normalizeUiScale(cfg.display?.ui_scale));
         setCoverAppearance(normalizeCoverAppearance(cfg.display));
       } catch {
         // Config may not exist yet
@@ -275,6 +281,12 @@ export function AppThemeProvider({ children }) {
     }
     loadThemeSettings();
   }, []);
+
+  useEffect(() => {
+    getCurrentWebview().setZoom(uiScaleFactor(uiScale)).catch((error) => {
+      console.error("Failed to apply UI scale:", error);
+    });
+  }, [uiScale]);
 
   const effectiveMode = useMemo(() => {
     if (themeMode === "system") {
@@ -310,14 +322,16 @@ export function AppThemeProvider({ children }) {
       themeMode,
       accentHue,
       secondaryAccentHue,
+      uiScale,
       coverAppearance,
       setThemeMode,
       setAccentHue,
       setSecondaryAccentHue,
+      setUiScale,
       setCoverAppearance,
       colors,
     }),
-    [themeMode, accentHue, secondaryAccentHue, coverAppearance, colors]
+    [themeMode, accentHue, secondaryAccentHue, uiScale, coverAppearance, colors]
   );
 
   if (!loaded) {

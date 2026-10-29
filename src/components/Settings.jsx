@@ -81,6 +81,7 @@ import {
   normalizeCoverAppearance,
   platformBadgeSx,
 } from "../utils/coverAppearance";
+import { normalizeUiScale } from "../utils/uiScale";
 import {
   semanticSurfaceColor,
   subtleSurfaceColor,
@@ -218,6 +219,8 @@ export default function Settings({
     setAccentHue,
     secondaryAccentHue,
     setSecondaryAccentHue,
+    uiScale,
+    setUiScale,
     colors,
     coverAppearance,
     setCoverAppearance,
@@ -617,6 +620,20 @@ export default function Settings({
       setConfig(cfg);
     } catch (err) {
       console.error("Failed to save cover appearance:", err);
+    }
+  }
+
+  async function persistUiScale(value) {
+    const next = normalizeUiScale(value);
+    setUiScale(next);
+    try {
+      const cfg = config || (await invoke("get_config"));
+      cfg.display = cfg.display || {};
+      cfg.display.ui_scale = next;
+      await invoke("save_config", { config: cfg });
+      setConfig(cfg);
+    } catch (err) {
+      console.error("Failed to save UI scale:", err);
     }
   }
 
@@ -1555,6 +1572,31 @@ export default function Settings({
         </ToggleButtonGroup>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
           Controls the number of game cards shown across the desktop library. Changes apply when you return to the library.
+        </Typography>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 3 }}>
+          Interface scale
+        </Typography>
+        <Slider
+          size="small"
+          aria-label="Interface scale"
+          value={uiScale}
+          min={75}
+          max={150}
+          step={5}
+          marks={[
+            { value: 75, label: "75%" },
+            { value: 100, label: "100%" },
+            { value: 150, label: "150%" },
+          ]}
+          valueLabelDisplay="auto"
+          valueLabelFormat={(value) => `${value}%`}
+          onChange={(_, value) => setUiScale(normalizeUiScale(value))}
+          onChangeCommitted={(_, value) => persistUiScale(value)}
+          sx={{ display: "block", maxWidth: 360, mx: 1 }}
+        />
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+          Scales the entire desktop and Immersive interface immediately.
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 3 }}>
