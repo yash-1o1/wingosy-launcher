@@ -257,6 +257,9 @@ pub struct DisplayConfig {
     /// Resting frame treatment; focused cards always retain the accessible focus glow.
     #[serde(default)]
     pub cover_frame_style: CoverFrameStyle,
+    /// Strength of the resting glow frame. Focused cards keep a fixed accessible glow.
+    #[serde(default)]
+    pub cover_glow_intensity: CoverGlowIntensity,
     /// Optional platform label placement on game covers.
     #[serde(default)]
     pub platform_badge_position: PlatformBadgePosition,
@@ -290,6 +293,7 @@ impl Default for DisplayConfig {
             retroachievements_enabled: false,
             cover_corner_radius: default_cover_corner_radius(),
             cover_frame_style: CoverFrameStyle::default(),
+            cover_glow_intensity: CoverGlowIntensity::default(),
             platform_badge_position: PlatformBadgePosition::default(),
             platform_badge_inset: 0,
         }
@@ -303,6 +307,16 @@ pub enum CoverFrameStyle {
     Minimal,
     Border,
     Glow,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum CoverGlowIntensity {
+    Off,
+    Low,
+    #[default]
+    Medium,
+    High,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -420,6 +434,7 @@ mod tests {
         assert!(!display.retroachievements_enabled);
         assert_eq!(display.cover_corner_radius, 8);
         assert_eq!(display.cover_frame_style, CoverFrameStyle::Minimal);
+        assert_eq!(display.cover_glow_intensity, CoverGlowIntensity::Medium);
         assert_eq!(
             display.platform_badge_position,
             PlatformBadgePosition::TopLeft
@@ -521,6 +536,10 @@ mod tests {
         assert_eq!(config.display.cover_corner_radius, 8);
         assert_eq!(config.display.cover_frame_style, CoverFrameStyle::Minimal);
         assert_eq!(
+            config.display.cover_glow_intensity,
+            CoverGlowIntensity::Medium
+        );
+        assert_eq!(
             config.display.platform_badge_position,
             PlatformBadgePosition::TopLeft
         );
@@ -579,6 +598,7 @@ mod tests {
             cover_aspect_ratio = "Vertical"
             cover_corner_radius = 16
             cover_frame_style = "glow"
+            cover_glow_intensity = "high"
             platform_badge_position = "top-right"
             platform_badge_inset = 6
             [emulators]
@@ -586,6 +606,7 @@ mod tests {
         let config: AppConfig = toml::from_str(toml_str).expect("Should deserialize");
         assert_eq!(config.display.cover_corner_radius, 16);
         assert_eq!(config.display.cover_frame_style, CoverFrameStyle::Glow);
+        assert_eq!(config.display.cover_glow_intensity, CoverGlowIntensity::High);
         assert_eq!(
             config.display.platform_badge_position,
             PlatformBadgePosition::TopRight

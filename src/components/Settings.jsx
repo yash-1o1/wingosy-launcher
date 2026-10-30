@@ -1643,6 +1643,21 @@ export default function Settings({
               <ToggleButton value="glow">Glow</ToggleButton>
             </ToggleButtonGroup>
 
+            <Typography variant="caption" color="text.secondary">Glow intensity</Typography>
+            <ToggleButtonGroup
+              value={coverAppearance.glowIntensity}
+              exclusive
+              disabled={coverAppearance.frameStyle !== "glow"}
+              onChange={(_, value) => value && persistCoverAppearance({ glowIntensity: value })}
+              size="small"
+              sx={{ display: "flex", mt: 0.5, mb: 2 }}
+            >
+              <ToggleButton value="off">Off</ToggleButton>
+              <ToggleButton value="low">Low</ToggleButton>
+              <ToggleButton value="medium">Medium</ToggleButton>
+              <ToggleButton value="high">High</ToggleButton>
+            </ToggleButtonGroup>
+
             <Typography variant="caption" color="text.secondary">Platform label</Typography>
             <ToggleButtonGroup
               value={coverAppearance.badgePosition}

@@ -3,6 +3,7 @@ import {
   DEFAULT_COVER_APPEARANCE,
   coverAspectRatioCss,
   coverAppearanceConfig,
+  coverFrameShadow,
   normalizeCoverAppearance,
   platformBadgeSx,
 } from "./coverAppearance";
@@ -23,6 +24,7 @@ describe("cover appearance", () => {
       aspectRatio: "horizontal",
       cornerRadius: 16,
       frameStyle: "glow",
+      glowIntensity: "medium",
       badgePosition: "top-right",
       badgeInset: 16,
     });
@@ -39,9 +41,22 @@ describe("cover appearance", () => {
       cover_aspect_ratio: "Vertical",
       cover_corner_radius: 8,
       cover_frame_style: "minimal",
+      cover_glow_intensity: "medium",
       platform_badge_position: "hidden",
       platform_badge_inset: 0,
     });
+  });
+
+  it("adjusts resting glow without weakening the active focus treatment", () => {
+    const colors = { focusGlow: "#abcdef" };
+    const off = normalizeCoverAppearance({ frameStyle: "glow", glowIntensity: "off" });
+    const low = normalizeCoverAppearance({ frameStyle: "glow", glowIntensity: "low" });
+    const high = normalizeCoverAppearance({ frameStyle: "glow", glowIntensity: "high" });
+
+    expect(coverFrameShadow(off, colors, false)).not.toContain(colors.focusGlow);
+    expect(coverFrameShadow(off, colors, true)).toContain(colors.focusGlow);
+    expect(coverFrameShadow(low, colors, false)).toContain("0 0 8px");
+    expect(coverFrameShadow(high, colors, false)).toContain("0 0 24px");
   });
 
   it("maps each persisted cover shape to a CSS aspect ratio", () => {

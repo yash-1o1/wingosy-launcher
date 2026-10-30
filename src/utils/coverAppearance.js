@@ -3,6 +3,7 @@
  * @property {"vertical" | "square" | "horizontal"} aspectRatio
  * @property {number} cornerRadius
  * @property {"minimal" | "border" | "glow"} frameStyle
+ * @property {"off" | "low" | "medium" | "high"} glowIntensity
  * @property {"hidden" | "top-left" | "top-right"} badgePosition
  * @property {number} badgeInset
  */
@@ -12,6 +13,7 @@ export const DEFAULT_COVER_APPEARANCE = Object.freeze({
   aspectRatio: "vertical",
   cornerRadius: 8,
   frameStyle: "minimal",
+  glowIntensity: "medium",
   badgePosition: "top-left",
   badgeInset: 0,
 });
@@ -19,6 +21,7 @@ export const DEFAULT_COVER_APPEARANCE = Object.freeze({
 const CORNER_RADII = new Set([0, 8, 16]);
 const ASPECT_RATIOS = new Set(["vertical", "square", "horizontal"]);
 const FRAME_STYLES = new Set(["minimal", "border", "glow"]);
+const GLOW_INTENSITIES = new Set(["off", "low", "medium", "high"]);
 const BADGE_POSITIONS = new Set(["hidden", "top-left", "top-right"]);
 
 const ASPECT_RATIO_CSS = Object.freeze({
@@ -43,6 +46,8 @@ export function normalizeCoverAppearance(value = {}) {
   const cornerRadius = Number(value.cornerRadius ?? value.cover_corner_radius);
   const rawFrameStyle = value.frameStyle ?? value.cover_frame_style;
   const frameStyle = typeof rawFrameStyle === "string" ? rawFrameStyle : undefined;
+  const rawGlowIntensity = value.glowIntensity ?? value.cover_glow_intensity;
+  const glowIntensity = typeof rawGlowIntensity === "string" ? rawGlowIntensity : undefined;
   const rawBadgePosition = value.badgePosition ?? value.platform_badge_position;
   const badgePosition = typeof rawBadgePosition === "string" ? rawBadgePosition : undefined;
   const badgeInset = Number(value.badgeInset ?? value.platform_badge_inset);
@@ -57,6 +62,9 @@ export function normalizeCoverAppearance(value = {}) {
     frameStyle: /** @type {CoverAppearance["frameStyle"]} */ (FRAME_STYLES.has(frameStyle)
       ? frameStyle
       : DEFAULT_COVER_APPEARANCE.frameStyle),
+    glowIntensity: /** @type {CoverAppearance["glowIntensity"]} */ (GLOW_INTENSITIES.has(glowIntensity)
+      ? glowIntensity
+      : DEFAULT_COVER_APPEARANCE.glowIntensity),
     badgePosition: /** @type {CoverAppearance["badgePosition"]} */ (BADGE_POSITIONS.has(badgePosition)
       ? badgePosition
       : DEFAULT_COVER_APPEARANCE.badgePosition),
@@ -73,6 +81,7 @@ export function coverAppearanceConfig(appearance) {
     cover_aspect_ratio: ASPECT_RATIO_CONFIG[normalized.aspectRatio],
     cover_corner_radius: normalized.cornerRadius,
     cover_frame_style: normalized.frameStyle,
+    cover_glow_intensity: normalized.glowIntensity,
     platform_badge_position: normalized.badgePosition,
     platform_badge_inset: normalized.badgeInset,
   };
@@ -93,7 +102,10 @@ export function coverFrameShadow(appearance, colors, active) {
     return `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${colors.focusGlow}`;
   }
   if (appearance.frameStyle === "glow") {
-    return `0 2px 10px rgba(0,0,0,0.35), 0 0 14px ${colors.focusGlow}`;
+    const glowSize = { off: null, low: 8, medium: 14, high: 24 }[appearance.glowIntensity];
+    if (glowSize) {
+      return `0 2px 10px rgba(0,0,0,0.35), 0 0 ${glowSize}px ${colors.focusGlow}`;
+    }
   }
   return "0 2px 8px rgba(0,0,0,0.3)";
 }
