@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `68f1368b61707f8c4ad001b89eb095a705a46143` — 2026-10-30 (2026-10-30 run)
+- Argosy baseline observed: `68f1368b61707f8c4ad001b89eb095a705a46143` — 2026-10-31 (2026-10-31 run)
 - Baseline history size: 3,579 commits on `origin/main`
-- Wingosy baseline observed: `a196a4f` — 2026-10-30 feature commit
+- Wingosy baseline observed: `af20f83` — 2026-10-31 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -279,6 +279,13 @@ commits. The chronological cursor remained valid: `b42ebcb` was still commit
 456 and `622fdf8` was still commit 457. Only the observation date was
 refreshed before this run's eight chronological dispositions were appended.
 
+### Baseline confirmation (2026-10-31)
+
+A fresh fetch left Argosy `origin/main` unchanged at `68f1368` / 3,579
+commits. The chronological cursor remained valid: `0ca4ee2` was still commit
+464 and `222bca2` was still commit 465. Only the observation date was
+refreshed before this run's eight chronological dispositions were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -332,11 +339,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `0ca4ee264f81bd441cfbeb8fe9266b9899db485b`
-- Next Argosy commit: `222bca2fedd10f1ca9fbbd61acc88e8ee0844ece`
-- Audited: 464 / 3,579 baseline commits
-- Portable candidates waiting: 112
-- Last tracker update: 2026-10-30
+- Last fully audited Argosy commit: `4a26541dcc2aca5d473997c63bc1c413c3a1731f`
+- Next Argosy commit: `9e1e80ffa4070e4f661c2df19ba7c99f6db0bcf4`
+- Audited: 472 / 3,579 baseline commits
+- Portable candidates waiting: 115
+- Last tracker update: 2026-10-31
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -810,6 +817,14 @@ must record every inspected commit before advancing this cursor.
 | 462 | `0b9497e` | 2026-01-22 | Add thermal management for downloads | not-portable | The implementation writes Android sysfs battery, fan, charging, and thermal nodes. Wingosy must not invent privileged Windows hardware controls; its downloads remain application-scoped. |
 | 463 | `0c350f0` | 2026-01-22 | Bump version to 0.17.3 | non-feature | Android release metadata only. |
 | 464 | `0ca4ee2` | 2026-01-22 | Fix update files not showing download checkmarks | candidate | Consolidated into archive-aware multi-file installation: retain base/update/DLC remote file identity independently from local paths so every content row reports installed, missing, and repair state accurately in both shells. |
+| 465 | `222bca2` | 2026-01-22 | Restructure Home screen to bottom-anchored layout | already-covered | Wingosy's Immersive shell already provides predictable full-height content with a bottom-anchored hint bar; Argosy's Android video-preview carousel and its layout mechanics are not present to port. |
+| 466 | `0bfc9fa` | 2026-01-22 | Improve gradient border extraction responsiveness | candidate | Consolidated into artwork-derived vibrant cover-frame colors: precompute and cache a small deduplicated palette at load/cache time with bounded concurrency, prioritizing visible and focused cards so extraction stays off the render path. |
+| 467 | `7647a25` | 2026-01-23 | Add screen capture for ambient LEDs and fix settings input handling | not-portable | Android MediaProjection capture, the Odin ambient-LED service, and foreground-service permissions have no Windows Wingosy counterpart. The portable settings-input intent is consolidated in the existing controller-complete settings candidate rather than the hardware feature. |
+| 468 | `afb3e8d` | 2026-01-23 | Improve settings menu system and input feedback | candidate | Consolidated into controller-complete Immersive settings: section navigation must preserve visible focus/scroll, and feedback should occur only for handled movement, activation, or an explicit boundary rather than every raw input. |
+| 469 | `01e655f` | 2026-01-23 | Fix video wallpaper mute toggle and audio coordination | candidate | Consolidated into opt-in RomM trailer previews: apply live mute changes, fade or pause ambient audio only while an audible preview owns the mix, and restore the prior audio state when preview playback stops or becomes muted. |
+| 470 | `c4a2cf6` | 2026-01-23 | Bump version to 0.17.4 | non-feature | Android release metadata only. |
+| 471 | `e5bbbd7` | 2026-01-24 | Add ambient LED brightness slider | not-portable | Brightness control targets Odin/Android ambient-LED hardware and service preferences that Wingosy does not manage on Windows. |
+| 472 | `4a26541` | 2026-01-24 | Add save conflict modal for sync overwrites | implemented | Implemented by Wingosy `af20f83`: post-launch save conflicts now return structured state to a shared desktop/Immersive confirmation dialog with a safe keep-server default and one explicit overwrite action; RetroArch native Cloud Sync remains mutually exclusive with Wingosy overwrite negotiation. |
 
 ## Implemented parity outside the chronological audit
 
@@ -850,9 +865,9 @@ Argosy commits must still be recorded when encountered.
 | `a9c5669`, `2fb2cc8`, `9f028e0` | Per-platform BIOS/firmware management | Model Windows emulator firmware requirements, validate configured paths and versions, show clear missing/ready status, and only offer redistributable open firmware while guiding users to provide restricted files themselves. |
 | `7d068c4`, `a1c4c64`, `2a0c931`, `c4d0c0b`, `cfd55c4`, `87e44a2` | RomM-backed user collections | Verify the current Collections API, retain offline-safe local membership with durable retries, and expose controller-complete create, rename, delete, membership, pin/reorder, browse, and download-missing flows in both shells; bulk downloads must skip installed games, show progress, and prevent accidental repeat submission. |
 | `65361aa` | Recovery-safe library metadata reset | Add an explicitly confirmed reset that clears the local metadata database and derived image cache while proving downloaded ROMs, emulator configuration, credentials, and save data are preserved; restart or resync into a valid empty state. |
-| `b998d78`, `4dc62da` | Controller-complete Immersive settings focus and scrolling | Give Immersive settings and modal lists one explicit D-pad focus/scroll contract, A activation, section-aware visibility, expansion-safe index updates, and accurate hints while retaining native pointer/keyboard controls on desktop. |
-| `54dba02`, `f73a6a7`, `fd82e70`, `ebec187`, `02a79b9`, `d79ba4c`, `c4cb0eb`, `7d4b616` | Artwork-derived vibrant cover-frame colors | Cache bounded color extraction from cover art off the startup/render path, offer a predictable preset instead of raw algorithm controls, apply the selected readable theme-aware gradients to borders and resting glow in preview plus every desktop and Immersive card surface, and fall back safely for muted or invalid art. |
-| `f29a975`, `b5212ff`, `b8b2206`, `47a75e8`, `e852c5c`, `1c09169` | Opt-in RomM trailer previews | Verify RomM video identifiers, expose an off-by-default enable switch plus bounded delay and explicit network/privacy, mute, and data controls; cancel and release media immediately on blur, navigation, launch, or teardown; require fresh navigation before resuming autoplay or after wake; mute previews while ambient audio owns the mix; and keep both shells usable when embedding fails or no trailer exists. |
+| `b998d78`, `4dc62da`, `afb3e8d` | Controller-complete Immersive settings focus and scrolling | Give Immersive settings and modal lists one explicit D-pad focus/scroll contract, A activation, section-aware visibility, expansion-safe index updates, and accurate hints while retaining native pointer/keyboard controls on desktop; acknowledge only handled movement, activation, or an explicit boundary instead of every raw input. |
+| `54dba02`, `f73a6a7`, `fd82e70`, `ebec187`, `02a79b9`, `d79ba4c`, `c4cb0eb`, `7d4b616`, `0bfc9fa` | Artwork-derived vibrant cover-frame colors | Cache a small deduplicated palette from cover art off the startup/render path with bounded concurrency and visible/focused-card priority, offer a predictable preset instead of raw algorithm controls, apply the selected readable theme-aware gradients to borders and resting glow in preview plus every desktop and Immersive card surface, and fall back safely for muted or invalid art. |
+| `f29a975`, `b5212ff`, `b8b2206`, `47a75e8`, `e852c5c`, `1c09169`, `01e655f` | Opt-in RomM trailer previews | Verify RomM video identifiers, expose an off-by-default enable switch plus bounded delay and explicit network/privacy, mute, and data controls; apply mute changes live, pause or fade ambient audio only while an audible preview owns the mix, and restore it afterward; cancel and release media immediately on blur, navigation, launch, or teardown; require fresh navigation before resuming autoplay or after wake; and keep both shells usable when embedding fails or no trailer exists. |
 | `671e2ac` | Input-gated ambient-audio resume | Pause Immersive ambient audio when the window loses visibility or focus, resume only after a fresh keyboard, pointer, or controller action, preserve the user's enabled/volume/playlist state, and cover focus/wake transitions without affecting emulator audio. |
 | `bf9dfc6` | Bounded recent library searches | Persist a deduplicated ten-query history, expose it without obscuring live results, and provide keyboard/pointer plus controller-complete Immersive navigation and clearing controls. |
 | `1bee156` | Install-time NEW badge semantics | Add a distinct persisted `installed_at` timestamp set only after successful download or validated local discovery, preserve the original library creation time, migrate existing rows conservatively, and use install time for the shared desktop/Immersive NEW badge. |
@@ -923,6 +938,7 @@ chronological work can proceed safely.
 | 2026-10-28 | `7420261..d631a85` (28 commits) | Per-platform installed RetroArch core selection with ParaLLEl N64 support and missing-choice fallback | `3b6ca91` | 81 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `40723443579` passed frontend coverage, all Cargo tests including three new core-selection tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `1cc83ab` / 3,553 while preserving the valid cursor, then advanced it to commit 439. Added six candidate dispositions for validated save paths, native-emulator title-ID resolution, and 3DS folder saves; the previously tracked core-selection slice of `b03791b` is implemented while that commit's multi-disc work remains open, leaving 107 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-10-29 | `12777ea..b42ebcb` (17 commits) | Persistent 75–150% whole-interface scaling with immediate desktop/Immersive preview and legacy-safe defaults | `0f38229` | 3 targeted and 84 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `40907550921` passed frontend coverage, all Cargo tests including config defaults, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `68f1368` / 3,579 while preserving the valid cursor, then advanced it to commit 456. Added four candidate dispositions for update/DLC file identity and stale paths, validated JKSV imports, and focused Immersive settings scrolling, leaving 111 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-10-30 | `622fdf8..0ca4ee2` (8 commits) | Persistent Off/Low/Medium/High resting cover-glow intensity with a fixed accessible focus glow | `a196a4f` | 6 targeted and 85 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41087086389` passed frontend coverage, all Cargo tests including the new config default and deserialization coverage, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 464. Resolved `afb4c0b`; added JKSV validation and update/DLC state candidates, leaving 112 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
+| 2026-10-31 | `222bca2..4a26541` (8 commits) | Post-launch save-conflict confirmation with a safe keep-server default and an explicit one-time RomM overwrite, shared by desktop and Immersive while preserving native RetroArch Cloud Sync ownership | `af20f83` | 2 targeted and 87 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41217676530` passed frontend coverage, all Cargo tests including the new conflict classification test, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 472. Consolidated three new candidates into artwork extraction, controller settings, and trailer/audio coordination, leaving 115 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 
 ## Completion rule
 
