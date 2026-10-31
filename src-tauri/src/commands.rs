@@ -396,13 +396,36 @@ pub async fn toggle_favorite(game_id: i64) -> Result<bool, String> {
 }
 
 #[derive(Debug, Serialize)]
+pub struct SaveSyncConflict {
+    pub game_id: i64,
+    pub game_name: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct LaunchGameResult {
     pub success: bool,
     pub error: Option<String>,
     pub save_sync_warnings: Vec<String>,
+    pub save_sync_conflict: Option<SaveSyncConflict>,
     pub dry_run: bool,
     pub duration_minutes: Option<i32>,
     pub exit_code: Option<i32>,
+}
+
+fn post_launch_save_conflict(
+    game_id: i64,
+    game_name: &str,
+    error: &anyhow::Error,
+) -> Option<SaveSyncConflict> {
+    let message = error.to_string();
+    let is_conflict = message.starts_with("Save conflict:")
+        || message.starts_with("RomM has a newer save after this play session");
+    is_conflict.then(|| SaveSyncConflict {
+        game_id,
+        game_name: game_name.to_string(),
+        reason: message,
+    })
 }
 
 #[tauri::command]
@@ -507,10 +530,16 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
             } else {
                 crate::sync::switch_romm::post_launch_sync(&game, &mut config).await
             };
+            let save_sync_conflict = post_sync_result
+                .as_ref()
+                .err()
+                .and_then(|error| post_launch_save_conflict(game.id, &game.name, error));
             if config.romm.sync_saves {
                 if let Err(e) = &post_sync_result {
                     tracing::warn!("[SaveSync] Post-launch: {e}");
-                    save_sync_warnings.push(format!("Post-launch save sync: {e}"));
+                    if save_sync_conflict.is_none() {
+                        save_sync_warnings.push(format!("Post-launch save sync: {e}"));
+                    }
                     let _ = db.record_save_sync_failure(game.id, "post_launch", &e.to_string());
                 } else {
                     let _ = db.clear_save_sync_failure(game.id);
@@ -521,6 +550,7 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
                 success: true,
                 error: None,
                 save_sync_warnings,
+                save_sync_conflict,
                 dry_run: false,
                 duration_minutes: Some(duration_minutes),
                 exit_code,
@@ -535,6 +565,7 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
                 success: true,
                 error: None,
                 save_sync_warnings,
+                save_sync_conflict: None,
                 dry_run: true,
                 duration_minutes: None,
                 exit_code: None,
@@ -547,6 +578,7 @@ pub async fn launch_game(game_id: i64) -> Result<LaunchGameResult, String> {
                 success: false,
                 error: error_msg,
                 save_sync_warnings,
+                save_sync_conflict: None,
                 dry_run: false,
                 duration_minutes: None,
                 exit_code: None,
@@ -1612,6 +1644,57 @@ pub async fn download_switch_save(
     crate::sync::download_switch_save_to_eden(&game, &mut config, slot, save_id)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn force_upload_game_save(game_id: i64) -> Result<String, String> {
+    let mut config = AppConfig::load().map_err(|e| e.to_string())?;
+    if !config.romm.sync_saves {
+        return Err("Wingosy save sync is disabled".to_string());
+    }
+    let db = Database::open().map_err(|e| e.to_string())?;
+    let game = db
+        .get_game(game_id)
+        .map_err(|e| e.to_string())?
+        .ok_or("Game not found")?;
+    let launcher = EmulatorLauncher::new(config.clone(), db.clone());
+    let command = launcher.build_command(&game).map_err(|e| e.to_string())?;
+
+    let message = if command.emulator_id == "retroarch" {
+        let native_sync = crate::retroarch_cloud_sync::native_save_sync_enabled_for_executable(
+            Path::new(&command.executable),
+        )
+        .map_err(|e| format!("Could not inspect RetroArch Cloud Sync config: {e}"))?;
+        if native_sync {
+            return Err(
+                "RetroArch native Cloud Sync owns this save; Wingosy will not overwrite it"
+                    .to_string(),
+            );
+        }
+        let core_name = command
+            .core_name
+            .as_deref()
+            .ok_or("RetroArch core is unavailable for this game")?;
+        crate::sync::retroarch_romm::force_upload_retroarch_save(
+            &game,
+            &mut config,
+            core_name,
+            None,
+        )
+        .await
+        .map(|result| result.message)
+        .map_err(|e| e.to_string())?
+    } else if game.platform_id == "switch" {
+        crate::sync::force_upload_switch_save_from_eden(&game, &mut config, None)
+            .await
+            .map(|result| result.message)
+            .map_err(|e| e.to_string())?
+    } else {
+        return Err("Automatic save sync is not available for this emulator".to_string());
+    };
+
+    let _ = db.clear_save_sync_failure(game.id);
+    Ok(message)
 }
 
 // ========== Game Management Commands ==========
@@ -3186,6 +3269,7 @@ mod tests {
             success: true,
             error: None,
             save_sync_warnings: vec![],
+            save_sync_conflict: None,
             dry_run: false,
             duration_minutes: Some(60),
             exit_code: Some(0),
@@ -3203,6 +3287,7 @@ mod tests {
             success: false,
             error: Some("Emulator not found".to_string()),
             save_sync_warnings: vec![],
+            save_sync_conflict: None,
             dry_run: false,
             duration_minutes: None,
             exit_code: None,
@@ -3217,12 +3302,35 @@ mod tests {
             success: true,
             error: None,
             save_sync_warnings: vec![],
+            save_sync_conflict: None,
             dry_run: true,
             duration_minutes: None,
             exit_code: None,
         };
         assert!(result.success);
         assert!(result.dry_run);
+    }
+
+    #[test]
+    fn post_launch_conflicts_are_structured_for_confirmation() {
+        let conflict = post_launch_save_conflict(
+            42,
+            "Conflict Quest",
+            &anyhow::anyhow!(
+                "RomM has a newer save after this play session; local upload was blocked"
+            ),
+        )
+        .expect("newer server save should require confirmation");
+
+        assert_eq!(conflict.game_id, 42);
+        assert_eq!(conflict.game_name, "Conflict Quest");
+        assert!(conflict.reason.contains("newer save"));
+        assert!(post_launch_save_conflict(
+            42,
+            "Conflict Quest",
+            &anyhow::anyhow!("network unavailable")
+        )
+        .is_none());
     }
 
     #[test]

@@ -7,6 +7,7 @@ import ImmersiveGameDetails from "./ImmersiveGameDetails";
 import ImmersiveHintBar from "./ImmersiveHintBar";
 import RomDownloadsView from "../components/RomDownloadsView";
 import SyncMonitor from "../components/SyncMonitor";
+import SaveSyncConflictDialog from "../components/SaveSyncConflictDialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useFullscreen } from "./useFullscreen";
 import { useGamepadKeyboardMapper } from "./useGamepadKeyboardMapper";
@@ -26,6 +27,9 @@ export default function ImmersiveModeApp({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [saveSyncConflict, setSaveSyncConflict] = useState(null);
+  const [saveSyncOverwritePending, setSaveSyncOverwritePending] = useState(false);
+  const [saveSyncOverwriteError, setSaveSyncOverwriteError] = useState("");
   const [displayCfg, setDisplayCfg] = useState(() => ({
     big_picture: true,
     fullscreen: requestedFullscreen,
@@ -129,11 +133,35 @@ export default function ImmersiveModeApp({
       const result = await invoke("launch_game", { gameId });
       if (!result.success && result.error) setError(result.error);
       else if (result.save_sync_warnings?.length) setError(result.save_sync_warnings.join("\n"));
+      if (result.save_sync_conflict) {
+        setSaveSyncOverwriteError("");
+        setSaveSyncConflict(result.save_sync_conflict);
+      }
       await loadData();
     } catch (err) {
       setError(err?.message || String(err));
     }
   }, [loadData]);
+
+  const keepServerSave = useCallback(() => {
+    if (saveSyncOverwritePending) return;
+    setSaveSyncConflict(null);
+    setSaveSyncOverwriteError("");
+  }, [saveSyncOverwritePending]);
+
+  const overwriteServerSave = useCallback(async () => {
+    if (!saveSyncConflict || saveSyncOverwritePending) return;
+    setSaveSyncOverwritePending(true);
+    setSaveSyncOverwriteError("");
+    try {
+      await invoke("force_upload_game_save", { gameId: saveSyncConflict.game_id });
+      setSaveSyncConflict(null);
+    } catch (err) {
+      setSaveSyncOverwriteError(err?.message || String(err));
+    } finally {
+      setSaveSyncOverwritePending(false);
+    }
+  }, [saveSyncConflict, saveSyncOverwritePending]);
 
   useEffect(() => {
     function shouldDeferImmersiveHotkey(e) {
@@ -332,6 +360,13 @@ export default function ImmersiveModeApp({
       <AmbientAudioPlayer audio={audioCfg} />
       <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{main}</Box>
       <ImmersiveHintBar view={view} visible={showHints} />
+      <SaveSyncConflictDialog
+        conflict={saveSyncConflict}
+        overwriting={saveSyncOverwritePending}
+        error={saveSyncOverwriteError}
+        onKeepServer={keepServerSave}
+        onOverwrite={overwriteServerSave}
+      />
     </Box>
   );
 }

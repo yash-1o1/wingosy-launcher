@@ -141,6 +141,23 @@ pub async fn upload_switch_save_from_eden(
     config: &mut AppConfig,
     slot: Option<String>,
 ) -> Result<SwitchSaveSyncResult> {
+    upload_switch_save_from_eden_with_overwrite(game, config, slot, false).await
+}
+
+pub async fn force_upload_switch_save_from_eden(
+    game: &Game,
+    config: &mut AppConfig,
+    slot: Option<String>,
+) -> Result<SwitchSaveSyncResult> {
+    upload_switch_save_from_eden_with_overwrite(game, config, slot, true).await
+}
+
+async fn upload_switch_save_from_eden_with_overwrite(
+    game: &Game,
+    config: &mut AppConfig,
+    slot: Option<String>,
+    overwrite: bool,
+) -> Result<SwitchSaveSyncResult> {
     let romm_id = game.romm_id.context("Game is not linked to RomM")?;
     let rom_path = game
         .local_file_path
@@ -170,7 +187,7 @@ pub async fn upload_switch_save_from_eden(
             Some(&slot_s),
             zip_bytes,
             &upload_filename(&slot_s, &rom_base),
-            false,
+            overwrite,
         )
         .await?;
 

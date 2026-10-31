@@ -204,6 +204,25 @@ pub async fn upload_retroarch_save(
     core_name: &str,
     slot: Option<String>,
 ) -> Result<RetroArchSaveSyncResult> {
+    upload_retroarch_save_with_overwrite(game, config, core_name, slot, false).await
+}
+
+pub async fn force_upload_retroarch_save(
+    game: &Game,
+    config: &mut AppConfig,
+    core_name: &str,
+    slot: Option<String>,
+) -> Result<RetroArchSaveSyncResult> {
+    upload_retroarch_save_with_overwrite(game, config, core_name, slot, true).await
+}
+
+async fn upload_retroarch_save_with_overwrite(
+    game: &Game,
+    config: &mut AppConfig,
+    core_name: &str,
+    slot: Option<String>,
+    overwrite: bool,
+) -> Result<RetroArchSaveSyncResult> {
     let romm_id = game.romm_id.context("Game is not linked to RomM")?;
     let rom_base = rom_base_name(game);
     let local_path = newest_existing(local_save_candidates(config, core_name, &rom_base)?)
@@ -230,7 +249,7 @@ pub async fn upload_retroarch_save(
             Some(&slot_s),
             bytes,
             &upload_name,
-            false,
+            overwrite,
         )
         .await?;
 

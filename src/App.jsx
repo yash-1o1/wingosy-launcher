@@ -10,6 +10,7 @@ import RomDownloadsView from "./components/RomDownloadsView";
 import SyncMonitor from "./components/SyncMonitor";
 import SetupWizard from "./components/SetupWizard";
 import PostUpdateDialog from "./components/PostUpdateDialog";
+import SaveSyncConflictDialog from "./components/SaveSyncConflictDialog";
 import ImmersiveModeApp from "./immersive/ImmersiveModeApp";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -97,6 +98,9 @@ function App() {
   const [immersiveModeEnabled, setImmersiveModeEnabled] = useState(false);
   const [immersiveModeFullscreen, setImmersiveModeFullscreen] = useState(false);
   const [postUpdateVersion, setPostUpdateVersion] = useState("");
+  const [saveSyncConflict, setSaveSyncConflict] = useState(null);
+  const [saveSyncOverwritePending, setSaveSyncOverwritePending] = useState(false);
+  const [saveSyncOverwriteError, setSaveSyncOverwriteError] = useState("");
   const [updateSnack, setUpdateSnack] = useState({
     open: false,
     url: "",
@@ -344,12 +348,36 @@ function App() {
       } else if (result.save_sync_warnings?.length) {
         setError(result.save_sync_warnings.join("\n"));
       }
+      if (result.save_sync_conflict) {
+        setSaveSyncOverwriteError("");
+        setSaveSyncConflict(result.save_sync_conflict);
+      }
       
       if (!result.dry_run) {
         await refreshGames();
       }
     } catch (err) {
       setError(err.message || String(err));
+    }
+  }
+
+  function keepServerSave() {
+    if (saveSyncOverwritePending) return;
+    setSaveSyncConflict(null);
+    setSaveSyncOverwriteError("");
+  }
+
+  async function overwriteServerSave() {
+    if (!saveSyncConflict || saveSyncOverwritePending) return;
+    setSaveSyncOverwritePending(true);
+    setSaveSyncOverwriteError("");
+    try {
+      await invoke("force_upload_game_save", { gameId: saveSyncConflict.game_id });
+      setSaveSyncConflict(null);
+    } catch (err) {
+      setSaveSyncOverwriteError(err?.message || String(err));
+    } finally {
+      setSaveSyncOverwritePending(false);
     }
   }
 
@@ -686,6 +714,13 @@ function App() {
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       />
       {renderPostUpdateDialog()}
+      <SaveSyncConflictDialog
+        conflict={saveSyncConflict}
+        overwriting={saveSyncOverwritePending}
+        error={saveSyncOverwriteError}
+        onKeepServer={keepServerSave}
+        onOverwrite={overwriteServerSave}
+      />
     </AppShell>
   );
 }

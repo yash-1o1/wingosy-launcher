@@ -91,6 +91,7 @@ fn main() {
             commands::get_favorite_games,
             commands::toggle_favorite,
             commands::launch_game,
+            commands::force_upload_game_save,
             commands::get_launch_command,
             commands::scan_directory,
             commands::get_config,
