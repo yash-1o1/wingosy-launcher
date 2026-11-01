@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `68f1368b61707f8c4ad001b89eb095a705a46143` — 2026-10-31 (2026-10-31 run)
+- Argosy baseline observed: `68f1368b61707f8c4ad001b89eb095a705a46143` — 2026-11-01 (2026-11-01 run)
 - Baseline history size: 3,579 commits on `origin/main`
-- Wingosy baseline observed: `af20f83` — 2026-10-31 feature commit
+- Wingosy baseline observed: `3d758d6` — 2026-11-01 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -286,6 +286,13 @@ commits. The chronological cursor remained valid: `0ca4ee2` was still commit
 464 and `222bca2` was still commit 465. Only the observation date was
 refreshed before this run's eight chronological dispositions were appended.
 
+### Baseline confirmation (2026-11-01)
+
+A fresh fetch left Argosy `origin/main` unchanged at `68f1368` / 3,579
+commits. The chronological cursor remained valid: `4a26541` was still commit
+472 and `9e1e80f` was still commit 473. Only the observation date was
+refreshed before this run's nine chronological dispositions were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -339,11 +346,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `4a26541dcc2aca5d473997c63bc1c413c3a1731f`
-- Next Argosy commit: `9e1e80ffa4070e4f661c2df19ba7c99f6db0bcf4`
-- Audited: 472 / 3,579 baseline commits
-- Portable candidates waiting: 115
-- Last tracker update: 2026-10-31
+- Last fully audited Argosy commit: `ebc9df1dc1f6f4c3ec760a30192fe1f6d560986f`
+- Next Argosy commit: `a630594efd9ed5628b1b6f961a10fad9c7eca89f`
+- Audited: 481 / 3,579 baseline commits
+- Portable candidates waiting: 118
+- Last tracker update: 2026-11-01
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -825,6 +832,15 @@ must record every inspected commit before advancing this cursor.
 | 470 | `c4a2cf6` | 2026-01-23 | Bump version to 0.17.4 | non-feature | Android release metadata only. |
 | 471 | `e5bbbd7` | 2026-01-24 | Add ambient LED brightness slider | not-portable | Brightness control targets Odin/Android ambient-LED hardware and service preferences that Wingosy does not manage on Windows. |
 | 472 | `4a26541` | 2026-01-24 | Add save conflict modal for sync overwrites | implemented | Implemented by Wingosy `af20f83`: post-launch save conflicts now return structured state to a shared desktop/Immersive confirmation dialog with a safe keep-server default and one explicit overwrite action; RetroArch native Cloud Sync remains mutually exclusive with Wingosy overwrite negotiation. |
+| 473 | `9e1e80f` | 2026-01-24 | Bump version to 0.17.5-beta.1 | non-feature | Android prerelease metadata only. |
+| 474 | `3d36634` | 2026-01-24 | Fix BGM ducking, LED brightness, and screen capture permission | already-covered | Wingosy creates UI-sound audio objects only for an enabled, requested sound, so disabled feedback cannot claim audio focus or disturb ambient playback. The Odin LED service, Android screen-capture permission flow, and hardware brightness control are not portable; Wingosy's web-native sliders already adapt to available width. |
+| 475 | `0370ef0` | 2026-01-24 | Fix dot files breaking multi-file ROM downloads | candidate | Consolidated into archive-aware multi-file installation: ignore all dot-prefixed metadata when choosing content, validating archive membership, and reconciling downloaded files, and compare expected size against the selected remote content rather than incidental folder bytes. |
+| 476 | `c2dd971` | 2026-01-24 | Fix DLC/update download status not updating in UI | candidate | Consolidated into archive-aware multi-file installation: derive installed state from validated files on disk, retain remote file identity, and refresh desktop and Immersive content rows when installation state changes. |
+| 477 | `42aceb0` | 2026-01-24 | Fix DLC/update files not downloading to correct folders | candidate | Consolidated into archive-aware multi-file installation: route updates and DLC to explicit category subfolders without renaming their source identity, recognize compatible singular/plural update folders, and keep folder ownership recoverable. |
+| 478 | `7a968cf` | 2026-01-24 | Bump version to 0.17.5-beta.2 | non-feature | Android prerelease metadata only. |
+| 479 | `386ab3c` | 2026-01-24 | Fix local save timestamp for folder-based saves | implemented | Implemented by Wingosy `3d758d6`: Switch/Eden negotiation and active-profile selection now derive folder-save freshness exclusively from the newest regular save file, so directory creation or metadata changes cannot trigger a false upload/conflict decision. |
+| 480 | `a840d27` | 2026-01-24 | Bump version to 0.17.5 | non-feature | Android release metadata only. |
+| 481 | `ebc9df1` | 2026-01-24 | Update RetroArch download URLs to official website | already-covered | Wingosy installs the official upstream Windows archive directly from Libretro's HTTPS buildbot and resolves cores from the matching official buildbot, rather than relying on a stale app-store package. |
 
 ## Implemented parity outside the chronological audit
 
@@ -848,7 +864,7 @@ Argosy commits must still be recorded when encountered.
 | `3de24f3`, `76e2cc7`, `c8131a1`, `d152e97`, `ae55b79`, `e610a1f`, `a9aa0b6`, `b5c9dd1`, `e976464`, `0b8a4a3`, `9faeab5` | Extend automatic path-aware RomM save sync, per-emulator path overrides, and recovery-safe sync filters | Add Windows save resolvers and override validation incrementally per emulator with live RomM negotiation proof; use server filenames as a safe restore fallback only after identity and destination validation; treat RetroArch overrides as base paths while retaining core/content subfolders; validate the effective path before launch, responses, free space, minimum content and reversible backups; add opt-in bad-dump/hack/extension filtering without treating ordinary punctuation as proof of a bad ROM. |
 | `2a3ffcd`, `06350f2`, `d5c4c25`, `2d5c876` | Native-emulator title-ID resolution and 3DS folder-save sync | Prefer validated title IDs from filenames, local ROM headers, and current RomM metadata; avoid dependency on Argosy's private lookup service; support explicit Windows save-root overrides; scan nested save folders using session timestamps; and preserve negotiated conflict checks plus reversible backups before enabling Azahar/Citra sync. |
 | `e7641f8`, `0612991`, `16371b9`, `5b1b256` | Per-platform RomM sync enablement, first-run selection, and custom ROM roots | Add reversible platform toggles (including an optional setup step for large servers), migrate existing downloads safely, exclude disabled platforms from sync and orphan cleanup, preserve current selection, and show live/cached platform counts without copying Android storage APIs. |
-| `40e8685`, `226907d`, `755cad8`, `2489792`, `09f6b15`, `f96d18e`, `c4fc69a`, `f6397cb`, `f6d1cdc`, `d0a29e4`, `7490c48`, `63b6f79`, `87e44a2`, `7caac60`, `0ca4ee2` | Platform-context-aware archive discovery and multi-file installation | Recognize ZIP/7z/CHD only when platform context is unambiguous; validate completeness, readability, and traversal-safe destinations before extraction; extract with progress/recovery and collision-free paths; preserve folder-ROM identity and ownership for reversible cleanup; model base games, updates, and DLC by remote file identity; clear only filesystem-proven stale paths; surface accurate per-content installed, missing, and repair state in both shells; and migrate flat-disc records only after preserving aggregated user metadata and validating local paths. |
+| `40e8685`, `226907d`, `755cad8`, `2489792`, `09f6b15`, `f96d18e`, `c4fc69a`, `f6397cb`, `f6d1cdc`, `d0a29e4`, `7490c48`, `63b6f79`, `87e44a2`, `7caac60`, `0ca4ee2`, `0370ef0`, `c2dd971`, `42aceb0` | Platform-context-aware archive discovery and multi-file installation | Recognize ZIP/7z/CHD only when platform context is unambiguous; ignore dot-prefixed metadata and validate completeness, selected-content size, readability, and traversal-safe destinations before extraction; extract with progress/recovery and collision-free paths; preserve folder-ROM identity and ownership for reversible cleanup; model base games, updates, and DLC by remote file identity and route them to explicit category folders without destructive renaming; clear only filesystem-proven stale paths; refresh accurate disk-validated per-content installed, missing, and repair state in both shells; and migrate flat-disc records only after preserving aggregated user metadata and validating local paths. |
 | `03261a4`, `b03791b`, `16a398c`, `4a9bda3`, `90384ea`, `007c667`, `2fb2cc8`, `7799087`, `b8b2206` | Consolidated multi-disc downloads, M3U generation, and disc picker | Model sibling discs without losing RomM identity, download/repair the full set into one game folder, discover nested disc files, regenerate root-disc-only M3U playlists after retry, and provide pointer plus immersive-controller fallback selection without deleting recoverable local data. |
 | `362f688`, `450c761` | Controller detection with explicit layout and icon-swap settings | Use Windows gamepad identity where available, fall back predictably, provide Auto/Xbox/Nintendo display overrides plus separate A/B and X/Y swaps, and update control glyphs consistently across desktop and Immersive views. |
 | `19823f6` | Battery/charging indicator on the home header for Windows handhelds | Windows battery-status API via Tauri, shown conditionally (desktop PCs without a battery should not show one), plus desktop and immersive placement. |
@@ -939,6 +955,7 @@ chronological work can proceed safely.
 | 2026-10-29 | `12777ea..b42ebcb` (17 commits) | Persistent 75–150% whole-interface scaling with immediate desktop/Immersive preview and legacy-safe defaults | `0f38229` | 3 targeted and 84 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `40907550921` passed frontend coverage, all Cargo tests including config defaults, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `68f1368` / 3,579 while preserving the valid cursor, then advanced it to commit 456. Added four candidate dispositions for update/DLC file identity and stale paths, validated JKSV imports, and focused Immersive settings scrolling, leaving 111 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-10-30 | `622fdf8..0ca4ee2` (8 commits) | Persistent Off/Low/Medium/High resting cover-glow intensity with a fixed accessible focus glow | `a196a4f` | 6 targeted and 85 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41087086389` passed frontend coverage, all Cargo tests including the new config default and deserialization coverage, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 464. Resolved `afb4c0b`; added JKSV validation and update/DLC state candidates, leaving 112 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-10-31 | `222bca2..4a26541` (8 commits) | Post-launch save-conflict confirmation with a safe keep-server default and an explicit one-time RomM overwrite, shared by desktop and Immersive while preserving native RetroArch Cloud Sync ownership | `af20f83` | 2 targeted and 87 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41217676530` passed frontend coverage, all Cargo tests including the new conflict classification test, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 472. Consolidated three new candidates into artwork extraction, controller settings, and trailer/audio coordination, leaving 115 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
+| 2026-11-01 | `9e1e80f..ebc9df1` (9 commits) | File-only folder-save freshness for Switch/Eden negotiation and profile selection, preventing directory metadata from creating false upload/conflict decisions | `3d758d6` | 87 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, targeted Rust formatting, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41328964076` passed frontend coverage, all Cargo tests including the new empty-directory timestamp regression, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 481. Consolidated three new update/DLC candidates into archive-aware multi-file installation, leaving 118 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 
 ## Completion rule
 
