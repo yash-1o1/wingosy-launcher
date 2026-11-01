@@ -9,7 +9,7 @@ use crate::config::AppConfig;
 use crate::models::Game;
 
 use super::switch_save::{
-    resolve_local_title_save_path, unzip_into_title_folder, zip_title_folder,
+    newest_file_modified, resolve_local_title_save_path, unzip_into_title_folder, zip_title_folder,
     ARGOSY_LATEST_SAVE_NAME, DEFAULT_SAVE_SLOT, EDEN_EMULATOR_ID,
 };
 
@@ -336,12 +336,8 @@ async fn negotiated_launch_sync(
             zip_title_folder(&title_dir, &title_id, &snapshot)?;
             let bytes = std::fs::read(&snapshot)?;
             let _ = std::fs::remove_file(&snapshot);
-            let modified = walkdir::WalkDir::new(&title_dir)
-                .into_iter()
-                .filter_map(|entry| entry.ok())
-                .filter_map(|entry| entry.metadata().ok()?.modified().ok())
-                .max()
-                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            let modified =
+                newest_file_modified(&title_dir).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
             vec![crate::sync::negotiation::client_save_state(
                 romm_id,
                 upload_filename(&slot, &rom_base),
@@ -362,7 +358,10 @@ async fn negotiated_launch_sync(
         };
     };
     let operation = crate::sync::negotiation::operation_for(&plan, romm_id, &slot).cloned();
-    let result = match operation.as_ref().map(|operation| operation.action.as_str()) {
+    let result = match operation
+        .as_ref()
+        .map(|operation| operation.action.as_str())
+    {
         Some("upload") => upload_switch_save_from_eden(game, config, Some(slot.clone())).await,
         Some("download") if allow_download => {
             let save_id = operation.as_ref().and_then(|operation| operation.save_id);
@@ -373,7 +372,10 @@ async fn negotiated_launch_sync(
         )),
         Some("conflict") => Err(anyhow::anyhow!(
             "Save conflict: {}",
-            operation.as_ref().map(|op| op.reason.as_str()).unwrap_or("both saves changed")
+            operation
+                .as_ref()
+                .map(|op| op.reason.as_str())
+                .unwrap_or("both saves changed")
         )),
         Some("no_op") | None => Ok(SwitchSaveSyncResult {
             success: true,
@@ -386,7 +388,9 @@ async fn negotiated_launch_sync(
     };
 
     let operation_was_planned = matches!(
-        operation.as_ref().map(|operation| operation.action.as_str()),
+        operation
+            .as_ref()
+            .map(|operation| operation.action.as_str()),
         Some("upload" | "download" | "conflict")
     );
     let (completed, failed) = match (operation_was_planned, result.is_ok()) {

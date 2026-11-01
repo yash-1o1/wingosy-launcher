@@ -4,6 +4,7 @@ use regex_lite::Regex;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use walkdir::WalkDir;
 use zip::read::ZipArchive;
 use zip::write::SimpleFileOptions;
@@ -90,32 +91,29 @@ fn normalize_save_base(path: &Path) -> PathBuf {
     normalized.join("nand").join("user").join("save")
 }
 
-fn newest_mtime(path: &Path) -> u64 {
-    let mut newest = 0u64;
+pub(crate) fn newest_file_modified(path: &Path) -> Option<SystemTime> {
     if path.is_file() {
         return path
             .metadata()
             .ok()
-            .and_then(|m| m.modified().ok())
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .and_then(|metadata| metadata.modified().ok());
     }
     if !path.is_dir() {
-        return 0;
+        return None;
     }
-    for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() {
-            if let Ok(m) = entry.metadata() {
-                if let Ok(modified) = m.modified() {
-                    if let Ok(d) = modified.duration_since(std::time::UNIX_EPOCH) {
-                        newest = newest.max(d.as_secs());
-                    }
-                }
-            }
-        }
-    }
-    newest
+    WalkDir::new(path)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().is_file())
+        .filter_map(|entry| entry.metadata().ok()?.modified().ok())
+        .max()
+}
+
+fn newest_mtime(path: &Path) -> u64 {
+    newest_file_modified(path)
+        .and_then(|modified| modified.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
 }
 
 /// Pick the profile folder with the newest save activity (Argosy `findActiveProfileFolder` heuristic).
@@ -379,5 +377,18 @@ mod tests {
         let target = temp.path().join("save");
         assert!(unzip_into_title_folder(&archive_path, &target).is_err());
         assert!(!temp.path().join("escaped.dat").exists());
+    }
+
+    #[test]
+    fn folder_modified_time_comes_from_save_files_only() {
+        let temp = tempfile::tempdir().unwrap();
+        let save_dir = temp.path().join("save");
+        std::fs::create_dir_all(save_dir.join("empty-folder")).unwrap();
+        assert_eq!(newest_file_modified(&save_dir), None);
+
+        let save_file = save_dir.join("progress.dat");
+        std::fs::write(&save_file, b"save data").unwrap();
+        let expected = save_file.metadata().unwrap().modified().unwrap();
+        assert_eq!(newest_file_modified(&save_dir), Some(expected));
     }
 }
