@@ -50,6 +50,7 @@ pub fn platform_sort_order(id: &str) -> i32 {
         "xbox360" => 510,
         "vic20" => 600,
         "c64" => 610,
+        "dos" => 700,
         "arcade" => 900,
         "pc" => 1_000,
         _ => 10_000,
@@ -94,6 +95,7 @@ pub fn default_platforms() -> Vec<Platform> {
                 ".crt",
             ],
         ),
+        Platform::new("dos", "DOS", vec![".dosz", ".jrc", ".tc"]),
         Platform::new("arcade", "Arcade", vec![".zip"]),
         Platform::new("pc", "PC Games", vec![".exe"]),
     ]
@@ -147,7 +149,8 @@ pub fn map_romm_slug(slug: &str) -> String {
         "vic20" | "vic-20" | "commodore-vic20" | "commodore-vic-20" => "vic20".into(),
         "c64" | "commodore-64" | "commodore64" => "c64".into(),
         "arcade" | "mame" | "fbneo" | "final-burn-neo" => "arcade".into(),
-        "pc" | "dos" | "ms-dos" | "windows" | "microsoft-windows" => "pc".into(),
+        "dos" | "ms-dos" | "msdos" | "ibm-pc-dos" => "dos".into(),
+        "pc" | "windows" | "microsoft-windows" => "pc".into(),
         _ => slug.to_string(),
     }
 }
@@ -174,6 +177,7 @@ mod tests {
         assert_eq!(map_romm_slug("final_burn_neo"), "arcade");
         assert_eq!(map_romm_slug("commodore-64"), "c64");
         assert_eq!(map_romm_slug("commodore-vic-20"), "vic20");
+        assert_eq!(map_romm_slug("ms-dos"), "dos");
     }
 
     #[test]
@@ -270,6 +274,22 @@ mod tests {
             );
         }
         assert_eq!(detect_platform_by_extension(".prg"), Some("c64".into()));
+    }
+
+    #[test]
+    fn dos_uses_unambiguous_extensions_for_local_detection() {
+        let dos = default_platforms()
+            .into_iter()
+            .find(|platform| platform.id == "dos")
+            .unwrap();
+
+        for extension in [".dosz", ".jrc", ".tc"] {
+            assert!(dos.extensions.contains(&extension.to_string()));
+            assert_eq!(detect_platform_by_extension(extension), Some("dos".into()));
+        }
+        for extension in [".exe", ".zip", ".iso", ".cue", ".img"] {
+            assert!(!dos.extensions.contains(&extension.to_string()));
+        }
     }
 
     #[test]
