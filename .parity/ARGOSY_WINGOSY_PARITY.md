@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `68f1368b61707f8c4ad001b89eb095a705a46143` — 2026-11-01 (2026-11-01 run)
+- Argosy baseline observed: `68f1368b61707f8c4ad001b89eb095a705a46143` — 2026-11-02 (2026-11-02 run)
 - Baseline history size: 3,579 commits on `origin/main`
-- Wingosy baseline observed: `3d758d6` — 2026-11-01 feature commit
+- Wingosy baseline observed: `e24ecb7` — 2026-11-02 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -293,6 +293,13 @@ commits. The chronological cursor remained valid: `4a26541` was still commit
 472 and `9e1e80f` was still commit 473. Only the observation date was
 refreshed before this run's nine chronological dispositions were appended.
 
+### Baseline confirmation (2026-11-02)
+
+A fresh fetch left Argosy `origin/main` unchanged at `68f1368` / 3,579
+commits. The chronological cursor remained valid: `ebc9df1` was still commit
+481 and `a630594` was still commit 482. Only the observation date was
+refreshed before this run's nineteen chronological dispositions were appended.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -346,11 +353,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `ebc9df1dc1f6f4c3ec760a30192fe1f6d560986f`
-- Next Argosy commit: `a630594efd9ed5628b1b6f961a10fad9c7eca89f`
-- Audited: 481 / 3,579 baseline commits
-- Portable candidates waiting: 118
-- Last tracker update: 2026-11-01
+- Last fully audited Argosy commit: `0aeb32111cb581e4c572c2f4e589d0839160391c`
+- Next Argosy commit: `6e11609eb05e6f96a585b90f93aca0f421d1cc59`
+- Audited: 500 / 3,579 baseline commits
+- Portable candidates waiting: 119
+- Last tracker update: 2026-11-02
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -841,6 +848,25 @@ must record every inspected commit before advancing this cursor.
 | 479 | `386ab3c` | 2026-01-24 | Fix local save timestamp for folder-based saves | implemented | Implemented by Wingosy `3d758d6`: Switch/Eden negotiation and active-profile selection now derive folder-save freshness exclusively from the newest regular save file, so directory creation or metadata changes cannot trigger a false upload/conflict decision. |
 | 480 | `a840d27` | 2026-01-24 | Bump version to 0.17.5 | non-feature | Android release metadata only. |
 | 481 | `ebc9df1` | 2026-01-24 | Update RetroArch download URLs to official website | already-covered | Wingosy installs the official upstream Windows archive directly from Libretro's HTTPS buildbot and resolves cores from the matching official buildbot, rather than relying on a stale app-store package. |
+| 482 | `a630594` | 2026-01-25 | Add built-in libretro emulation infrastructure | already-covered | Wingosy already provides the portable outcome through managed/existing Windows RetroArch detection, official core downloads, per-platform core selection, and direct process launch. Argosy's embedded Android activity, JNI renderer, setup flow, and recommendation preference are intentionally not copied. |
+| 483 | `6a29a9b` | 2026-01-25 | Integrate BIOS and save paths for built-in libretro | already-covered | Wingosy distributes validated firmware to RetroArch's configured system directory and resolves core-aware RetroArch save paths for negotiated sync. Android internal-storage templates do not apply to the external Windows process. |
+| 484 | `2f2ac0d` | 2026-01-25 | Add in-game menu for built-in libretro emulator | not-portable | The menu overlays Argosy's embedded LibretroDroid view. Wingosy launches full RetroArch, whose own controller-accessible menu owns pause, resume, and quit behavior. |
+| 485 | `558cc34` | 2026-01-25 | Add save states support to built-in emulator | already-covered | Full RetroArch already provides quick save/load and state-slot controls. Wingosy's separate future state-snapshot candidate concerns reversible launcher-side channel integration, not duplicating the emulator menu. |
+| 486 | `3dda298` | 2026-01-25 | Add core version checking with daily WiFi-only updates | candidate | Add a bounded, non-destructive Windows core update check using official buildbot metadata, show availability in core management, and require an explicit update action that preserves the installed core until replacement validates. Android WorkManager and metered-network policy are not copied. |
+| 487 | `c753274` | 2026-01-25 | Add Core Management UI and Built-in Emulator settings | already-covered | Wingosy lists installed compatible cores per platform, persists validated selections, downloads missing official cores, and falls back safely when a choice disappears. Embedded-renderer video/audio settings and Android theme/input plumbing do not map to external RetroArch. |
+| 488 | `6f52f9a` | 2026-01-25 | Add save sync integration for built-in emulator | already-covered | Wingosy already wraps external RetroArch sessions with device-aware pre/post-launch RomM negotiation, core-aware SRAM discovery, reversible backups, structured conflicts, and single-flight session tracking. Native RetroArch Cloud Sync remains mutually exclusive. |
+| 489 | `9075e14` | 2026-01-25 | Add video filter and integer scaling settings for built-in emulator | not-portable | These settings modify Argosy's vendored LibretroDroid renderer. Wingosy deliberately leaves filtering, shaders, and integer scaling to the separately maintained RetroArch frontend. |
+| 490 | `3645cf7` | 2026-01-25 | Add black frame insertion (BFI) for 120Hz displays | not-portable | Argosy implements BFI inside its embedded renderer and frame scheduler. Wingosy does not own RetroArch's presentation loop or global display timing. |
+| 491 | `edc394e` | 2026-01-25 | Fix CRT and LCD shader precision at integer boundaries | not-portable | Patch to Argosy's vendored LibretroDroid shader source; Wingosy neither vendors nor overrides RetroArch shaders. |
+| 492 | `e25aba6` | 2026-01-25 | Add rewind, fast forward, rotation, and overscan settings | not-portable | Argosy adds JNI state buffers and embedded-renderer controls. External RetroArch owns these runtime features and their core-specific compatibility in Wingosy's architecture. |
+| 493 | `1d7d4fe` | 2026-01-25 | Replace audio section with controls and improve rewind | superseded | The placeholder controller-order, mapping, and hotkey entries were implemented by the next commit; the remaining rewind timing changes apply only to Argosy's embedded LibretroDroid loop. |
+| 494 | `cfd32bb` | 2026-01-25 | Add input customization system with controller order, mapping, and hotkeys | not-portable | The implementation maps Android key codes directly into an embedded core. Wingosy launches external RetroArch, where controller ports, remaps, and emulator hotkeys must remain owned by RetroArch; launcher glyph-layout detection remains a separate presentation-only candidate. |
+| 495 | `752f5f0` | 2026-01-25 | Add BFI mutual exclusivity with skip frames and low latency audio | not-portable | Mutual exclusion among Argosy's embedded-renderer settings has no Wingosy setting chain or renderer to govern. |
+| 496 | `faf0d0d` | 2026-01-25 | Add automatic core download migration for existing users | already-covered | Wingosy discovers missing cores for platforms with games, exposes official core installation, and never silently replaces a configured emulator default. Its external-RetroArch model needs no built-in-emulator migration. |
+| 497 | `6a9792c` | 2026-01-25 | Bump version to 0.18.0-beta.1 | non-feature | Android prerelease metadata only. |
+| 498 | `0ce4864` | 2026-01-25 | Fix migration to include all sync-enabled platforms | already-covered | Wingosy's missing-core inventory is derived from the current local library and preserves explicit emulator configuration; it does not depend on Argosy's stale platform-count migration marker or nullable Android package IDs. |
+| 499 | `e6b0179` | 2026-01-25 | Fix built-in emulator launch and R8 stripping issues | already-covered | Wingosy suppresses RetroArch as a launch choice when no compatible core is installed and exposes missing-core repair. Android R8/JNI keep rules and just-in-time embedded-core download are not portable. |
+| 500 | `0aeb321` | 2026-01-25 | Add DOSBox Pure support (dos platform) | implemented | `e24ecb7`: Wingosy now preserves DOS as a first-class RomM platform, maps established DOS aliases, downloads/launches the official Windows `dosbox_pure_libretro.dll`, and limits extension-only local discovery to unambiguous `.dosz`, `.jrc`, and `.tc` content so Windows executables, archives, and shared disc images are not misclassified. |
 
 ## Implemented parity outside the chronological audit
 
@@ -888,6 +914,7 @@ Argosy commits must still be recorded when encountered.
 | `bf9dfc6` | Bounded recent library searches | Persist a deduplicated ten-query history, expose it without obscuring live results, and provide keyboard/pointer plus controller-complete Immersive navigation and clearing controls. |
 | `1bee156` | Install-time NEW badge semantics | Add a distinct persisted `installed_at` timestamp set only after successful download or validated local discovery, preserve the original library creation time, migrate existing rows conservatively, and use install time for the shared desktop/Immersive NEW badge. |
 | `2f632c9`, `899aafa`, `2601186` | Validated JKSV Switch save import | Recognize JKSV archives by their signed metadata marker, parse only proven 16-digit Switch title IDs across documented layouts, preserve a legitimate zero profile index, validate archive roots, exclude the marker on extraction, reject traversal and ambiguous identity, and preserve reversible backups plus current RomM conflict negotiation. |
+| `3dda298` | Non-destructive RetroArch core update availability | Compare installed Windows cores with official buildbot metadata on demand or at a bounded interval, show update state in core management, and replace a core only after the downloaded archive and DLL validate while retaining a recoverable prior copy; do not copy Android WorkManager or metered-network assumptions. |
 
 ## Open decisions
 
@@ -956,6 +983,7 @@ chronological work can proceed safely.
 | 2026-10-30 | `622fdf8..0ca4ee2` (8 commits) | Persistent Off/Low/Medium/High resting cover-glow intensity with a fixed accessible focus glow | `a196a4f` | 6 targeted and 85 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41087086389` passed frontend coverage, all Cargo tests including the new config default and deserialization coverage, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 464. Resolved `afb4c0b`; added JKSV validation and update/DLC state candidates, leaving 112 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-10-31 | `222bca2..4a26541` (8 commits) | Post-launch save-conflict confirmation with a safe keep-server default and an explicit one-time RomM overwrite, shared by desktop and Immersive while preserving native RetroArch Cloud Sync ownership | `af20f83` | 2 targeted and 87 full frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41217676530` passed frontend coverage, all Cargo tests including the new conflict classification test, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 472. Consolidated three new candidates into artwork extraction, controller settings, and trailer/audio coordination, leaving 115 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-11-01 | `9e1e80f..ebc9df1` (9 commits) | File-only folder-save freshness for Switch/Eden negotiation and profile selection, preventing directory metadata from creating false upload/conflict decisions | `3d758d6` | 87 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, targeted Rust formatting, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41328964076` passed frontend coverage, all Cargo tests including the new empty-directory timestamp regression, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 481. Consolidated three new update/DLC candidates into archive-aware multi-file installation, leaving 118 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
+| 2026-11-02 | `a630594..0aeb321` (19 commits) | First-class DOS platform identity and official Windows DOSBox Pure core mapping, with conservative unambiguous local discovery | `e24ecb7` | 87 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, targeted changed-hunk formatting, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41488180448` passed frontend coverage, all Cargo tests including the new DOS platform/core coverage, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 500. Added one candidate for non-destructive core update availability, leaving 119 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 
 ## Completion rule
 
