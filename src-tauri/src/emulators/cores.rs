@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 const BUILDBOT_BASE: &str = "https://buildbot.libretro.com/nightly/windows/x86_64/latest";
 
@@ -20,6 +21,59 @@ pub fn core_download_url(core_filename: &str) -> String {
     // The buildbot uses .dll.zip extension for Windows cores
     // Core filename is like "mgba_libretro.dll", URL is "mgba_libretro.dll.zip"
     format!("{}/{}.zip", BUILDBOT_BASE, core_filename)
+}
+
+fn validate_core_filename(core_filename: &str) -> Result<()> {
+    let path = Path::new(core_filename);
+    if path.file_name().and_then(|name| name.to_str()) != Some(core_filename)
+        || !core_filename.ends_with("_libretro.dll")
+    {
+        anyhow::bail!("Invalid RetroArch core filename")
+    }
+    Ok(())
+}
+
+fn validate_core_dll(path: &Path) -> Result<()> {
+    let mut file = std::fs::File::open(path)?;
+    let mut magic = [0u8; 2];
+    file.read_exact(&mut magic)?;
+    if magic != *b"MZ" {
+        anyhow::bail!("Downloaded core is not a valid Windows DLL")
+    }
+    Ok(())
+}
+
+pub fn core_update_available(local: SystemTime, remote: SystemTime) -> bool {
+    remote
+        .duration_since(local)
+        .is_ok_and(|difference| difference >= Duration::from_secs(60))
+}
+
+pub async fn remote_core_modified_at(
+    client: &reqwest::Client,
+    core_filename: &str,
+) -> Result<SystemTime> {
+    validate_core_filename(core_filename)?;
+    let response = client
+        .head(core_download_url(core_filename))
+        .send()
+        .await
+        .context("Failed to check official core metadata")?
+        .error_for_status()
+        .context("Official core metadata request failed")?;
+    let value = response
+        .headers()
+        .get(reqwest::header::LAST_MODIFIED)
+        .context("Official core metadata did not include Last-Modified")?
+        .to_str()
+        .context("Official core Last-Modified metadata was invalid")?;
+    let timestamp = chrono::DateTime::parse_from_rfc2822(value)
+        .context("Official core Last-Modified metadata was not a valid date")?
+        .timestamp();
+    if timestamp < 0 {
+        anyhow::bail!("Official core Last-Modified metadata predates the Unix epoch")
+    }
+    Ok(SystemTime::UNIX_EPOCH + Duration::from_secs(timestamp as u64))
 }
 
 fn validate_zip_file(path: &Path) -> Result<()> {
@@ -131,6 +185,87 @@ pub async fn download_core(core_filename: &str, cores_dir: &Path) -> Result<Path
             core_filename
         )
     }
+}
+
+fn replace_core_from_staged(core_path: &Path, staged_path: &Path) -> Result<PathBuf> {
+    validate_core_dll(staged_path)?;
+    if !core_path.exists() {
+        anyhow::bail!("RetroArch core is not installed")
+    }
+
+    let backup_path = core_path.with_extension("dll.previous");
+    if backup_path.exists() {
+        std::fs::remove_file(&backup_path).context("Failed to replace prior core backup")?;
+    }
+    std::fs::rename(core_path, &backup_path).context("Failed to preserve installed core")?;
+    if let Err(error) = std::fs::rename(staged_path, core_path) {
+        let _ = std::fs::rename(&backup_path, core_path);
+        return Err(error).context("Failed to activate updated core");
+    }
+    Ok(core_path.to_path_buf())
+}
+
+pub async fn update_core(core_filename: &str, cores_dir: &Path) -> Result<PathBuf> {
+    let core_filename = normalize_libretro_core_filename(core_filename);
+    validate_core_filename(&core_filename)?;
+    let core_path = cores_dir.join(&core_filename);
+    if !core_path.exists() {
+        anyhow::bail!("RetroArch core is not installed")
+    }
+
+    let zip_path = cores_dir.join(format!("{}.update.zip", core_filename));
+    let staged_path = cores_dir.join(format!("{}.update", core_filename));
+    let _ = std::fs::remove_file(&zip_path);
+    let _ = std::fs::remove_file(&staged_path);
+
+    let download = crate::api::download::DownloadManager::new();
+    let download_result = download
+        .download_file(&core_download_url(&core_filename), &zip_path, None, |_| {})
+        .await
+        .context("Failed to download updated core");
+    if let Err(error) = download_result {
+        let _ = std::fs::remove_file(&zip_path);
+        return Err(error);
+    }
+
+    let staged_result = (|| -> Result<()> {
+        validate_zip_file(&zip_path)?;
+        let file = std::fs::File::open(&zip_path).context("Failed to open updated core ZIP")?;
+        let mut archive = zip::ZipArchive::new(file).context("Updated core ZIP is invalid")?;
+        let mut matched_entry = None;
+        for index in 0..archive.len() {
+            let entry = archive
+                .by_index(index)
+                .context("Failed to read updated core ZIP")?;
+            let entry_name = Path::new(entry.name())
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(str::to_string);
+            if entry_name
+                .as_deref()
+                .is_some_and(|name| name.eq_ignore_ascii_case(&core_filename))
+            {
+                matched_entry = Some(index);
+                break;
+            }
+        }
+        let index = matched_entry.context("Updated core ZIP did not contain the expected DLL")?;
+        let mut entry = archive
+            .by_index(index)
+            .context("Failed to reopen updated core DLL")?;
+        let mut staged =
+            std::fs::File::create(&staged_path).context("Failed to stage updated core DLL")?;
+        std::io::copy(&mut entry, &mut staged).context("Failed to extract updated core DLL")?;
+        staged.flush().context("Failed to flush updated core DLL")?;
+        validate_core_dll(&staged_path)
+    })();
+    let _ = std::fs::remove_file(&zip_path);
+    if let Err(error) = staged_result {
+        let _ = std::fs::remove_file(&staged_path);
+        return Err(error);
+    }
+
+    replace_core_from_staged(&core_path, &staged_path)
 }
 
 pub fn get_cores_dir(retroarch_path: &Path) -> PathBuf {
@@ -262,6 +397,41 @@ mod tests {
     fn test_is_core_installed_nonexistent() {
         let retroarch_path = Path::new("C:/NonExistent/retroarch.exe");
         assert!(!is_core_installed(retroarch_path, "test_libretro.dll"));
+    }
+
+    #[test]
+    fn update_availability_requires_meaningfully_newer_metadata() {
+        let local = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000);
+        assert!(!core_update_available(
+            local,
+            SystemTime::UNIX_EPOCH + Duration::from_secs(1_059),
+        ));
+        assert!(core_update_available(
+            local,
+            SystemTime::UNIX_EPOCH + Duration::from_secs(1_060),
+        ));
+        assert!(!core_update_available(
+            local,
+            SystemTime::UNIX_EPOCH + Duration::from_secs(900),
+        ));
+    }
+
+    #[test]
+    fn replacement_preserves_previous_core() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let core_path = temp_dir.path().join("mgba_libretro.dll");
+        let staged_path = temp_dir.path().join("mgba_libretro.dll.update");
+        std::fs::write(&core_path, b"MZold core").unwrap();
+        std::fs::write(&staged_path, b"MZnew core").unwrap();
+
+        replace_core_from_staged(&core_path, &staged_path).unwrap();
+
+        assert_eq!(std::fs::read(&core_path).unwrap(), b"MZnew core");
+        assert_eq!(
+            std::fs::read(core_path.with_extension("dll.previous")).unwrap(),
+            b"MZold core"
+        );
+        assert!(!staged_path.exists());
     }
 }
 

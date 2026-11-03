@@ -175,6 +175,15 @@ pub struct MissingCore {
     pub platform_name: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct RetroarchCoreUpdate {
+    pub core_filename: String,
+    pub update_available: bool,
+    pub installed_modified_at: Option<i64>,
+    pub remote_modified_at: Option<i64>,
+    pub check_error: Option<String>,
+}
+
 #[tauri::command]
 pub async fn is_first_run() -> Result<bool, String> {
     let config_path = AppConfig::config_path().map_err(|e| e.to_string())?;
@@ -2461,6 +2470,90 @@ pub async fn download_retroarch_core(core_name: String) -> Result<String, String
     
     tracing::info!("[RetroArch] Core installed: {:?}", core_path);
     Ok(core_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn check_retroarch_core_updates() -> Result<Vec<RetroarchCoreUpdate>, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let Some(retroarch_path) = config.emulators.retroarch else {
+        return Ok(Vec::new());
+    };
+    if !retroarch_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let known: std::collections::BTreeSet<String> = retroarch_core_candidates()
+        .into_values()
+        .flatten()
+        .map(str::to_ascii_lowercase)
+        .collect();
+    let mut installed: Vec<(String, PathBuf)> = find_retroarch_cores(&retroarch_path)
+        .into_iter()
+        .filter_map(|core| {
+            let filename = core.path.file_name()?.to_string_lossy().to_string();
+            known
+                .contains(&filename.to_ascii_lowercase())
+                .then_some((filename, core.path))
+        })
+        .collect();
+    installed.sort_by(|left, right| left.0.cmp(&right.0));
+    installed.dedup_by(|left, right| left.0.eq_ignore_ascii_case(&right.0));
+
+    let client = reqwest::Client::builder()
+        .user_agent("wingosy-launcher/core-update-check")
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut updates = Vec::with_capacity(installed.len());
+    for (core_filename, core_path) in installed {
+        let installed_modified = std::fs::metadata(&core_path)
+            .and_then(|metadata| metadata.modified())
+            .map_err(|error| error.to_string());
+        let remote_modified =
+            crate::emulators::cores::remote_core_modified_at(&client, &core_filename)
+                .await
+                .map_err(|error| error.to_string());
+        let update_available = installed_modified
+            .as_ref()
+            .ok()
+            .zip(remote_modified.as_ref().ok())
+            .is_some_and(|(local, remote)| {
+                crate::emulators::cores::core_update_available(*local, *remote)
+            });
+        let check_error = installed_modified
+            .as_ref()
+            .err()
+            .cloned()
+            .or_else(|| remote_modified.as_ref().err().cloned());
+        let to_unix = |value: std::time::SystemTime| {
+            value
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .ok()
+                .map(|duration| duration.as_secs() as i64)
+        };
+        updates.push(RetroarchCoreUpdate {
+            core_filename,
+            update_available,
+            installed_modified_at: installed_modified.ok().and_then(to_unix),
+            remote_modified_at: remote_modified.ok().and_then(to_unix),
+            check_error,
+        });
+    }
+    Ok(updates)
+}
+
+#[tauri::command]
+pub async fn update_retroarch_core(core_name: String) -> Result<String, String> {
+    let config = AppConfig::load().map_err(|e| e.to_string())?;
+    let retroarch_path = config
+        .emulators
+        .retroarch
+        .ok_or("RetroArch not configured")?;
+    let cores_dir = crate::emulators::cores::get_cores_dir(&retroarch_path);
+    let updated_path = crate::emulators::cores::update_core(&core_name, &cores_dir)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(updated_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]

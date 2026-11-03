@@ -178,6 +178,8 @@ export default function Settings({
   const emuDownloadInflightRef = useRef(new Set());
   const [missingCores, setMissingCores] = useState([]);
   const [downloadingCore, setDownloadingCore] = useState(null);
+  const [retroarchCoreUpdates, setRetroarchCoreUpdates] = useState([]);
+  const [coreUpdateCheckBusy, setCoreUpdateCheckBusy] = useState(false);
   const [emuMessage, setEmuMessage] = useState(null);
   const [emuMenuAnchor, setEmuMenuAnchor] = useState(null);
   const [selectedEmu, setSelectedEmu] = useState(null);
@@ -1184,6 +1186,45 @@ export default function Settings({
       setEmuMessage({ type: "success", message: `Installed core ${coreFilename}` });
       await loadEmulators();
       await loadMissingCores();
+    } catch (err) {
+      setEmuMessage({ type: "error", message: err.message || String(err) });
+    } finally {
+      setDownloadingCore(null);
+    }
+  }
+
+  async function handleCheckCoreUpdates({ announce = true } = {}) {
+    try {
+      setCoreUpdateCheckBusy(true);
+      const updates = await invoke("check_retroarch_core_updates");
+      const normalized = Array.isArray(updates) ? updates : [];
+      setRetroarchCoreUpdates(normalized);
+      if (announce) {
+        const available = normalized.filter((core) => core.update_available).length;
+        const failed = normalized.filter((core) => core.check_error).length;
+        if (available > 0) {
+          setEmuMessage({ type: "info", message: `${available} RetroArch core update${available === 1 ? " is" : "s are"} available.` });
+        } else if (failed > 0) {
+          setEmuMessage({ type: "warning", message: `Could not check ${failed} installed core${failed === 1 ? "" : "s"}.` });
+        } else {
+          setEmuMessage({ type: "success", message: "Installed RetroArch cores are current." });
+        }
+      }
+    } catch (err) {
+      setEmuMessage({ type: "error", message: err.message || String(err) });
+    } finally {
+      setCoreUpdateCheckBusy(false);
+    }
+  }
+
+  async function handleUpdateCore(coreFilename) {
+    try {
+      setDownloadingCore(coreFilename);
+      setEmuMessage({ type: "info", message: `Updating core ${coreFilename}...` });
+      await invoke("update_retroarch_core", { coreName: coreFilename });
+      setEmuMessage({ type: "success", message: `Updated core ${coreFilename}. The previous DLL remains beside it as a backup.` });
+      await loadEmulators();
+      await handleCheckCoreUpdates({ announce: false });
     } catch (err) {
       setEmuMessage({ type: "error", message: err.message || String(err) });
     } finally {
@@ -2284,6 +2325,9 @@ export default function Settings({
               {installedEmus.map((emu) => {
                 const isRetroArch = emu.id === "retroarch";
                 const emuCores = isRetroArch ? missingCores : [];
+                const availableCoreUpdates = isRetroArch
+                  ? retroarchCoreUpdates.filter((core) => core.update_available)
+                  : [];
                 const isExpanded = expandedEmu === emu.id;
                 
                 return (
@@ -2296,7 +2340,7 @@ export default function Settings({
                         "&:hover": {
                           bgcolor: (theme) => semanticSurfaceColor(theme, "success", 0.12),
                         },
-                        cursor: isRetroArch && emuCores.length > 0 ? "pointer" : "default",
+                        cursor: isRetroArch ? "pointer" : "default",
                         alignItems: "flex-start",
                         flexWrap: "wrap",
                         rowGap: 1,
@@ -2304,7 +2348,7 @@ export default function Settings({
                         pr: 1,
                         pl: 1,
                       }}
-                      onClick={() => isRetroArch && emuCores.length > 0 && setExpandedEmu(isExpanded ? null : emu.id)}
+                      onClick={() => isRetroArch && setExpandedEmu(isExpanded ? null : emu.id)}
                     >
                       <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
                         <CheckCircleIcon color="success" fontSize="small" />
@@ -2337,6 +2381,15 @@ export default function Settings({
                                 label={`${emuCores.length} cores needed`}
                                 size="small" 
                                 color="warning"
+                                variant="filled"
+                                sx={{ fontSize: "0.65rem", height: 22 }}
+                              />
+                            )}
+                            {isRetroArch && availableCoreUpdates.length > 0 && (
+                              <Chip
+                                label={`${availableCoreUpdates.length} updates available`}
+                                size="small"
+                                color="info"
                                 variant="filled"
                                 sx={{ fontSize: "0.65rem", height: 22 }}
                               />
@@ -2414,7 +2467,7 @@ export default function Settings({
                         <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleEmuMenuOpen(e, emu); }}>
                           <MoreVertIcon fontSize="small" />
                         </IconButton>
-                        {isRetroArch && emuCores.length > 0 && (
+                        {isRetroArch && (
                           <IconButton size="small" onClick={(e) => { e.stopPropagation(); setExpandedEmu(isExpanded ? null : emu.id); }}>
                             {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                           </IconButton>
@@ -2435,60 +2488,80 @@ export default function Settings({
                           mb: 0.5,
                           p: 2
                         }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                            Missing cores for your game library:
-                          </Typography>
-                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                            {emuCores.map((core) => (
-                              <Chip
-                                key={core.core_filename}
-                                data-testid="retroarch-core-chip"
-                                icon={downloadingCore === core.core_filename ? null : <MemoryIcon sx={{ fontSize: 14 }} />}
-                                label={
-                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                    <span>{core.core_filename.replace("_libretro.dll", "")}</span>
-                                    <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                                      ({core.platform_name})
-                                    </Typography>
-                                  </Box>
-                                }
-                                onClick={() => handleDownloadCore(core.core_filename)}
-                                onDelete={() => handleDownloadCore(core.core_filename)}
-                                deleteIcon={
-                                  downloadingCore === core.core_filename 
-                                    ? <Box sx={{ width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <Box sx={{ width: 14, height: 14, border: "2px solid", borderColor: "warning.main", borderRadius: "50%", borderRightColor: "transparent", animation: "spin 1s linear infinite", "@keyframes spin": { "0%": { transform: "rotate(0deg)" }, "100%": { transform: "rotate(360deg)" } } }} />
-                                      </Box>
-                                    : <DownloadIcon sx={{ fontSize: 16 }} />
-                                }
-                                disabled={downloadingCore !== null}
-                                sx={{ 
-                                  bgcolor: (theme) => semanticSurfaceColor(theme, "warning", 0.1),
-                                  "&:hover": {
-                                    bgcolor: (theme) => semanticSurfaceColor(theme, "warning", 0.2),
-                                  },
-                                  "& .MuiChip-deleteIcon": { color: "warning.main" }
-                                }}
-                                size="small"
-                              />
-                            ))}
-                          </Box>
-                          {emuCores.length > 1 && (
-                            <Button 
-                              size="small" 
-                              variant="outlined" 
-                              color="warning"
-                              startIcon={<DownloadIcon />}
-                              onClick={async () => {
-                                for (const core of emuCores) {
-                                  await handleDownloadCore(core.core_filename);
-                                }
-                              }}
-                              disabled={downloadingCore !== null}
-                              sx={{ mt: 1.5 }}
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap", mb: emuCores.length > 0 || retroarchCoreUpdates.length > 0 ? 1.5 : 0 }}>
+                            <Typography variant="subtitle2">Core management</Typography>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={coreUpdateCheckBusy ? <CircularProgress size={14} /> : <RefreshIcon />}
+                              onClick={() => handleCheckCoreUpdates()}
+                              disabled={coreUpdateCheckBusy || downloadingCore !== null}
                             >
-                              Download All Cores
+                              Check for updates
                             </Button>
+                          </Box>
+                          {availableCoreUpdates.length > 0 && (
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                                Updates from the official Libretro buildbot:
+                              </Typography>
+                              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                                {availableCoreUpdates.map((core) => (
+                                  <Button
+                                    key={core.core_filename}
+                                    size="small"
+                                    variant="contained"
+                                    startIcon={downloadingCore === core.core_filename ? <CircularProgress size={14} color="inherit" /> : <CloudDownloadIcon />}
+                                    onClick={() => handleUpdateCore(core.core_filename)}
+                                    disabled={downloadingCore !== null}
+                                  >
+                                    Update {formatLibretroDllLabel(core.core_filename)}
+                                  </Button>
+                                ))}
+                              </Box>
+                            </Box>
+                          )}
+                          {retroarchCoreUpdates.length > 0 && availableCoreUpdates.length === 0 && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: emuCores.length > 0 ? 2 : 0 }}>
+                              No updates found for the installed known cores.
+                            </Typography>
+                          )}
+                          {emuCores.length > 0 && (
+                            <>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                                Missing cores for your game library:
+                              </Typography>
+                              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                                {emuCores.map((core) => (
+                                  <Chip
+                                    key={core.core_filename}
+                                    data-testid="retroarch-core-chip"
+                                    icon={downloadingCore === core.core_filename ? null : <MemoryIcon sx={{ fontSize: 14 }} />}
+                                    label={`${formatLibretroDllLabel(core.core_filename)} (${core.platform_name})`}
+                                    onClick={() => handleDownloadCore(core.core_filename)}
+                                    onDelete={() => handleDownloadCore(core.core_filename)}
+                                    deleteIcon={downloadingCore === core.core_filename ? <CircularProgress size={14} /> : <DownloadIcon sx={{ fontSize: 16 }} />}
+                                    disabled={downloadingCore !== null}
+                                    size="small"
+                                  />
+                                ))}
+                              </Box>
+                              {emuCores.length > 1 && (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="warning"
+                                  startIcon={<DownloadIcon />}
+                                  onClick={async () => {
+                                    for (const core of emuCores) await handleDownloadCore(core.core_filename);
+                                  }}
+                                  disabled={downloadingCore !== null}
+                                  sx={{ mt: 1.5 }}
+                                >
+                                  Download All Cores
+                                </Button>
+                              )}
+                            </>
                           )}
                         </Box>
                       </Collapse>

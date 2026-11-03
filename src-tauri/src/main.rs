@@ -150,6 +150,8 @@ fn main() {
             commands::download_emulator,
             commands::uninstall_emulator,
             commands::download_retroarch_core,
+            commands::check_retroarch_core_updates,
+            commands::update_retroarch_core,
             commands::get_missing_cores,
             commands::get_platform_ids_with_installed_retroarch_core,
             commands::get_retroarch_default_core_dlls,
