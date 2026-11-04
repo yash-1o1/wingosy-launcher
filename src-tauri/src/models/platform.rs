@@ -51,6 +51,7 @@ pub fn platform_sort_order(id: &str) -> i32 {
         "vic20" => 600,
         "c64" => 610,
         "dos" => 700,
+        "scummvm" => 800,
         "arcade" => 900,
         "pc" => 1_000,
         _ => 10_000,
@@ -96,6 +97,7 @@ pub fn default_platforms() -> Vec<Platform> {
             ],
         ),
         Platform::new("dos", "DOS", vec![".dosz", ".jrc", ".tc"]),
+        Platform::new("scummvm", "ScummVM", vec![".scummvm"]),
         Platform::new("arcade", "Arcade", vec![".zip"]),
         Platform::new("pc", "PC Games", vec![".exe"]),
     ]
@@ -150,6 +152,7 @@ pub fn map_romm_slug(slug: &str) -> String {
         "c64" | "commodore-64" | "commodore64" => "c64".into(),
         "arcade" | "mame" | "fbneo" | "final-burn-neo" => "arcade".into(),
         "dos" | "ms-dos" | "msdos" | "ibm-pc-dos" => "dos".into(),
+        "scummvm" | "scumm-vm" | "scummvm-games" => "scummvm".into(),
         "pc" | "windows" | "microsoft-windows" => "pc".into(),
         _ => slug.to_string(),
     }
@@ -178,6 +181,7 @@ mod tests {
         assert_eq!(map_romm_slug("commodore-64"), "c64");
         assert_eq!(map_romm_slug("commodore-vic-20"), "vic20");
         assert_eq!(map_romm_slug("ms-dos"), "dos");
+        assert_eq!(map_romm_slug("scumm-vm"), "scummvm");
     }
 
     #[test]

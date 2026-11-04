@@ -9,8 +9,9 @@ use crate::database::Database;
 use crate::emulators::{EmulatorLauncher, LaunchCommand, LaunchResult};
 use crate::emulators::detection::{detect_installed_emulators, find_retroarch_cores};
 use crate::models::{
-    Collection, Game, GameFilter, GameSort, Platform, THREE_DS_EXECUTABLES, VITA3K_EXECUTABLES,
-    default_emulators, retroarch_core_candidates, retroarch_cores,
+    Collection, Game, GameFilter, GameSort, Platform, SCUMMVM_EXECUTABLES,
+    THREE_DS_EXECUTABLES, VITA3K_EXECUTABLES, default_emulators,
+    retroarch_core_candidates, retroarch_cores,
 };
 use crate::scanner::RomScanner;
 
@@ -64,6 +65,7 @@ fn configured_emulator_path(config: &AppConfig, emulator_id: &str) -> Option<Pat
         "xenia" => config.emulators.xenia.as_ref(),
         "mame" => config.emulators.mame.as_ref(),
         "vita3k" => config.emulators.vita3k.as_ref(),
+        "scummvm" => config.emulators.scummvm.as_ref(),
         _ => return None,
     }?;
     if p.exists() {
@@ -2356,6 +2358,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
         "xenia" => vec!["xenia_canary.exe", "xenia.exe"],
         "mame" => vec!["mame.exe", "mame64.exe"],
         "vita3k" => VITA3K_EXECUTABLES.to_vec(),
+        "scummvm" => SCUMMVM_EXECUTABLES.to_vec(),
         _ => vec![],
     };
     
@@ -2387,6 +2390,7 @@ pub async fn download_emulator(app: tauri::AppHandle, emulator_id: String) -> Re
         "xenia" => config.emulators.xenia = Some(exe_path.clone()),
         "mame" => config.emulators.mame = Some(exe_path.clone()),
         "vita3k" => config.emulators.vita3k = Some(exe_path.clone()),
+        "scummvm" => config.emulators.scummvm = Some(exe_path.clone()),
         _ => {}
     }
     config.save().map_err(|e| e.to_string())?;
@@ -2440,6 +2444,7 @@ pub async fn uninstall_emulator(emulator_id: String) -> Result<(), String> {
         "xenia" => config.emulators.xenia = None,
         "mame" => config.emulators.mame = None,
         "vita3k" => config.emulators.vita3k = None,
+        "scummvm" => config.emulators.scummvm = None,
         _ => {
             tracing::warn!("[Emulators] Unknown emulator ID: {}", emulator_id);
         }
@@ -2683,6 +2688,10 @@ pub async fn apply_detected_paths() -> Result<i32, String> {
             }
             "vita3k" if config.emulators.vita3k.is_none() => {
                 config.emulators.vita3k = path;
+                true
+            }
+            "scummvm" if config.emulators.scummvm.is_none() => {
+                config.emulators.scummvm = path;
                 true
             }
             _ => false,

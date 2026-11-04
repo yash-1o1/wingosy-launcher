@@ -345,6 +345,7 @@ impl EmulatorLauncher {
             "xenia" => self.config.emulators.xenia.clone(),
             "mame" => self.config.emulators.mame.clone(),
             "vita3k" => self.config.emulators.vita3k.clone(),
+            "scummvm" => self.config.emulators.scummvm.clone(),
             _ => None,
         }
     }

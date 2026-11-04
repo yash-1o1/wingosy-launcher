@@ -21,6 +21,28 @@ pub struct Emulator {
 
 pub const THREE_DS_EXECUTABLES: &[&str] = &["azahar.exe", "lime3ds.exe", "citra-qt.exe"];
 pub const VITA3K_EXECUTABLES: &[&str] = &["Vita3K.exe", "vita3k.exe"];
+pub const SCUMMVM_EXECUTABLES: &[&str] = &["scummvm.exe"];
+
+fn scummvm_target(rom_path: &Path) -> Option<String> {
+    if !rom_path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("scummvm"))
+    {
+        return None;
+    }
+
+    let content = std::fs::read_to_string(rom_path).ok()?;
+    let target = content.lines().map(str::trim).find(|line| !line.is_empty())?;
+    if target.starts_with('-')
+        || target
+            .chars()
+            .any(|character| character.is_whitespace() || character.is_control() || matches!(character, '/' | '\\'))
+    {
+        return None;
+    }
+
+    Some(target.to_string())
+}
 
 fn vita_title_id_from_name(name: &str) -> Option<String> {
     let upper = name.to_ascii_uppercase();
@@ -88,6 +110,16 @@ impl Emulator {
                 args.push("-r".to_string());
                 args.push(title_id);
             }
+            return Some((exe.clone(), args));
+        }
+
+        if self.id == "scummvm" {
+            let rom_path = Path::new(rom_path);
+            let target = scummvm_target(rom_path)?;
+            let game_dir = rom_path.parent()?;
+            args.push("-p".to_string());
+            args.push(game_dir.to_string_lossy().into_owned());
+            args.push(target);
             return Some((exe.clone(), args));
         }
 
@@ -365,6 +397,23 @@ pub fn default_emulators() -> Vec<Emulator> {
             download_url: None,
             archive_format: Some("7z".into()),
         },
+        Emulator {
+            id: "scummvm".into(),
+            name: "ScummVM".into(),
+            executable_path: None,
+            supported_platforms: vec!["scummvm".into()],
+            launch_args: vec![],
+            rom_arg: "".into(),
+            core_name: None,
+            is_retroarch: false,
+            is_installed: false,
+            github_repo: None,
+            asset_pattern: None,
+            download_url: Some(
+                "https://downloads.scummvm.org/frs/scummvm/2026.4.0/scummvm-2026.4.0-win32-x86_64.zip".into(),
+            ),
+            archive_format: Some("zip".into()),
+        },
     ]
 }
 
@@ -547,5 +596,46 @@ mod tests {
         archive.finish().expect("finished Vita archive");
 
         assert_eq!(vita_title_id(&archive_path).as_deref(), Some("PCSE00120"));
+    }
+
+    #[test]
+    fn scummvm_launch_reads_full_target_from_pointer_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let pointer = temp.path().join("monkey.scummvm");
+        std::fs::write(&pointer, "scumm:monkey\n").unwrap();
+        let mut emulator = default_emulators()
+            .into_iter()
+            .find(|emulator| emulator.id == "scummvm")
+            .unwrap();
+        emulator.executable_path = Some(PathBuf::from("C:/ScummVM/scummvm.exe"));
+
+        let (_, args) = emulator
+            .build_launch_command(&pointer.to_string_lossy())
+            .unwrap();
+
+        assert_eq!(
+            args,
+            vec![
+                "-p".to_string(),
+                temp.path().to_string_lossy().into_owned(),
+                "scumm:monkey".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn scummvm_launch_rejects_option_like_pointer_content() {
+        let temp = tempfile::tempdir().unwrap();
+        let pointer = temp.path().join("unsafe.scummvm");
+        std::fs::write(&pointer, "--config=unexpected.ini\n").unwrap();
+        let mut emulator = default_emulators()
+            .into_iter()
+            .find(|emulator| emulator.id == "scummvm")
+            .unwrap();
+        emulator.executable_path = Some(PathBuf::from("C:/ScummVM/scummvm.exe"));
+
+        assert!(emulator
+            .build_launch_command(&pointer.to_string_lossy())
+            .is_none());
     }
 }
