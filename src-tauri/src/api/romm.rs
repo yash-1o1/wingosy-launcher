@@ -1171,6 +1171,7 @@ impl RomMRom {
             .and_then(|m| m.game_modes.as_ref())
             .filter(|modes| !modes.is_empty())
             .map(|modes| modes.join(", "));
+        let file_size_bytes = (self.fs_size_bytes > 0).then_some(self.fs_size_bytes);
 
         crate::models::Game {
             id: 0,
@@ -1179,6 +1180,7 @@ impl RomMRom {
             file_path: file_name,
             source: crate::models::GameSource::RomM,
             romm_id: Some(self.id),
+            file_size_bytes,
             summary: self.summary,
             developer,
             publisher,
@@ -1627,6 +1629,7 @@ mod tests {
         assert_eq!(game.platform_id, "genesis"); // mapped from sega-genesis
         assert_eq!(game.name, "Sonic");
         assert_eq!(game.romm_id, Some(42));
+        assert_eq!(game.file_size_bytes, Some(2048));
         assert_eq!(game.summary, Some("Fast hedgehog".into()));
         assert_eq!(game.sync_state, crate::models::SyncState::RemoteOnly);
     }

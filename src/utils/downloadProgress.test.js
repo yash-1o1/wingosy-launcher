@@ -18,6 +18,7 @@ describe("download progress", () => {
 
   it("formats byte totals and transfer rates", () => {
     expect(formatDownloadBytes(1_536)).toBe("1.5 KB");
+    expect(formatDownloadBytes(5 * 1024 * 1024 * 1024)).toBe("5.00 GB");
     expect(formatDownloadSpeed(2 * 1024 * 1024)).toBe("2.00 MB/s");
     expect(formatDownloadSpeed(0)).toBe("");
   });

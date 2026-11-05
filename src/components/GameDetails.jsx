@@ -57,6 +57,7 @@ import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { tauriDragRegionProps, tauriDragRegionSx, tauriNoDragProps, tauriNoDragSx } from "../utils/isTauri";
 import { useRomDownloads, formatDownloadLabel } from "../RomDownloadsContext";
+import { formatDownloadBytes } from "../utils/downloadProgress";
 import { themedSurfaceGradient } from "../utils/themeSurfaces";
 
 function isLocalPath(path) {
@@ -184,6 +185,7 @@ export default function GameDetails({
   // Can play if: has local file, is synced, is a local game, or not remote-only
   const canPlay = hasLocalFile || isSynced || isLocalGame || !isRemoteOnly;
   const canDownload = game.romm_id && rommToken && rommUrl;
+  const downloadSize = formatDownloadBytes(game.file_size_bytes);
   
   const coverSrc = getCoverSrc(game.cover_path);
   const showCover = coverSrc && !imgError;
@@ -805,7 +807,14 @@ export default function GameDetails({
                     borderRadius: 3,
                   }}
                 >
-                  {downloading ? "Downloading..." : "Download ROM"}
+                  <Box component="span" sx={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
+                    <span>{downloading ? "Downloading..." : "Download ROM"}</span>
+                    {!downloading && downloadSize ? (
+                      <Typography component="span" variant="caption" color="inherit" sx={{ opacity: 0.75 }}>
+                        {downloadSize}
+                      </Typography>
+                    ) : null}
+                  </Box>
                 </Button>
               </span>
             </Tooltip>
@@ -824,7 +833,14 @@ export default function GameDetails({
                 borderRadius: 3,
               }}
             >
-              {downloading ? "Downloading..." : "Re-download"}
+              <Box component="span" sx={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
+                <span>{downloading ? "Downloading..." : "Re-download"}</span>
+                {!downloading && downloadSize ? (
+                  <Typography component="span" variant="caption" color="inherit" sx={{ opacity: 0.75 }}>
+                    {downloadSize}
+                  </Typography>
+                ) : null}
+              </Box>
             </Button>
           )}
         </Box>

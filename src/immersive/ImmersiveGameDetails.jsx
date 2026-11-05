@@ -48,6 +48,7 @@ import CollectionPickerDialog from "../components/game/CollectionPickerDialog";
 import PersonalGameFieldsDialog from "../components/game/PersonalGameFieldsDialog";
 import { formatPersonalFieldsSummary } from "../components/game/personalGameFields";
 import { formatCommunityRating } from "../components/game/communityRating";
+import { formatDownloadBytes } from "../utils/downloadProgress";
 
 function isLocalPath(path) {
   if (!path) return false;
@@ -94,6 +95,7 @@ export default function ImmersiveGameDetails({
   const isLocalGame = !game.romm_id && game.source !== "RomM";
   const canPlay = hasLocalFile || isSynced || isLocalGame || !isRemoteOnly;
   const canDownload = game.romm_id && rommToken && rommUrl;
+  const downloadSize = formatDownloadBytes(game.file_size_bytes);
 
   const screenshots = Array.isArray(game.screenshot_paths) ? game.screenshot_paths : [];
 
@@ -479,7 +481,14 @@ export default function ImmersiveGameDetails({
                     disabled={downloading || !rommToken || !rommUrl}
                     sx={{ borderRadius: 2, px: 4, py: 1.6, fontSize: "1.05rem", textTransform: "none", fontWeight: 700 }}
                   >
-                    {downloading ? "Downloading..." : "Download"}
+                    <Box component="span" sx={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
+                      <span>{downloading ? "Downloading..." : "Download"}</span>
+                      {!downloading && downloadSize ? (
+                        <Typography component="span" variant="caption" color="inherit" sx={{ opacity: 0.75 }}>
+                          {downloadSize}
+                        </Typography>
+                      ) : null}
+                    </Box>
                   </Button>
                 </span>
               </Tooltip>
@@ -494,7 +503,14 @@ export default function ImmersiveGameDetails({
                 disabled={downloading}
                 sx={{ borderRadius: 2, px: 3, py: 1.6, textTransform: "none", fontWeight: 700 }}
               >
-                {downloading ? "Downloading..." : "Re-download"}
+                <Box component="span" sx={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
+                  <span>{downloading ? "Downloading..." : "Re-download"}</span>
+                  {!downloading && downloadSize ? (
+                    <Typography component="span" variant="caption" color="inherit" sx={{ opacity: 0.75 }}>
+                      {downloadSize}
+                    </Typography>
+                  ) : null}
+                </Box>
               </Button>
             )}
 

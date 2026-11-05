@@ -11,6 +11,7 @@ pub struct Game {
     pub file_path: String,
     pub source: GameSource,
     pub romm_id: Option<i32>,
+    pub file_size_bytes: Option<i64>,
 
     // Metadata
     pub summary: Option<String>,
@@ -54,6 +55,7 @@ impl Game {
             file_path,
             source: GameSource::Local,
             romm_id: None,
+            file_size_bytes: None,
             summary: None,
             developer: None,
             publisher: None,

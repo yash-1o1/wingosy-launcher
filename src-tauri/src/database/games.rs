@@ -13,6 +13,7 @@ impl Database {
             r#"
             INSERT INTO games (
                 platform_id, name, file_path, source, romm_id,
+                file_size_bytes,
                 summary, developer, publisher, release_year, genres, player_count,
                 cover_path, screenshot_paths,
                 is_favorite, is_hidden, user_rating,
@@ -21,12 +22,13 @@ impl Database {
                 sync_state, local_file_path
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5,
-                ?6, ?7, ?8, ?9, ?10, ?11,
-                ?12, ?13,
-                ?14, ?15, ?16,
-                ?17, ?18, ?19,
-                ?20, ?21, ?22,
-                ?23, ?24
+                ?6,
+                ?7, ?8, ?9, ?10, ?11, ?12,
+                ?13, ?14,
+                ?15, ?16, ?17,
+                ?18, ?19, ?20,
+                ?21, ?22, ?23,
+                ?24, ?25
             )
             "#,
             params![
@@ -35,6 +37,7 @@ impl Database {
                 game.file_path,
                 game.source.to_db_str(),
                 game.romm_id,
+                game.file_size_bytes,
                 game.summary,
                 game.developer,
                 game.publisher,
@@ -72,25 +75,26 @@ impl Database {
                 file_path = ?4,
                 source = ?5,
                 romm_id = ?6,
-                summary = ?7,
-                developer = ?8,
-                publisher = ?9,
-                release_year = ?10,
-                genres = ?11,
-                player_count = ?12,
-                cover_path = ?13,
-                screenshot_paths = ?14,
-                is_favorite = ?15,
-                is_hidden = ?16,
-                user_rating = ?17,
-                library_status = ?18,
-                personal_rating = ?19,
-                personal_difficulty = ?20,
-                last_played_at = ?21,
-                play_count = ?22,
-                play_time_minutes = ?23,
-                sync_state = ?24,
-                local_file_path = ?25,
+                file_size_bytes = ?7,
+                summary = ?8,
+                developer = ?9,
+                publisher = ?10,
+                release_year = ?11,
+                genres = ?12,
+                player_count = ?13,
+                cover_path = ?14,
+                screenshot_paths = ?15,
+                is_favorite = ?16,
+                is_hidden = ?17,
+                user_rating = ?18,
+                library_status = ?19,
+                personal_rating = ?20,
+                personal_difficulty = ?21,
+                last_played_at = ?22,
+                play_count = ?23,
+                play_time_minutes = ?24,
+                sync_state = ?25,
+                local_file_path = ?26,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?1
             "#,
@@ -101,6 +105,7 @@ impl Database {
                 game.file_path,
                 game.source.to_db_str(),
                 game.romm_id,
+                game.file_size_bytes,
                 game.summary,
                 game.developer,
                 game.publisher,
@@ -393,6 +398,7 @@ impl Database {
             file_path: row.get("file_path")?,
             source,
             romm_id: row.get("romm_id")?,
+            file_size_bytes: row.get("file_size_bytes")?,
             summary: row.get("summary")?,
             developer: row.get("developer")?,
             publisher: row.get("publisher")?,
@@ -606,6 +612,7 @@ mod tests {
             file_path: String::new(),
             source: GameSource::Local,
             romm_id: None,
+            file_size_bytes: None,
             summary: None,
             developer: None,
             publisher: None,
@@ -688,6 +695,26 @@ mod tests {
         game.source = GameSource::RomM;
         assert_eq!(game.romm_id, Some(123));
         assert!(matches!(game.source, GameSource::RomM));
+    }
+
+    #[test]
+    fn romm_file_size_survives_insert_and_update() {
+        let db = Database::open_in_memory().unwrap();
+        db.insert_platform(&crate::models::Platform::new("gba", "GBA", vec![".gba"]))
+            .unwrap();
+        let mut game = create_romm_game("Sized Game", 123);
+        game.file_size_bytes = Some(5_368_709_120);
+        let id = db.insert_game(&game).unwrap();
+
+        let mut stored = db.get_game(id).unwrap().unwrap();
+        assert_eq!(stored.file_size_bytes, Some(5_368_709_120));
+
+        stored.file_size_bytes = Some(6_442_450_944);
+        db.update_game(&stored).unwrap();
+        assert_eq!(
+            db.get_game(id).unwrap().unwrap().file_size_bytes,
+            Some(6_442_450_944)
+        );
     }
 
     #[test]

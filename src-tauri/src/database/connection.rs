@@ -65,6 +65,7 @@ impl Database {
                 file_path TEXT NOT NULL,
                 source TEXT NOT NULL DEFAULT 'local',
                 romm_id INTEGER,
+                file_size_bytes INTEGER,
                 summary TEXT,
                 developer TEXT,
                 publisher TEXT,
@@ -199,6 +200,13 @@ impl Database {
                 [],
             )
             .context("Failed to add personal_difficulty column")?;
+        }
+        if !col("file_size_bytes")? {
+            conn.execute(
+                "ALTER TABLE games ADD COLUMN file_size_bytes INTEGER",
+                [],
+            )
+            .context("Failed to add file_size_bytes column")?;
         }
 
         Ok(())
