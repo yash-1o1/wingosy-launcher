@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `dbe576f3cfa5dfb9db7001f3d2de7f473e5238fe` — 2026-11-04 (2026-11-04 run)
-- Baseline history size: 3,617 commits on `origin/main`
-- Wingosy baseline observed: `4fe6edf` — 2026-11-04 feature commit
+- Argosy baseline observed: `462b9653720f039209a42fd480effa540f94147a` — 2026-11-25 run
+- Baseline history size: 3,904 commits on `origin/main`
+- Wingosy baseline observed: `3730fbb` — 2026-11-25 nightly metadata atop feature commit `2598d15`
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -316,6 +316,13 @@ A fresh fetch advanced Argosy `origin/main` from `312ebb1` / 3,590 commits to
 metadata was refreshed without skipping or reordering history before this
 run's twenty-eight chronological dispositions were appended.
 
+### Baseline refresh (2026-11-25)
+
+A fresh fetch confirmed `462b965` with 3,904 commits on Argosy `origin/main`.
+The stored chronological cursor remained valid: `23fa33b` was commit 551
+and `6e3ebd8` was commit 552. The two audited dispositions held since
+2026-11-05 were recorded once Windows CI passed for the feature commit.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -373,11 +380,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `23fa33bca39d441dd01e68a851a5a8c0226304de`
-- Next Argosy commit: `6e3ebd854bb1ee05c50656de47a6309e16728dc8`
-- Audited: 551 / 3,617 baseline commits
+- Last fully audited Argosy commit: `9960edf2a29a52462e4c2f9278ae7b038c70d632`
+- Next Argosy commit: `8a8fa7c4a185bcc1d5e54bd3eae9626eca48e161`
+- Audited: 553 / 3,904 baseline commits
 - Portable candidates waiting: 133
-- Last tracker update: 2026-11-04
+- Last tracker update: 2026-11-25
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -938,6 +945,8 @@ must record every inspected commit before advancing this cursor.
 | 549 | `4c9d748` | 2026-01-30 | Extract CollectionModalDelegate and fix favorites filter | already-covered | Wingosy composes Favorites with the selected platform filter in both shells. The remaining delegate/store changes are an Android architecture refactor. |
 | 550 | `102411f` | 2026-01-30 | Fix ScummVM launch integration and use standalone app | implemented | `4fe6edf`: Wingosy adds first-class ScummVM platform aliases and `.scummvm` discovery, official Windows x86_64 managed installation, executable detection/configuration, and safe standalone CLI launch using the pointer file's full `engine:game` target and game directory. No libretro core or Android URI mechanics were copied. |
 | 551 | `23fa33b` | 2026-01-30 | Migrate ScummVM users from built-in to external emulator | already-covered | Wingosy introduced ScummVM only as a standalone Windows emulator, so no built-in selection or stale core configuration can require migration. |
+| 552 | `6e3ebd8` | 2026-01-30 | Extract GradientExtractionDelegate and integrate GameLaunchDelegate | already-covered | Both Wingosy shells share the native launch and save-sync path. Android app metadata and built-in hardcore-resume routing are platform-specific. Shared gradient extraction is tracked under the existing artwork-derived cover-frame candidate. |
+| 553 | `9960edf` | 2026-01-30 | Add ZIP64 support and show file size on download button | implemented | `2598d15` persists RomM's ROM size and shows it on Download and Re-download in desktop and Immersive details. Wingosy streams downloads as supplied by RomM and its ZIP reader already supports ZIP64. Bounded-memory export of very large folder saves belongs with the existing save-archive backlog. |
 
 ## Implemented parity outside the chronological audit
 
@@ -1056,6 +1065,7 @@ chronological work can proceed safely.
 | 2026-11-02 | `a630594..0aeb321` (19 commits) | First-class DOS platform identity and official Windows DOSBox Pure core mapping, with conservative unambiguous local discovery | `e24ecb7` | 87 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, targeted changed-hunk formatting, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41488180448` passed frontend coverage, all Cargo tests including the new DOS platform/core coverage, Rust lint with warnings denied, Rust coverage, and artifact upload. | Confirmed the Argosy baseline remains `68f1368` / 3,579 and advanced the cursor to commit 500. Added one candidate for non-destructive core update availability, leaving 119 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-11-03 | `6e11609..0164ffe` (23 commits) | On-demand official-buildbot RetroArch core update checks and explicit staged replacement after ZIP/exact-DLL/PE validation, retaining the prior core as a recoverable `.previous` file | `d242022` | 87 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, new-hunk Rust formatting review, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41680744899` passed frontend coverage, all Cargo tests including the new update-threshold and backup-preservation tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `312ebb1` / 3,590 while preserving the valid cursor, then advanced it to commit 523. Added five folder-ROM/Dolphin-save candidate dispositions and resolved `3dda298`, leaving 124 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-11-04 | `3009f7c..23fa33b` (28 commits) | First-class standalone Windows ScummVM support: platform aliases and `.scummvm` discovery, official managed build, executable detection/configuration, and safe full-target CLI launch | `4fe6edf` | 87 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, 241 Rust unit tests plus 4 integration tests, strict Clippy, official ScummVM ZIP HTTP validation, and `git diff --check` passed locally. Repository-wide `rustfmt --check` still reports extensive pre-existing drift. The documented Smart App Control risk remains, though local Cargo executed successfully today. Windows CI run `41875556996` passed frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `dbe576f` / 3,617 while preserving the valid cursor, then advanced it to commit 551. Added nine candidate dispositions across save channels/states/paths and Immersive settings, leaving 133 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
+| 2026-11-25 | `6e3ebd8..9960edf` (2 commits) | RomM download sizes on desktop and Immersive game details | `2598d15` | 87 frontend tests, typecheck, lint (0 errors, 8 existing warnings), and production build passed locally. Smart App Control remains enforced and can block unsigned local Rust build scripts. Windows CI run `42071766722`, attempt 3, passed the frontend and Rust gates including coverage upload. | The feature was pushed on 2026-11-05. The original CI attempt was blocked by GitHub billing, and attempt 2 failed Rust coverage export after the tests passed. Recorded the held audit after verification, refreshed the baseline to `462b965` / 3,904, and advanced the cursor to 553. The backlog remains at 133 candidates and personal-metadata sync is still open. |
 
 ## Completion rule
 
