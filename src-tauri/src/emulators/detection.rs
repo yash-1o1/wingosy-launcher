@@ -462,20 +462,22 @@ fn get_common_install_paths() -> Vec<PathBuf> {
     Vec::new()
 }
 
-pub fn find_retroarch_cores(retroarch_path: &PathBuf) -> Vec<RetroArchCore> {
+pub fn find_retroarch_cores(retroarch_path: &Path) -> Vec<RetroArchCore> {
+    if !retroarch_path.is_file() {
+        return Vec::new();
+    }
     tracing::debug!("[RetroArch] Scanning for cores near {:?}", retroarch_path);
     let mut cores = Vec::new();
 
-    let cores_dir = retroarch_path
-        .parent()
-        .map(|p| p.join("cores"))
-        .unwrap_or_else(|| PathBuf::from("cores"));
+    let cores_dir = super::cores::get_cores_dir(retroarch_path);
 
     if cores_dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&cores_dir) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
-                if path.extension().map(|e| e == "dll").unwrap_or(false) {
+                if path.is_file()
+                    && path.extension().is_some_and(|e| e.eq_ignore_ascii_case("dll"))
+                {
                     if let Some(name) = path.file_stem().and_then(|n| n.to_str()) {
                         cores.push(RetroArchCore {
                             name: name.to_string(),

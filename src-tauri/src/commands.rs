@@ -86,8 +86,7 @@ fn installed_retroarch_core_candidates(
     let Some(candidates) = retroarch_core_candidates().remove(platform_id) else {
         return Vec::new();
     };
-    let pb = retroarch_exe.to_path_buf();
-    let installed = find_retroarch_cores(&pb);
+    let installed = find_retroarch_cores(retroarch_exe);
     candidates
         .into_iter()
         .filter(|candidate| {

@@ -396,6 +396,7 @@ mod tests {
         let retroarch = temp.path().join("retroarch.exe");
         let cores = temp.path().join("cores");
         fs::write(&retroarch, b"").unwrap();
+        fs::write(temp.path().join("retroarch.cfg"), b"").unwrap();
         fs::create_dir(&cores).unwrap();
         fs::write(cores.join("parallel_n64_libretro.dll"), b"").unwrap();
 
@@ -411,6 +412,7 @@ mod tests {
         let retroarch = temp.path().join("retroarch.exe");
         let cores = temp.path().join("cores");
         fs::write(&retroarch, b"").unwrap();
+        fs::write(temp.path().join("retroarch.cfg"), b"").unwrap();
         fs::create_dir(&cores).unwrap();
         fs::write(cores.join("mupen64plus_next_libretro.dll"), b"").unwrap();
 

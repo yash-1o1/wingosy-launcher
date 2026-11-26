@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 const BUILDBOT_BASE: &str = "https://buildbot.libretro.com/nightly/windows/x86_64/latest";
@@ -109,6 +109,7 @@ pub async fn download_core(core_filename: &str, cores_dir: &Path) -> Result<Path
         );
     }
     let core_filename = normalized;
+    validate_core_filename(&core_filename)?;
     std::fs::create_dir_all(cores_dir).context("Failed to create cores directory")?;
 
     let core_path = cores_dir.join(&core_filename);
@@ -269,10 +270,32 @@ pub async fn update_core(core_filename: &str, cores_dir: &Path) -> Result<PathBu
 }
 
 pub fn get_cores_dir(retroarch_path: &Path) -> PathBuf {
-    retroarch_path
-        .parent()
-        .map(|p| p.join("cores"))
-        .unwrap_or_else(|| PathBuf::from("cores"))
+    let appdata = std::env::var_os("APPDATA").map(PathBuf::from);
+    resolve_cores_dir(retroarch_path, appdata.as_deref())
+}
+
+fn resolve_cores_dir(retroarch_path: &Path, appdata: Option<&Path>) -> PathBuf {
+    let exe_dir = retroarch_path.parent().unwrap_or_else(|| Path::new(""));
+    let configured_dir = crate::retroarch_config::config_path(retroarch_path, appdata)
+        .and_then(|path| crate::retroarch_config::read(&path).ok())
+        .and_then(|config| crate::retroarch_config::value(&config, "libretro_directory"))
+        .and_then(|configured| {
+            if let Some(relative) = configured
+                .strip_prefix(":/")
+                .or_else(|| configured.strip_prefix(":\\"))
+            {
+                let relative = Path::new(relative);
+                if relative.has_root()
+                    || matches!(relative.components().next(), Some(Component::Prefix(_)))
+                {
+                    return None;
+                }
+                return Some(exe_dir.join(relative));
+            }
+            let path = PathBuf::from(configured);
+            path.is_absolute().then_some(path)
+        });
+    configured_dir.unwrap_or_else(|| exe_dir.join("cores"))
 }
 
 pub fn is_core_installed(retroarch_path: &Path, core_filename: &str) -> bool {
@@ -335,15 +358,45 @@ mod tests {
     #[test]
     fn test_get_cores_dir() {
         let retroarch_path = Path::new("C:/RetroArch/retroarch.exe");
-        let cores_dir = get_cores_dir(retroarch_path);
+        let cores_dir = resolve_cores_dir(retroarch_path, None);
         assert_eq!(cores_dir, PathBuf::from("C:/RetroArch/cores"));
     }
 
     #[test]
     fn test_get_cores_dir_nested() {
         let retroarch_path = Path::new("C:/Games/Emulators/RetroArch/retroarch.exe");
-        let cores_dir = get_cores_dir(retroarch_path);
+        let cores_dir = resolve_cores_dir(retroarch_path, None);
         assert_eq!(cores_dir, PathBuf::from("C:/Games/Emulators/RetroArch/cores"));
+    }
+
+    #[test]
+    fn configured_cores_dir_respects_absolute_and_portable_paths() {
+        let temp = tempfile::tempdir().unwrap();
+        let exe_dir = temp.path().join("RetroArch");
+        let appdata = temp.path().join("AppData");
+        std::fs::create_dir(&exe_dir).unwrap();
+        std::fs::create_dir(&appdata).unwrap();
+        let exe = exe_dir.join("retroarch.exe");
+        let custom = temp.path().join("Shared Cores");
+        std::fs::write(
+            appdata.join("retroarch.cfg"),
+            format!("libretro_directory = \"{}\"\n", custom.display()),
+        )
+        .unwrap();
+        assert_eq!(resolve_cores_dir(&exe, Some(&appdata)), custom);
+
+        let portable = exe_dir.join("retroarch.cfg");
+        std::fs::write(&portable, "libretro_directory = \":/Portable Cores\"\n").unwrap();
+        assert_eq!(
+            resolve_cores_dir(&exe, Some(&appdata)),
+            exe_dir.join("Portable Cores")
+        );
+
+        std::fs::write(portable, "libretro_directory = \"default\"\n").unwrap();
+        assert_eq!(
+            resolve_cores_dir(&exe, Some(&appdata)),
+            exe_dir.join("cores")
+        );
     }
 
     #[test]

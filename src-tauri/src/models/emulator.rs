@@ -125,8 +125,13 @@ impl Emulator {
 
         if self.is_retroarch {
             if let Some(core) = &self.core_name {
+                let path = crate::emulators::cores::get_cores_dir(exe).join(core);
                 args.push("-L".to_string());
-                args.push(core.clone());
+                args.push(if path.is_file() {
+                    path.to_string_lossy().into_owned()
+                } else {
+                    core.clone()
+                });
             }
         }
 
@@ -507,6 +512,38 @@ mod tests {
             retroarch_cores().get("n64").copied(),
             Some("mupen64plus_next_libretro.dll")
         );
+    }
+
+    #[test]
+    fn retroarch_launch_uses_the_same_configured_core_as_discovery() {
+        let temp = tempfile::tempdir().unwrap();
+        let exe = temp.path().join("retroarch.exe");
+        let cores = temp.path().join("Custom Cores");
+        let core_name = "mgba_libretro.dll";
+        let core_path = cores.join(core_name);
+        std::fs::write(&exe, "").unwrap();
+        std::fs::create_dir(&cores).unwrap();
+        std::fs::write(&core_path, "").unwrap();
+        std::fs::write(
+            temp.path().join("retroarch.cfg"),
+            "libretro_directory = \":/Custom Cores\"\n",
+        )
+        .unwrap();
+
+        let installed = crate::emulators::detection::find_retroarch_cores(&exe);
+        assert_eq!(installed.len(), 1);
+        assert_eq!(installed[0].path, core_path);
+
+        let mut emulator = default_emulators()
+            .into_iter()
+            .find(|emulator| emulator.is_retroarch)
+            .expect("RetroArch emulator definition");
+        emulator.executable_path = Some(exe);
+        emulator.core_name = Some(core_name.to_owned());
+        let (_, args) = emulator.build_launch_command("demo.gba").unwrap();
+        let core_arg = args.iter().position(|arg| arg == "-L").unwrap();
+        assert_eq!(Path::new(&args[core_arg + 1]), core_path.as_path());
+        assert_eq!(emulator.core_name.as_deref(), Some(core_name));
     }
 
     #[test]
