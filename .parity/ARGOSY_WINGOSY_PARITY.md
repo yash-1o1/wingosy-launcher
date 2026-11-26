@@ -22,9 +22,9 @@ branding, release metadata, obsolete intermediate fixes, or code verbatim.
 - Argosy: `C:\Users\yash6\repos\argosy-launcher`
 - Wingosy: `C:\Users\yash6\repos\wingosy-launcher`
 - Argosy first commit: `900808dc5c938f0e42b779b4c1240a41d8bc4414` — Initial commit: Argosy Launcher
-- Argosy baseline observed: `462b9653720f039209a42fd480effa540f94147a` — 2026-11-25 run
-- Baseline history size: 3,904 commits on `origin/main`
-- Wingosy baseline observed: `3730fbb` — 2026-11-25 nightly metadata atop feature commit `2598d15`
+- Argosy baseline observed: `a8dafb9ca6106c490c3c29af44a370716534537c` — 2026-11-26 run
+- Baseline history size: 3,933 commits on `origin/main`
+- Wingosy baseline observed: `4c98145` — 2026-11-26 feature commit
 - Audit direction: oldest → newest, first-parent-independent chronological order from `git log --reverse origin/main`
 
 ### Baseline correction (2026-09-23)
@@ -323,6 +323,12 @@ The stored chronological cursor remained valid: `23fa33b` was commit 551
 and `6e3ebd8` was commit 552. The two audited dispositions held since
 2026-11-05 were recorded once Windows CI passed for the feature commit.
 
+### Baseline refresh (2026-11-26)
+
+Argosy `origin/main` advanced to `a8dafb9` with 3,933 commits. The stored
+cursor remained valid: `9960edf` was still commit 553 and `8a8fa7c` was
+commit 554. The run continued through commit 562.
+
 ### Local verification constraints
 
 Recorded 2026-09-21 so future runs do not rediscover them:
@@ -380,11 +386,11 @@ code paths still relies on CI on `windows-latest`.
 
 ## Audit cursor
 
-- Last fully audited Argosy commit: `9960edf2a29a52462e4c2f9278ae7b038c70d632`
-- Next Argosy commit: `8a8fa7c4a185bcc1d5e54bd3eae9626eca48e161`
-- Audited: 553 / 3,904 baseline commits
-- Portable candidates waiting: 133
-- Last tracker update: 2026-11-25
+- Last fully audited Argosy commit: `4817f9d7833a5b7e5722a917e7d1ee3ffb5ae941`
+- Next Argosy commit: `d0f046aa7523c902e4ee714ac9d14925599ef05a`
+- Audited: 562 / 3,933 baseline commits
+- Portable candidates waiting: 134
+- Last tracker update: 2026-11-26
 
 The first automated parity run must begin with `900808d`. A run may inspect as
 many consecutive commits as needed to locate one or two coherent features, but
@@ -947,6 +953,15 @@ must record every inspected commit before advancing this cursor.
 | 551 | `23fa33b` | 2026-01-30 | Migrate ScummVM users from built-in to external emulator | already-covered | Wingosy introduced ScummVM only as a standalone Windows emulator, so no built-in selection or stale core configuration can require migration. |
 | 552 | `6e3ebd8` | 2026-01-30 | Extract GradientExtractionDelegate and integrate GameLaunchDelegate | already-covered | Both Wingosy shells share the native launch and save-sync path. Android app metadata and built-in hardcore-resume routing are platform-specific. Shared gradient extraction is tracked under the existing artwork-derived cover-frame candidate. |
 | 553 | `9960edf` | 2026-01-30 | Add ZIP64 support and show file size on download button | implemented | `2598d15` persists RomM's ROM size and shows it on Download and Re-download in desktop and Immersive details. Wingosy streams downloads as supplied by RomM and its ZIP reader already supports ZIP64. Bounded-memory export of very large folder saves belongs with the existing save-archive backlog. |
+| 554 | `8a8fa7c` | 2026-01-30 | Bump version to 0.18.1-beta.3 | non-feature | Android release metadata and test updates for an existing archive API rename. |
+| 555 | `6f0ca42` | 2026-01-31 | Fix rewind crash for N64 and PSX by correcting core pattern matching | not-portable | External RetroArch owns rewind state and buffer sizing on Windows. Wingosy does not capture in-process rewind snapshots. |
+| 556 | `c1baee6` | 2026-01-31 | Bump version to 0.18.1-beta.4 | non-feature | Android version metadata only. |
+| 557 | `5d412e2` | 2026-01-31 | Fix CI: Add submodules checkout for rcheevos | non-feature | Argosy CI checkout change for the Android native achievement submodule. Wingosy delegates achievement evaluation to RetroArch. |
+| 558 | `99b3ebc` | 2026-02-01 | Add debug logging to sync filter for issue #101 | candidate | Future opt-in sync filtering should report aggregate skip reasons so users can explain an incomplete library without logging private filenames. |
+| 559 | `5c8922f` | 2026-02-01 | Fix sync filter incorrectly rejecting ROMs without file extensions | already-covered | Wingosy imports RomM records without rejecting extensionless or punctuated folder labels. Preserve that behavior when implementing the optional filter and use primary content metadata to distinguish add-ons. |
+| 560 | `fc74a71` | 2026-02-01 | Bump version to 0.18.1-beta.6 | non-feature | Android version metadata only. |
+| 561 | `ea0cfb1` | 2026-02-01 | Auto-setup alt access symlinks and rename internal APIs | not-portable | Android restricted-storage workaround. Wingosy uses native Windows file access and creates no corresponding links. |
+| 562 | `4817f9d` | 2026-02-01 | Search multiple locations for RetroArch cores | implemented | `4c98145` uses RetroArch's configured absolute or application-relative core directory for discovery, launch, downloads, and updates. The adjacent cores folder remains the default. Installed launch paths preserve stable core filenames for save sync. |
 
 ## Implemented parity outside the chronological audit
 
@@ -967,7 +982,7 @@ Argosy commits must still be recorded when encountered.
 |---|---|---|
 | `0e4296d`, `5ece674` | Resumable, pausable concurrent ROM downloads | Native persistent job queue, Range-capable transfer restart, queue policy, retained completed/failed results, controller-focusable desktop/immersive controls, and explicit retry, remove, and clear-finished actions. |
 | `6ecfe99` | Non-blocking cleanup after cancelling downloads | Complete this only alongside the durable transfer-job model so cancellation, partial-file cleanup, and restart recovery share one state machine. Large local-ROM deletion was resolved by `689be34`. |
-| `3de24f3`, `76e2cc7`, `c8131a1`, `d152e97`, `ae55b79`, `e610a1f`, `a9aa0b6`, `b5c9dd1`, `e976464`, `0b8a4a3`, `9faeab5`, `0a4e0ef`, `4b7e493`, `13c0fbc`, `c49bb55`, `b452aba`, `1da6ae8` | Extend automatic path-aware RomM save sync, per-emulator path overrides, and recovery-safe sync filters | Add Windows save resolvers and override validation incrementally per emulator with live RomM negotiation proof; use server filenames as a safe restore fallback only after identity and destination validation; treat RetroArch overrides as base paths while retaining core/content subfolders; add validated Dolphin GCI/Card A/B and Wii NAND discovery, Vita3K roots, stable emulator/fork identities, and stable folder-content hashing; validate the effective path before launch, responses, free space, minimum content and reversible backups; add opt-in bad-dump/hack/extension filtering without treating ordinary punctuation as proof of a bad ROM. |
+| `3de24f3`, `76e2cc7`, `c8131a1`, `d152e97`, `ae55b79`, `e610a1f`, `a9aa0b6`, `b5c9dd1`, `e976464`, `0b8a4a3`, `9faeab5`, `0a4e0ef`, `4b7e493`, `13c0fbc`, `c49bb55`, `b452aba`, `1da6ae8`, `99b3ebc` | Extend automatic path-aware RomM save sync, per-emulator path overrides, and recovery-safe sync filters | Add Windows save resolvers and override validation incrementally per emulator with live RomM negotiation proof; use server filenames as a safe restore fallback only after identity and destination validation; treat RetroArch overrides as base paths while retaining core/content subfolders; add validated Dolphin GCI/Card A/B and Wii NAND discovery, Vita3K roots, stable emulator/fork identities, and stable folder-content hashing; validate the effective path before launch, responses, free space, minimum content and reversible backups; add opt-in bad-dump/hack/extension filtering using primary content metadata instead of guessing from folder labels, and report aggregate skip reasons without private filenames. |
 | `2a3ffcd`, `06350f2`, `d5c4c25`, `2d5c876` | Native-emulator title-ID resolution and 3DS folder-save sync | Prefer validated title IDs from filenames, local ROM headers, and current RomM metadata; avoid dependency on Argosy's private lookup service; support explicit Windows save-root overrides; scan nested save folders using session timestamps; and preserve negotiated conflict checks plus reversible backups before enabling Azahar/Citra sync. |
 | `e7641f8`, `0612991`, `16371b9`, `5b1b256` | Per-platform RomM sync enablement, first-run selection, and custom ROM roots | Add reversible platform toggles (including an optional setup step for large servers), migrate existing downloads safely, exclude disabled platforms from sync and orphan cleanup, preserve current selection, and show live/cached platform counts without copying Android storage APIs. |
 | `40e8685`, `226907d`, `755cad8`, `2489792`, `09f6b15`, `f96d18e`, `c4fc69a`, `f6397cb`, `f6d1cdc`, `d0a29e4`, `7490c48`, `63b6f79`, `87e44a2`, `7caac60`, `0ca4ee2`, `0370ef0`, `c2dd971`, `42aceb0`, `6d05ba6`, `af1e0c2` | Platform-context-aware archive discovery and multi-file installation | Recognize ZIP/7z/CHD only when platform context is unambiguous; ignore dot-prefixed metadata and validate completeness, selected-content size, readability, and traversal-safe destinations before extraction; extract with progress/recovery and collision-free paths; preserve and lazily rediscover folder-ROM identity and ownership for reversible cleanup without guessing from arbitrary files; model base games, updates, and DLC by remote file identity and route them to explicit category folders without destructive renaming; clear only filesystem-proven stale paths; refresh accurate disk-validated per-content installed, missing, and repair state in both shells; and migrate flat-disc records only after preserving aggregated user metadata and validating local paths. |
@@ -1066,6 +1081,7 @@ chronological work can proceed safely.
 | 2026-11-03 | `6e11609..0164ffe` (23 commits) | On-demand official-buildbot RetroArch core update checks and explicit staged replacement after ZIP/exact-DLL/PE validation, retaining the prior core as a recoverable `.previous` file | `d242022` | 87 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, new-hunk Rust formatting review, and `git diff --check` passed locally. Smart App Control prevented local Rust execution. Windows CI run `41680744899` passed frontend coverage, all Cargo tests including the new update-threshold and backup-preservation tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `312ebb1` / 3,590 while preserving the valid cursor, then advanced it to commit 523. Added five folder-ROM/Dolphin-save candidate dispositions and resolved `3dda298`, leaving 124 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-11-04 | `3009f7c..23fa33b` (28 commits) | First-class standalone Windows ScummVM support: platform aliases and `.scummvm` discovery, official managed build, executable detection/configuration, and safe full-target CLI launch | `4fe6edf` | 87 frontend tests, typecheck, frontend lint (0 errors; 8 existing warnings), production build, 241 Rust unit tests plus 4 integration tests, strict Clippy, official ScummVM ZIP HTTP validation, and `git diff --check` passed locally. Repository-wide `rustfmt --check` still reports extensive pre-existing drift. The documented Smart App Control risk remains, though local Cargo executed successfully today. Windows CI run `41875556996` passed frontend coverage, all Cargo tests, Rust lint with warnings denied, Rust coverage, and artifact upload. | Refreshed the Argosy baseline to `dbe576f` / 3,617 while preserving the valid cursor, then advanced it to commit 551. Added nine candidate dispositions across save channels/states/paths and Immersive settings, leaving 133 candidate ledger rows. RomM personal-metadata sync remains an open decision. |
 | 2026-11-25 | `6e3ebd8..9960edf` (2 commits) | RomM download sizes on desktop and Immersive game details | `2598d15` | 87 frontend tests, typecheck, lint (0 errors, 8 existing warnings), and production build passed locally. Smart App Control remains enforced and can block unsigned local Rust build scripts. Windows CI run `42071766722`, attempt 3, passed the frontend and Rust gates including coverage upload. | The feature was pushed on 2026-11-05. The original CI attempt was blocked by GitHub billing, and attempt 2 failed Rust coverage export after the tests passed. Recorded the held audit after verification, refreshed the baseline to `462b965` / 3,904, and advanced the cursor to 553. The backlog remains at 133 candidates and personal-metadata sync is still open. |
+| 2026-11-26 | `8a8fa7c..4817f9d` (9 commits) | Honor RetroArch's configured core directory across detection, launch, download, and updates | `4c98145` | 87 frontend tests, typecheck, lint (0 errors, 8 existing warnings), production build, and Git diff checks passed locally. Smart App Control blocked local Cargo build scripts (error 4551). Windows CI `45863956285` passed frontend coverage, 244 Rust unit tests, 8 integration tests, Clippy, Rust coverage, and coverage upload. | Refreshed Argosy baseline to `a8dafb9` / 3,933 and advanced to commit 562. Added one candidate for privacy-safe sync filter diagnostics, bringing the backlog to 134. Opt-in RomM sync for personal ratings, difficulty, and completion remains open. |
 
 ## Completion rule
 
