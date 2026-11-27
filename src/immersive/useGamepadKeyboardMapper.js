@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
 
-function clamp01(v) {
-  return Math.max(0, Math.min(1, v));
-}
+const STICK_ENGAGE_THRESHOLD = 0.55;
+const STICK_RELEASE_THRESHOLD = 0.4;
 
-function axisToDir(v, deadzone = 0.35) {
-  if (v <= -deadzone) return -1;
-  if (v >= deadzone) return 1;
+function axisToDir(value, previousDirection) {
+  const negativeThreshold = previousDirection === -1 ? STICK_RELEASE_THRESHOLD : STICK_ENGAGE_THRESHOLD;
+  const positiveThreshold = previousDirection === 1 ? STICK_RELEASE_THRESHOLD : STICK_ENGAGE_THRESHOLD;
+  if (value <= -negativeThreshold) return -1;
+  if (value >= positiveThreshold) return 1;
   return 0;
 }
 
@@ -98,6 +99,10 @@ export function useGamepadKeyboardMapper({
 
   useEffect(() => {
     if (!enabled) return undefined;
+    let activePadIndex;
+    let activePadId;
+    let stickDirX = 0;
+    let stickDirY = 0;
 
     function canFire(key, isHeld) {
       const now = Date.now();
@@ -111,6 +116,12 @@ export function useGamepadKeyboardMapper({
     function tick() {
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
       const gp = pads && pads.length ? pads.find(Boolean) : null;
+      if (gp?.index !== activePadIndex || gp?.id !== activePadId) {
+        activePadIndex = gp?.index;
+        activePadId = gp?.id;
+        stickDirX = 0;
+        stickDirY = 0;
+      }
       if (!gp) {
         rafRef.current = requestAnimationFrame(tick);
         return;
@@ -133,10 +144,8 @@ export function useGamepadKeyboardMapper({
       const pressedLeft = Boolean(b[14]?.pressed);
       const pressedRight = Boolean(b[15]?.pressed);
 
-      const stickX = clamp01(Math.abs(ax[0] || 0)) * (ax[0] || 0);
-      const stickY = clamp01(Math.abs(ax[1] || 0)) * (ax[1] || 0);
-      const stickDirX = axisToDir(stickX);
-      const stickDirY = axisToDir(stickY);
+      stickDirX = axisToDir(ax[0], stickDirX);
+      stickDirY = axisToDir(ax[1], stickDirY);
 
       const digital = {
         up: pressedUp || stickDirY === -1,
